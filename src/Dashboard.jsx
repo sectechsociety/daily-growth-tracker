@@ -5,7 +5,8 @@ import axios from "axios";
 import { useTheme } from "./ThemeContext";
 import Game from "./Game";
 import LevelRoadmap from "./LevelRoadmap";
-import Leaderboard from "./Leaderboard"; 
+import Leaderboard from "./Leaderboard";
+import UserProfile from "./UserProfile"; 
 
 function Dashboard({ user, setUser, token, setToken }) {
   const { theme } = useTheme();
@@ -254,9 +255,7 @@ function Dashboard({ user, setUser, token, setToken }) {
             { title: 'AI Assistant', icon: '🤖', color: '#8b5cf6' },
             { title: 'Fun Challenges', icon: '🎮', color: '#ec4899' },
             { title: 'Leaderboard', icon: '🏆', color: '#f97316' },
-
-
-
+            { title: 'Profile', icon: '👤', color: '#06b6d4' },
           ].map((section, index) => (
             <motion.button
               key={section.title}
@@ -306,7 +305,7 @@ function Dashboard({ user, setUser, token, setToken }) {
             dragElastic={1}
             onDragEnd={(e, { offset, velocity }) => {
               const swipe = Math.abs(offset.x) * velocity.x;
-              if (swipe < -10000 && activeSection < 4) setActiveSection(activeSection + 1);
+              if (swipe < -10000 && activeSection < 5) setActiveSection(activeSection + 1);
               else if (swipe > 10000 && activeSection > 0) setActiveSection(activeSection - 1);
             }}
             style={{
@@ -858,6 +857,18 @@ function Dashboard({ user, setUser, token, setToken }) {
                   </motion.div>
                 </motion.div>
               )}
+              {activeSection === 5 && (
+                <motion.div
+                  key="profile"
+                  initial={{ opacity: 0, y: 50 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -50 }}
+                  transition={{ duration: 0.6, ease: "easeOut" }}
+                  style={{ width: '100%', maxWidth: "1200px" }}
+                >
+                  <UserProfile user={user} setUser={setUser} />
+                </motion.div>
+              )}
             </div>
           </motion.div>
         </AnimatePresence>
@@ -868,7 +879,7 @@ function Dashboard({ user, setUser, token, setToken }) {
           style={{ position: "fixed", left: "20px", top: "50%", transform: "translateY(-50%)", zIndex: 50, /* styles */ }}
         >←</motion.button>
       )}
-      {activeSection < 4 && (
+      {activeSection < 5 && (
         <motion.button
           onClick={() => setActiveSection(activeSection + 1)}
           style={{ position: "fixed", right: "20px", top: "50%", transform: "translateY(-50%)", zIndex: 50, /* styles */ }}

@@ -1,22 +1,27 @@
-import React, { useState, useEffect } from "react";
-import { motion } from "framer-motion";
+import React, { useState, useEffect, useRef } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 import {
   User, Target, Award, Clock, CheckCircle,
   TrendingUp, Settings, LogOut, Edit3,
   Star, Zap, Heart, Lightbulb, Calendar,
   Quote, BookOpen, Sparkles, ArrowRight,
-  Plus, ChevronRight, Flame
+  Plus, ChevronRight, Flame, Camera, Upload,
+  Bell, BellOff, Save, X, Mail, MapPin, Briefcase
 } from "lucide-react";
 import {
   auth,
   db,
+  storage,
   onAuthStateChange,
   getUserProfile,
   subscribeToUserProfile,
   setTodayGoal,
   getTodayGoal,
-  getQuoteOfTheDay
+  getQuoteOfTheDay,
+  updateUserProfile
 } from "./firebase";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
 // Professional color palette (Calm + Notion + Apple inspired)
 const COLORS = {
@@ -82,12 +87,19 @@ const cardVariants = {
 };
 
 function Profile() {
+  const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
   const [todayGoal, setTodayGoalState] = useState('');
   const [newGoal, setNewGoal] = useState('');
   const [quote, setQuote] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [editedProfile, setEditedProfile] = useState({});
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
+  const fileInputRef = useRef(null);
 
   // Listen to auth state changes
   useEffect(() => {
@@ -223,6 +235,107 @@ function Profile() {
     }
   };
 
+  // Handle profile photo upload
+  const handlePhotoUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file || !user?.uid) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      alert('Please select an image file');
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Image size should be less than 5MB');
+      return;
+    }
+
+    try {
+      setUploadingPhoto(true);
+
+      // Create a storage reference
+      const storageRef = ref(storage, `profilePhotos/${user.uid}/${Date.now()}_${file.name}`);
+
+      // Upload the file
+      await uploadBytes(storageRef, file);
+
+      // Get the download URL
+      const photoURL = await getDownloadURL(storageRef);
+
+      // Update user profile in Firestore
+      await updateUserProfile(user.uid, { photoURL });
+
+      // Update local state
+      setUserProfile(prev => ({ ...prev, photoURL }));
+
+      console.log('✅ Profile photo updated successfully');
+    } catch (error) {
+      console.error('Error uploading photo:', error);
+      alert('Failed to upload photo. Please try again.');
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
+
+  // Trigger file input click
+  const handlePhotoClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  // Handle edit mode toggle
+  const handleEditProfile = () => {
+    if (!isEditMode) {
+      setEditedProfile({
+        name: userProfile?.name || user?.displayName || '',
+        bio: userProfile?.bio || '',
+        location: userProfile?.location || '',
+        occupation: userProfile?.occupation || ''
+      });
+    }
+    setIsEditMode(!isEditMode);
+  };
+
+  // Handle save profile
+  const handleSaveProfile = async () => {
+    if (!user?.uid) return;
+
+    try {
+      await updateUserProfile(user.uid, editedProfile);
+      setUserProfile(prev => ({ ...prev, ...editedProfile }));
+      setIsEditMode(false);
+      setShowSuccessMessage(true);
+      setTimeout(() => setShowSuccessMessage(false), 3000);
+    } catch (error) {
+      console.error('Error saving profile:', error);
+      alert('Failed to save profile. Please try again.');
+    }
+  };
+
+  // Handle cancel edit
+  const handleCancelEdit = () => {
+    setIsEditMode(false);
+    setEditedProfile({});
+  };
+
+  // Handle notifications toggle
+  const handleToggleNotifications = () => {
+    setNotificationsEnabled(!notificationsEnabled);
+    // You can add actual notification permission logic here
+    console.log('Notifications:', !notificationsEnabled ? 'enabled' : 'disabled');
+  };
+
+  // Handle view journey
+  const handleViewJourney = () => {
+    navigate('/levels');
+  };
+
+  // Handle view stats
+  const handleViewStats = () => {
+    navigate('/');
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-indigo-900 to-purple-900 text-white flex items-center justify-center">
@@ -266,9 +379,9 @@ function Profile() {
             className="relative inline-block mb-6"
             whileHover={{ scale: 1.05 }}
           >
-            {/* Profile Photo with Glow */}
+            {/* Profile Photo with Glow and Upload */}
             <motion.div
-              className="w-32 h-32 rounded-full bg-gradient-to-br from-cyan-400 via-blue-500 to-purple-600 p-1"
+              className="w-32 h-32 rounded-full bg-gradient-to-br from-cyan-400 via-blue-500 to-purple-600 p-1 relative"
               animate={{
                 boxShadow: [
                   "0 0 0 0 rgba(6, 182, 212, 0.4)",
@@ -279,9 +392,9 @@ function Profile() {
               transition={{ duration: 2, repeat: Infinity }}
             >
               <div className="w-full h-full rounded-full bg-gray-900 flex items-center justify-center overflow-hidden">
-                {userProfile?.photoURL ? (
+                {(userProfile?.photoURL || user?.photoURL) ? (
                   <img
-                    src={userProfile.photoURL}
+                    src={userProfile?.photoURL || user?.photoURL}
                     alt="Profile"
                     className="w-full h-full object-cover"
                   />
@@ -289,17 +402,105 @@ function Profile() {
                   <User className="w-16 h-16 text-cyan-400" />
                 )}
               </div>
+              
+              {/* Upload Button Overlay */}
+              <motion.button
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
+                onClick={handlePhotoClick}
+                disabled={uploadingPhoto}
+                className="absolute bottom-0 right-0 bg-gradient-to-r from-cyan-500 to-blue-500 rounded-full p-2 shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Upload profile photo"
+              >
+                {uploadingPhoto ? (
+                  <motion.div
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                    className="w-5 h-5 border-2 border-white border-t-transparent rounded-full"
+                  />
+                ) : (
+                  <Camera className="w-5 h-5 text-white" />
+                )}
+              </motion.button>
+              
+              {/* Hidden file input */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handlePhotoUpload}
+                className="hidden"
+              />
             </motion.div>
           </motion.div>
 
-          <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-cyan-400 via-blue-400 to-purple-400 bg-clip-text text-transparent">
-            {userProfile?.name || user.displayName || 'Growth Seeker'}
-          </h1>
-          <p className="text-gray-300 mb-2 flex items-center justify-center gap-2">
-            <Sparkles className="w-4 h-4 text-yellow-400" />
-            Level {userProfile?.level || 1} — {getLevelName(userProfile?.level || 1)}
-          </p>
-          <p className="text-gray-400 text-sm">{user.email}</p>
+          {isEditMode ? (
+            <div className="space-y-4 max-w-md mx-auto">
+              <input
+                type="text"
+                value={editedProfile.name}
+                onChange={(e) => setEditedProfile({ ...editedProfile, name: e.target.value })}
+                placeholder="Your Name"
+                className="w-full bg-gray-800/50 border border-gray-600 rounded-lg p-3 text-white text-center text-2xl font-bold placeholder-gray-400 focus:border-cyan-400 focus:outline-none"
+              />
+              <textarea
+                value={editedProfile.bio}
+                onChange={(e) => setEditedProfile({ ...editedProfile, bio: e.target.value })}
+                placeholder="Tell us about yourself..."
+                className="w-full bg-gray-800/50 border border-gray-600 rounded-lg p-3 text-white placeholder-gray-400 focus:border-cyan-400 focus:outline-none resize-none"
+                rows={3}
+              />
+              <div className="grid grid-cols-2 gap-3">
+                <input
+                  type="text"
+                  value={editedProfile.location}
+                  onChange={(e) => setEditedProfile({ ...editedProfile, location: e.target.value })}
+                  placeholder="📍 Location"
+                  className="w-full bg-gray-800/50 border border-gray-600 rounded-lg p-2 text-white text-sm placeholder-gray-400 focus:border-cyan-400 focus:outline-none"
+                />
+                <input
+                  type="text"
+                  value={editedProfile.occupation}
+                  onChange={(e) => setEditedProfile({ ...editedProfile, occupation: e.target.value })}
+                  placeholder="💼 Occupation"
+                  className="w-full bg-gray-800/50 border border-gray-600 rounded-lg p-2 text-white text-sm placeholder-gray-400 focus:border-cyan-400 focus:outline-none"
+                />
+              </div>
+            </div>
+          ) : (
+            <>
+              <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-cyan-400 via-blue-400 to-purple-400 bg-clip-text text-transparent">
+                {userProfile?.name || user.displayName || 'Growth Seeker'}
+              </h1>
+              {userProfile?.bio && (
+                <p className="text-gray-300 mb-3 max-w-md mx-auto italic">"{userProfile.bio}"</p>
+              )}
+              <p className="text-gray-300 mb-2 flex items-center justify-center gap-2">
+                <Sparkles className="w-4 h-4 text-yellow-400" />
+                Level {userProfile?.level || 1} — {getLevelName(userProfile?.level || 1)}
+              </p>
+              <p className="text-gray-400 text-sm flex items-center justify-center gap-2">
+                <Mail className="w-3 h-3" />
+                {user.email}
+              </p>
+              {(userProfile?.location || userProfile?.occupation) && (
+                <div className="flex items-center justify-center gap-4 mt-2 text-sm text-gray-400">
+                  {userProfile?.location && (
+                    <span className="flex items-center gap-1">
+                      <MapPin className="w-3 h-3" />
+                      {userProfile.location}
+                    </span>
+                  )}
+                  {userProfile?.occupation && (
+                    <span className="flex items-center gap-1">
+                      <Briefcase className="w-3 h-3" />
+                      {userProfile.occupation}
+                    </span>
+                  )}
+                </div>
+              )}
+            </>
+          )}
 
           {/* XP Progress Bar */}
           <div className="max-w-md mx-auto mt-6">
@@ -551,44 +752,132 @@ function Profile() {
           </div>
         </motion.div>
 
+        {/* Success Message */}
+        <AnimatePresence>
+          {showSuccessMessage && (
+            <motion.div
+              initial={{ opacity: 0, y: -50 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -50 }}
+              className="fixed top-20 left-1/2 transform -translate-x-1/2 z-50"
+            >
+              <div className="bg-green-500 text-white px-6 py-3 rounded-xl shadow-2xl flex items-center gap-2">
+                <CheckCircle className="w-5 h-5" />
+                <span className="font-semibold">Profile updated successfully!</span>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Footer Actions */}
-        <motion.div variants={itemVariants} className="text-center space-y-4">
-          <div className="flex flex-wrap justify-center gap-4">
-            <motion.button
-              whileHover={{ scale: 1.05, y: -2 }}
-              whileTap={{ scale: 0.95 }}
-              className={`bg-gradient-to-r ${COLORS.gradients.primary} text-white font-bold py-3 px-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300`}
-            >
-              <div className="flex items-center gap-2">
-                <Edit3 className="w-5 h-5" />
-                Edit Profile
-              </div>
-            </motion.button>
+        <motion.div variants={itemVariants} className="text-center space-y-6">
+          {/* Edit Mode Actions */}
+          {isEditMode ? (
+            <div className="flex flex-wrap justify-center gap-4">
+              <motion.button
+                whileHover={{ scale: 1.05, y: -2 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={handleSaveProfile}
+                className="bg-gradient-to-r from-green-500 to-emerald-500 text-white font-bold py-3 px-8 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
+              >
+                <div className="flex items-center gap-2">
+                  <Save className="w-5 h-5" />
+                  Save Changes
+                </div>
+              </motion.button>
 
-            <motion.button
-              whileHover={{ scale: 1.05, y: -2 }}
-              whileTap={{ scale: 0.95 }}
-              className={`bg-gradient-to-r ${COLORS.gradients.secondary} text-white font-bold py-3 px-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300`}
-            >
-              <div className="flex items-center gap-2">
-                <TrendingUp className="w-5 h-5" />
-                View Journey
-              </div>
-            </motion.button>
+              <motion.button
+                whileHover={{ scale: 1.05, y: -2 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={handleCancelEdit}
+                className="bg-gradient-to-r from-gray-600 to-gray-700 text-white font-bold py-3 px-8 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
+              >
+                <div className="flex items-center gap-2">
+                  <X className="w-5 h-5" />
+                  Cancel
+                </div>
+              </motion.button>
+            </div>
+          ) : (
+            <>
+              {/* Main Action Buttons */}
+              <div className="flex flex-wrap justify-center gap-4">
+                <motion.button
+                  whileHover={{ scale: 1.05, y: -2 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={handleEditProfile}
+                  className={`bg-gradient-to-r ${COLORS.gradients.primary} text-white font-bold py-3 px-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300`}
+                >
+                  <div className="flex items-center gap-2">
+                    <Edit3 className="w-5 h-5" />
+                    Edit Profile
+                  </div>
+                </motion.button>
 
-            <motion.button
-              whileHover={{ scale: 1.05, y: -2 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={handleLogout}
-              className={`bg-gradient-to-r ${COLORS.gradients.danger || 'from-red-500 to-pink-500'} text-white font-bold py-3 px-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300`}
-            >
-              <div className="flex items-center gap-2">
-                <LogOut className="w-5 h-5" />
-                Logout
-              </div>
-            </motion.button>
-          </div>
+                <motion.button
+                  whileHover={{ scale: 1.05, y: -2 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={handleViewJourney}
+                  className={`bg-gradient-to-r ${COLORS.gradients.secondary} text-white font-bold py-3 px-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300`}
+                >
+                  <div className="flex items-center gap-2">
+                    <TrendingUp className="w-5 h-5" />
+                    View Journey
+                  </div>
+                </motion.button>
 
+                <motion.button
+                  whileHover={{ scale: 1.05, y: -2 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={handleViewStats}
+                  className={`bg-gradient-to-r ${COLORS.gradients.info} text-white font-bold py-3 px-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300`}
+                >
+                  <div className="flex items-center gap-2">
+                    <Award className="w-5 h-5" />
+                    Dashboard
+                  </div>
+                </motion.button>
+              </div>
+
+              {/* Secondary Actions */}
+              <div className="flex flex-wrap justify-center gap-3">
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={handleToggleNotifications}
+                  className="bg-white/10 backdrop-blur-sm border border-white/20 text-white font-semibold py-2 px-5 rounded-lg hover:bg-white/20 transition-all duration-300"
+                >
+                  <div className="flex items-center gap-2">
+                    {notificationsEnabled ? (
+                      <>
+                        <Bell className="w-4 h-4" />
+                        <span>Notifications On</span>
+                      </>
+                    ) : (
+                      <>
+                        <BellOff className="w-4 h-4" />
+                        <span>Notifications Off</span>
+                      </>
+                    )}
+                  </div>
+                </motion.button>
+
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={handleLogout}
+                  className="bg-gradient-to-r from-red-500 to-pink-500 text-white font-semibold py-2 px-5 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300"
+                >
+                  <div className="flex items-center gap-2">
+                    <LogOut className="w-4 h-4" />
+                    Logout
+                  </div>
+                </motion.button>
+              </div>
+            </>
+          )}
+
+          {/* Streak Display */}
           <div className="flex items-center justify-center gap-2 text-gray-400">
             <Flame className="w-4 h-4 text-orange-400" />
             <span className="text-sm">

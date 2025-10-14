@@ -2,7 +2,8 @@ import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   FiUser, FiStar, FiTrendingUp, FiAward, FiZap, 
-  FiCalendar, FiTarget, FiSettings, FiSave 
+  FiCalendar, FiTarget, FiSettings, FiSave,
+  FiEye, FiShirt, FiSmile
 } from "react-icons/fi";
 
 // Avatar customization options
@@ -22,7 +23,7 @@ const AVATAR_OPTIONS = {
 
 // Level system with unlocks
 const LEVEL_UNLOCKS = {
-  1: { hair: ['short'], clothes: ['tshirt'], accessories: ['none'] },
+  1: { hair: ['short', 'bald'], clothes: ['tshirt', 'tank'], accessories: ['none'] },
   3: { hair: ['long', 'curly'], clothes: ['hoodie'] },
   5: { accessories: ['glasses', 'hat'] },
   8: { clothes: ['suit', 'dress'], hair: ['ponytail'] },
@@ -40,98 +41,115 @@ const DAILY_TASKS = [
   { id: 5, name: 'Code Practice', xp: 20, completed: false }
 ];
 
+// Default avatar
+const DEFAULT_AVATAR = {
+  skin: '#FDBCB4',
+  hair: { style: 'short', color: '#2C1B18' },
+  eyes: '#8B4513',
+  clothes: { top: 'tshirt', color: '#4ECDC4' },
+  accessories: 'none'
+};
+
+// Default user progress
+const DEFAULT_USER_PROGRESS = {
+  level: 1,
+  xp: 0,
+  totalXp: 0,
+  streak: 0,
+  tasksCompleted: 0,
+  badges: ['Beginner'],
+  todayXp: 0,
+  weeklyXp: 0
+};
+
 function Profile({ user, setUser }) {
   const [activeTab, setActiveTab] = useState('stats');
-  const [avatar, setAvatar] = useState({
-    skin: '#FDBCB4',
-    hair: { style: 'short', color: '#2C1B18' },
-    eyes: '#8B4513',
-    clothes: { top: 'tshirt', color: '#4ECDC4' },
-    accessories: 'none'
-  });
-
-  // User progress data (from API)
-  const [userProgress, setUserProgress] = useState({
-    level: 1,
-    xp: 0,
-    totalXp: 0,
-    streak: 0,
-    tasksCompleted: 0,
-    badges: [],
-    todayXp: 0,
-    weeklyXp: 0
-  });
-
-  const [dailyTasks, setDailyTasks] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [avatar, setAvatar] = useState(DEFAULT_AVATAR);
+  const [userProgress, setUserProgress] = useState(DEFAULT_USER_PROGRESS);
+  const [dailyTasks, setDailyTasks] = useState(DAILY_TASKS);
+  const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [showLevelUp, setShowLevelUp] = useState(false);
   const [particles, setParticles] = useState([]);
+  const [saveMessage, setSaveMessage] = useState('');
 
   // Calculate level progress
-  const currentLevelXp = userProgress.level * 1000;
-  const nextLevelXp = (userProgress.level + 1) * 1000;
-  const progressPercent = ((userProgress.xp - (userProgress.level - 1) * 1000) / 1000) * 100;
+  const currentLevelXp = (userProgress.level - 1) * 1000;
+  const nextLevelXp = userProgress.level * 1000;
+  const progressPercent = Math.min(100, ((userProgress.xp - currentLevelXp) / 1000) * 100);
 
-  // Load user data from backend
+  // Load user data from localStorage or API
   useEffect(() => {
-    const fetchProfileData = async () => {
+    const loadProfileData = async () => {
+      setLoading(true);
       try {
-        const token = localStorage.getItem('token');
-        if (!token) {
-          setLoading(false);
-          return;
+        // Try to load from localStorage first (for demo purposes)
+        const savedAvatar = localStorage.getItem('userAvatar');
+        const savedProgress = localStorage.getItem('userProgress');
+        const savedTasks = localStorage.getItem('dailyTasks');
+        
+        if (savedAvatar) {
+          setAvatar(JSON.parse(savedAvatar));
+        }
+        
+        if (savedProgress) {
+          setUserProgress(JSON.parse(savedProgress));
+        } else {
+          // Initialize with demo data
+          const demoProgress = {
+            ...DEFAULT_USER_PROGRESS,
+            level: 3,
+            xp: 1250,
+            totalXp: 1250,
+            streak: 7,
+            tasksCompleted: 42,
+            badges: ['Beginner', 'Early Bird', 'Consistent'],
+            todayXp: 45,
+            weeklyXp: 285
+          };
+          setUserProgress(demoProgress);
+          localStorage.setItem('userProgress', JSON.stringify(demoProgress));
         }
 
-        // Fetch avatar
-        const avatarResponse = await fetch('http://localhost:5000/api/users/avatar', {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          },
-        });
-
-        if (avatarResponse.ok) {
-          const avatarData = await avatarResponse.json();
-          setAvatar(avatarData.avatar);
+        if (savedTasks) {
+          setDailyTasks(JSON.parse(savedTasks));
         }
 
-        // Fetch profile stats
-        const statsResponse = await fetch('http://localhost:5000/api/users/profile-stats', {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          },
-        });
-
-        if (statsResponse.ok) {
-          const statsData = await statsResponse.json();
-          setUserProgress({
-            level: statsData.progress.level,
-            xp: statsData.progress.xp,
-            totalXp: statsData.progress.totalXp,
-            streak: statsData.stats.streak,
-            tasksCompleted: statsData.stats.tasksCompleted,
-            badges: statsData.stats.badges,
-            todayXp: statsData.progress.todayXp,
-            weeklyXp: statsData.progress.weeklyXp
-          });
-          setDailyTasks(statsData.dailyTasks);
-        }
       } catch (error) {
-        console.error('Error fetching profile data:', error);
+        console.error('Error loading profile data:', error);
       } finally {
         setLoading(false);
       }
     };
 
-    if (user) {
-      fetchProfileData();
-    }
+    loadProfileData();
   }, [user]);
 
   // Level up animation
   const triggerLevelUp = () => {
+    // Check if the user is near the level cap to prevent infinite clicks in demo
+    if (userProgress.level >= 15) {
+      setSaveMessage("Max Level Reached for Demo!");
+      setTimeout(() => setSaveMessage(''), 3000);
+      return;
+    }
+
     setShowLevelUp(true);
     createParticles();
+    
+    // Simulate level up
+    const newLevel = userProgress.level + 1;
+    const newProgress = {
+      ...userProgress,
+      level: newLevel,
+      // Set XP just over the new level threshold for visual effect
+      xp: (newLevel - 1) * 1000 + 25, 
+      totalXp: userProgress.totalXp + (1000 - (userProgress.xp - currentLevelXp)) + 25 // Add remaining XP to total, plus buffer
+    };
+    
+    setUserProgress(newProgress);
+    localStorage.setItem('userProgress', JSON.stringify(newProgress));
+    
     setTimeout(() => setShowLevelUp(false), 3000);
   };
 
@@ -150,27 +168,113 @@ function Profile({ user, setUser }) {
   const saveAvatar = async () => {
     try {
       setSaving(true);
-      const token = localStorage.getItem('token');
-
-      const response = await fetch('http://localhost:5000/api/users/avatar', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ avatar }),
-      });
-
-      if (response.ok) {
-        console.log('Avatar saved successfully');
-      } else {
-        console.error('Failed to save avatar');
-      }
+      setSaveMessage('');
+      
+      // Save to localStorage (for demo)
+      localStorage.setItem('userAvatar', JSON.stringify(avatar));
+      
+      // Simulate API call delay
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      setSaveMessage('Avatar saved successfully! 🎉');
+      
+      setTimeout(() => {
+        setSaveMessage('');
+      }, 3000);
+      
     } catch (error) {
       console.error('Error saving avatar:', error);
+      setSaveMessage('Error saving avatar. Please try again.');
     } finally {
       setSaving(false);
     }
+  };
+
+  // Complete task function
+  const completeTask = (taskId) => {
+    setDailyTasks(prevTasks => {
+      const updatedTasks = prevTasks.map(task => {
+        if (task.id === taskId) {
+          const updatedTask = { ...task, completed: !task.completed };
+          
+          // XP update logic
+          setUserProgress(prev => {
+            let xpChange = updatedTask.xp * (updatedTask.completed ? 1 : -1);
+            let totalXpChange = updatedTask.xp * (updatedTask.completed ? 1 : -1);
+            let tasksChange = updatedTask.completed ? 1 : -1;
+            
+            const newXp = prev.xp + xpChange;
+            const newTotalXp = prev.totalXp + totalXpChange;
+            
+            let newLevel = prev.level;
+            let finalXp = newXp;
+
+            // Handle level up/down
+            if (newXp >= nextLevelXp) {
+              newLevel += 1;
+              finalXp = newXp; // Level up is handled via triggerLevelUp for animation. For tasks, we just accumulate.
+            }
+
+            const newProgress = {
+              ...prev,
+              level: newLevel,
+              xp: finalXp,
+              totalXp: Math.max(0, newTotalXp),
+              todayXp: Math.max(0, prev.todayXp + xpChange),
+              tasksCompleted: Math.max(0, prev.tasksCompleted + tasksChange)
+            };
+            
+            // Save progress immediately after XP change
+            localStorage.setItem('userProgress', JSON.stringify(newProgress));
+
+            return newProgress;
+          });
+          
+          return updatedTask;
+        }
+        return task;
+      });
+      
+      // Save tasks to localStorage
+      localStorage.setItem('dailyTasks', JSON.stringify(updatedTasks));
+      return updatedTasks;
+    });
+  };
+
+  // Check if feature is unlocked
+  const isFeatureUnlocked = (category, value) => {
+    // Check if the current level is sufficient for any defined unlock
+    for (const level in LEVEL_UNLOCKS) {
+      if (parseInt(level) <= userProgress.level) {
+        if (LEVEL_UNLOCKS[level]?.[category]?.includes(value)) {
+          return true;
+        }
+      }
+    }
+    // Default items at level 1 should be unlocked even if not explicitly defined
+    if (category === 'skin' || category === 'eyes' || category === 'hair' && value === 'color' || category === 'clothes' && value === 'color') {
+        return true;
+    }
+    return false;
+  };
+
+  // Update avatar customization
+  const updateAvatar = (category, value, subCategory = null) => {
+    setAvatar(prev => {
+      if (subCategory) {
+        return {
+          ...prev,
+          [category]: {
+            ...prev[category],
+            [subCategory]: value
+          }
+        };
+      }
+      return {
+        ...prev,
+        [category]: value
+      };
+    });
   };
 
   if (loading) {
@@ -216,17 +320,19 @@ function Profile({ user, setUser }) {
         }}
       >
         {/* Hair */}
-        <div
-          className="absolute top-0 left-1/2 transform -translate-x-1/2"
-          style={{
-            width: '80%',
-            height: '40%',
-            background: avatar.hair.color,
-            borderRadius: avatar.hair.style === 'curly' ? '50% 50% 40% 40%' : 
-                         avatar.hair.style === 'long' ? '50% 50% 20% 20%' :
-                         avatar.hair.style === 'mohawk' ? '20% 20% 50% 50%' : '50%'
-          }}
-        />
+        {avatar.hair.style !== 'bald' && (
+          <div
+            className="absolute top-0 left-1/2 transform -translate-x-1/2"
+            style={{
+              width: '80%',
+              height: '40%',
+              background: avatar.hair.color,
+              borderRadius: avatar.hair.style === 'curly' ? '50% 50% 40% 40%' : 
+                            avatar.hair.style === 'long' ? '50% 50% 20% 20%' :
+                            avatar.hair.style === 'mohawk' ? '20% 20% 50% 50%' : '50%'
+            }}
+          />
+        )}
         
         {/* Eyes */}
         <div className="absolute top-1/3 left-1/2 transform -translate-x-1/2 flex gap-2">
@@ -297,7 +403,7 @@ function Profile({ user, setUser }) {
               >
                 LEVEL UP!
               </motion.h1>
-              <p className="text-2xl">Level {userProgress.level + 1} Achieved! 🎉</p>
+              <p className="text-2xl">Level {userProgress.level} Achieved! 🎉</p>
             </motion.div>
             
             {/* Particles */}
@@ -332,7 +438,7 @@ function Profile({ user, setUser }) {
         <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent">
           Character Profile
         </h1>
-        <p className="text-gray-300">{user?.name || user?.email}</p>
+        <p className="text-gray-300">{user?.name || user?.email || 'Demo User'}</p>
       </motion.div>
 
       <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -356,7 +462,7 @@ function Profile({ user, setUser }) {
                   />
                 </div>
                 <p className="text-sm text-gray-300 mt-1">
-                  {userProgress.xp - (userProgress.level - 1) * 1000} / 1000 XP
+                  {userProgress.xp - currentLevelXp} / 1000 XP
                 </p>
               </div>
             </div>
@@ -365,10 +471,15 @@ function Profile({ user, setUser }) {
               onClick={triggerLevelUp}
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              className="w-full py-2 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-lg font-bold text-black"
+              className="w-full py-2 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-lg font-bold text-black mb-3"
             >
               🎉 Test Level Up
             </motion.button>
+            
+            <div className="text-center text-sm text-gray-400">
+              <p>🔥 {userProgress.streak} day streak</p>
+              <p>✅ {userProgress.tasksCompleted} tasks completed</p>
+            </div>
           </div>
         </motion.div>
 
@@ -462,20 +573,60 @@ function Profile({ user, setUser }) {
             >
               <h3 className="text-xl font-bold mb-6">Customize Your Avatar</h3>
               
+              {/* Save Message */}
+              {saveMessage && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className={`p-3 rounded-lg mb-4 text-center ${
+                    saveMessage.includes('Error') 
+                      ? 'bg-red-500/20 border border-red-500/50' 
+                      : 'bg-green-500/20 border border-green-500/50'
+                  }`}
+                >
+                  {saveMessage}
+                </motion.div>
+              )}
+              
               {/* Customization Options */}
               <div className="space-y-6">
                 {/* Skin Color */}
                 <div>
-                  <label className="block text-sm font-medium mb-3">Skin Color</label>
+                  <label className="block text-sm font-medium mb-3 flex items-center gap-2">
+                    <FiUser className="text-cyan-400" />
+                    Skin Color
+                  </label>
                   <div className="flex gap-2 flex-wrap">
                     {AVATAR_OPTIONS.skin.map(color => (
                       <motion.button
                         key={color}
-                        onClick={() => setAvatar({...avatar, skin: color})}
-                        className={`w-8 h-8 rounded-full border-2 ${avatar.skin === color ? 'border-white' : 'border-gray-600'}`}
+                        onClick={() => updateAvatar('skin', color)}
+                        className={`w-8 h-8 rounded-full border-2 ${avatar.skin === color ? 'border-white scale-110' : 'border-gray-600'}`}
                         style={{ backgroundColor: color }}
                         whileHover={{ scale: 1.1 }}
                         whileTap={{ scale: 0.9 }}
+                        title={`Skin color: ${color}`}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                {/* Eye Color */}
+                <div>
+                  <label className="block text-sm font-medium mb-3 flex items-center gap-2">
+                    <FiEye className="text-cyan-400" />
+                    Eye Color
+                  </label>
+                  <div className="flex gap-2 flex-wrap">
+                    {AVATAR_OPTIONS.eyes.map(color => (
+                      <motion.button
+                        key={color}
+                        onClick={() => updateAvatar('eyes', color)}
+                        className={`w-8 h-8 rounded-full border-2 ${avatar.eyes === color ? 'border-white scale-110' : 'border-gray-600'}`}
+                        style={{ backgroundColor: color }}
+                        whileHover={{ scale: 1.1 }}
+                        whileTap={{ scale: 0.9 }}
+                        title={`Eye color: ${color}`}
                       />
                     ))}
                   </div>
@@ -483,26 +634,29 @@ function Profile({ user, setUser }) {
 
                 {/* Hair Style & Color */}
                 <div>
-                  <label className="block text-sm font-medium mb-3">Hair Style</label>
+                  <label className="block text-sm font-medium mb-3 flex items-center gap-2">
+                    <FiSmile className="text-cyan-400" />
+                    Hair Style
+                  </label>
                   <div className="grid grid-cols-3 gap-2 mb-4">
                     {AVATAR_OPTIONS.hair.styles.map(style => {
-                      const isUnlocked = Object.values(LEVEL_UNLOCKS)
-                        .slice(0, userProgress.level)
-                        .some(unlock => unlock.hair?.includes(style));
+                      const isUnlocked = isFeatureUnlocked('hair', style);
                       
                       return (
                         <motion.button
                           key={style}
-                          onClick={() => isUnlocked && setAvatar({...avatar, hair: {...avatar.hair, style}})}
+                          onClick={() => isUnlocked && updateAvatar('hair', style, 'style')}
                           className={`p-3 rounded-lg border text-sm capitalize ${
                             avatar.hair.style === style 
-                              ? 'border-cyan-400 bg-cyan-400/20' 
+                              ? 'border-cyan-400 bg-cyan-400/20 text-white' 
                               : isUnlocked 
-                                ? 'border-gray-600 hover:border-gray-400' 
-                                : 'border-gray-800 text-gray-600 cursor-not-allowed'
+                                ? 'border-gray-600 hover:border-gray-400 text-gray-300 hover:text-white' 
+                                : 'border-gray-800 text-gray-600 cursor-not-allowed bg-gray-800/50'
                           }`}
                           whileHover={isUnlocked ? { scale: 1.02 } : {}}
+                          whileTap={isUnlocked ? { scale: 0.98 } : {}}
                           disabled={!isUnlocked}
+                          title={isUnlocked ? `Hair style: ${style}` : `Unlock at level ${Object.entries(LEVEL_UNLOCKS).find(([_, unlock]) => unlock.hair?.includes(style))?.[0] || '?'}`}
                         >
                           {style} {!isUnlocked && '🔒'}
                         </motion.button>
@@ -515,13 +669,92 @@ function Profile({ user, setUser }) {
                     {AVATAR_OPTIONS.hair.colors.map(color => (
                       <motion.button
                         key={color}
-                        onClick={() => setAvatar({...avatar, hair: {...avatar.hair, color}})}
-                        className={`w-8 h-8 rounded-full border-2 ${avatar.hair.color === color ? 'border-white' : 'border-gray-600'}`}
+                        onClick={() => updateAvatar('hair', color, 'color')}
+                        className={`w-8 h-8 rounded-full border-2 ${avatar.hair.color === color ? 'border-white scale-110' : 'border-gray-600'}`}
                         style={{ backgroundColor: color }}
                         whileHover={{ scale: 1.1 }}
                         whileTap={{ scale: 0.9 }}
+                        title={`Hair color: ${color}`}
                       />
                     ))}
+                  </div>
+                </div>
+
+                {/* Clothes Style & Color */}
+                <div>
+                  <label className="block text-sm font-medium mb-3 flex items-center gap-2">
+                    <FiShirt className="text-cyan-400" />
+                    Clothes Style
+                  </label>
+                  <div className="grid grid-cols-3 gap-2 mb-4">
+                    {AVATAR_OPTIONS.clothes.tops.map(top => {
+                      const isUnlocked = isFeatureUnlocked('clothes', top);
+                      
+                      return (
+                        <motion.button
+                          key={top}
+                          onClick={() => isUnlocked && updateAvatar('clothes', top, 'top')}
+                          className={`p-3 rounded-lg border text-sm capitalize ${
+                            avatar.clothes.top === top 
+                              ? 'border-cyan-400 bg-cyan-400/20 text-white' 
+                              : isUnlocked 
+                                ? 'border-gray-600 hover:border-gray-400 text-gray-300 hover:text-white' 
+                                : 'border-gray-800 text-gray-600 cursor-not-allowed bg-gray-800/50'
+                          }`}
+                          whileHover={isUnlocked ? { scale: 1.02 } : {}}
+                          whileTap={isUnlocked ? { scale: 0.98 } : {}}
+                          disabled={!isUnlocked}
+                          title={isUnlocked ? `Clothes: ${top}` : `Unlock at level ${Object.entries(LEVEL_UNLOCKS).find(([_, unlock]) => unlock.clothes?.includes(top))?.[0] || '?'}`}
+                        >
+                          {top} {!isUnlocked && '🔒'}
+                        </motion.button>
+                      );
+                    })}
+                  </div>
+                  
+                  <label className="block text-sm font-medium mb-3">Clothes Color</label>
+                  <div className="flex gap-2 flex-wrap">
+                    {AVATAR_OPTIONS.clothes.colors.map(color => (
+                      <motion.button
+                        key={color}
+                        onClick={() => updateAvatar('clothes', color, 'color')}
+                        className={`w-8 h-8 rounded-full border-2 ${avatar.clothes.color === color ? 'border-white scale-110' : 'border-gray-600'}`}
+                        style={{ backgroundColor: color }}
+                        whileHover={{ scale: 1.1 }}
+                        whileTap={{ scale: 0.9 }}
+                        title={`Clothes color: ${color}`}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                {/* Accessories */}
+                <div>
+                  <label className="block text-sm font-medium mb-3">Accessories</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {AVATAR_OPTIONS.accessories.map(accessory => {
+                      const isUnlocked = isFeatureUnlocked('accessories', accessory);
+                      
+                      return (
+                        <motion.button
+                          key={accessory}
+                          onClick={() => isUnlocked && updateAvatar('accessories', accessory)}
+                          className={`p-3 rounded-lg border text-sm capitalize ${
+                            avatar.accessories === accessory 
+                              ? 'border-cyan-400 bg-cyan-400/20 text-white' 
+                              : isUnlocked 
+                                ? 'border-gray-600 hover:border-gray-400 text-gray-300 hover:text-white' 
+                                : 'border-gray-800 text-gray-600 cursor-not-allowed bg-gray-800/50'
+                          }`}
+                          whileHover={isUnlocked ? { scale: 1.02 } : {}}
+                          whileTap={isUnlocked ? { scale: 0.98 } : {}}
+                          disabled={!isUnlocked}
+                          title={isUnlocked ? `Accessory: ${accessory}` : `Unlock at level ${Object.entries(LEVEL_UNLOCKS).find(([_, unlock]) => unlock.accessories?.includes(accessory))?.[0] || '?'}`}
+                        >
+                          {accessory === 'none' ? 'No Accessory' : accessory} {!isUnlocked && '🔒'}
+                        </motion.button>
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -553,17 +786,18 @@ function Profile({ user, setUser }) {
             >
               <h3 className="text-xl font-bold mb-6">Today's Tasks</h3>
               <div className="space-y-3">
-                {DAILY_TASKS.map((task, index) => (
+                {dailyTasks.map((task, index) => (
                   <motion.div
                     key={task.id}
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: index * 0.1 }}
-                    className={`p-4 rounded-lg border flex items-center justify-between ${
+                    className={`p-4 rounded-lg border flex items-center justify-between cursor-pointer transition-all ${
                       task.completed 
                         ? 'border-green-500/50 bg-green-500/10' 
-                        : 'border-gray-600 bg-gray-800/50'
+                        : 'border-gray-600 bg-gray-800/50 hover:border-gray-400 hover:bg-gray-700/50'
                     }`}
+                    onClick={() => completeTask(task.id)}
                   >
                     <div className="flex items-center gap-3">
                       <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
@@ -571,7 +805,9 @@ function Profile({ user, setUser }) {
                       }`}>
                         {task.completed && <span className="text-white text-xs">✓</span>}
                       </div>
-                      <span className={task.completed ? 'line-through text-gray-400' : ''}>{task.name}</span>
+                      <span className={task.completed ? 'line-through text-gray-400' : 'text-white'}>
+                        {task.name}
+                      </span>
                     </div>
                     <span className="text-yellow-400 font-bold">+{task.xp} XP</span>
                   </motion.div>

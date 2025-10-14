@@ -3,16 +3,18 @@ import { initializeApp } from "firebase/app";
 import { getAnalytics } from "firebase/analytics";
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, sendPasswordResetEmail, updateProfile, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 import { getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot } from "firebase/firestore";
+import { getStorage } from "firebase/storage";
 
 // Your web app's Firebase configuration
+// Use environment variables if available, otherwise use hardcoded config
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
-  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyCRCBviAWfv2jVlmdm5MYEOBVhPEnVho6g",
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "daily-growth-tracker-6dcb2.firebaseapp.com",
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "daily-growth-tracker-6dcb2",
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "daily-growth-tracker-6dcb2.firebasestorage.app",
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "560448305149",
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:560448305149:web:d21ac198dc1d0458880b94",
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || "G-EBS0V6J8QY"
 };
 
 // Initialize Firebase with error handling for App Check issues
@@ -35,6 +37,7 @@ try {
 export const analytics = getAnalytics(app);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
+export const storage = getStorage(app);
 
 // Google Auth Provider for social login
 export const googleProvider = new GoogleAuthProvider();

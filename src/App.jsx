@@ -291,6 +291,7 @@ function AppContent() {
   const [isThemeCustomizerOpen, setIsThemeCustomizerOpen] = useState(false);
   const { theme } = useTheme();
   const navigate = useNavigate();
+  const location = useLocation();
 
   // Check for existing token on app load
   useEffect(() => {
@@ -477,8 +478,8 @@ function AppContent() {
         )}
       </motion.div>
 
-      {/* Optional Navbar - Only show if user is logged in */}
-      {user && (
+      {/* Optional Navbar - Only show if user is logged in and NOT on Dashboard */}
+      {user && location.pathname !== "/" && (
         <motion.nav
           initial={{ y: -80, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
