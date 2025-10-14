@@ -187,6 +187,41 @@ router.post('/logout', (req, res) => {
   res.json({ message: 'Logged out successfully' });
 });
 
+// Reset password
+router.post('/reset-password', async (req, res) => {
+  try {
+    const { email, newPassword } = req.body;
+
+    // Validation
+    if (!email || !newPassword) {
+      return res.status(400).json({ error: 'Email and new password are required' });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters long' });
+    }
+
+    // Find user by email
+    const user = await User.findOne({ email: email.toLowerCase() });
+    if (!user) {
+      return res.status(404).json({ error: 'No account found with this email address' });
+    }
+
+    // Update password
+    user.password = newPassword;
+    await user.save();
+
+    res.json({
+      success: true,
+      message: 'Password reset successful'
+    });
+
+  } catch (error) {
+    console.error('Password reset error:', error);
+    res.status(500).json({ error: 'Server error during password reset' });
+  }
+});
+
 // Get all users (for testing)
 router.get('/users', async (req, res) => {
   try {

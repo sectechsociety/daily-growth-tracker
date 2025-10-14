@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import axios from "axios";
 import { useTheme } from "./ThemeContext";
+import { resetPassword } from "./firebase";
 
 function Auth({ setUser, setToken }) {
   const [email, setEmail] = useState("");
@@ -11,6 +12,10 @@ function Auth({ setUser, setToken }) {
   const [isLogin, setIsLogin] = useState(true);
   const [message, setMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [resetEmail, setResetEmail] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const navigate = useNavigate();
   const { theme } = useTheme();
 
@@ -164,6 +169,80 @@ function Auth({ setUser, setToken }) {
     navigate("/auth");
   };
 
+  const handleForgotPassword = async () => {
+    if (!resetEmail) {
+      setMessage("Please enter your email address");
+      return;
+    }
+
+    if (!newPassword || !confirmPassword) {
+      setMessage("Please enter and confirm your new password");
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      setMessage("Password must be at least 6 characters");
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setMessage("Passwords do not match");
+      return;
+    }
+
+    setIsLoading(true);
+    setMessage("");
+
+    try {
+      // Try backend first
+      try {
+        const response = await axios.post(`${API_URL}/reset-password`, {
+          email: resetEmail,
+          newPassword: newPassword
+        });
+        
+        if (response.data.success) {
+          setMessage("Password reset successful! You can now sign in with your new password.");
+          setTimeout(() => {
+            setShowForgotPassword(false);
+            setResetEmail("");
+            setNewPassword("");
+            setConfirmPassword("");
+            setMessage("");
+          }, 3000);
+        }
+      } catch (backendError) {
+        // Backend unavailable - use localStorage fallback
+        console.log('Backend unavailable, using localStorage for password reset');
+        const storedUsers = JSON.parse(localStorage.getItem('offline_users') || '[]');
+        const userIndex = storedUsers.findIndex(u => u.email === resetEmail);
+        
+        if (userIndex === -1) {
+          setMessage("No account found with this email address.");
+          setIsLoading(false);
+          return;
+        }
+
+        // Update password in localStorage
+        storedUsers[userIndex].password = newPassword;
+        localStorage.setItem('offline_users', JSON.stringify(storedUsers));
+        
+        setMessage("Password reset successful! You can now sign in with your new password.");
+        setTimeout(() => {
+          setShowForgotPassword(false);
+          setResetEmail("");
+          setNewPassword("");
+          setConfirmPassword("");
+          setMessage("");
+        }, 3000);
+      }
+    } catch (error) {
+      setMessage("Failed to reset password. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div
       style={{
@@ -215,7 +294,7 @@ function Auth({ setUser, setToken }) {
             filter: "drop-shadow(0 0 15px rgba(255, 255, 255, 0.3))",
           }}
         >
-          {isLogin ? "👋" : "✨"}
+          {showForgotPassword ? "🔑" : isLogin ? "👋" : "✨"}
         </motion.div>
         <h2
           style={{
@@ -229,7 +308,7 @@ function Auth({ setUser, setToken }) {
             letterSpacing: "-0.5px",
           }}
         >
-          {isLogin ? "Welcome Back" : "Create Account"}
+          {showForgotPassword ? "Reset Your Password" : isLogin ? "Welcome Back" : "Create Account"}
         </h2>
         <p style={{
           fontSize: "0.95rem",
@@ -237,126 +316,276 @@ function Auth({ setUser, setToken }) {
           marginBottom: "30px",
           fontWeight: "500",
         }}>
-          {isLogin ? "Sign in to continue your growth journey" : "Start your journey to daily growth"}
+          {showForgotPassword 
+            ? "Enter your email and choose a new password" 
+            : isLogin 
+            ? "Sign in to continue your growth journey" 
+            : "Start your journey to daily growth"}
         </p>
 
-        {!isLogin && (
-          <motion.input
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 20 }}
-            whileFocus={{ scale: 1.02, boxShadow: `0 0 0 3px ${theme.accent}30` }}
-            type="text"
-            placeholder="Your name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            style={{
-              width: "100%",
-              padding: "14px 16px",
-              marginBottom: "16px",
-              borderRadius: "12px",
-              fontSize: "0.95rem",
-              outline: "none",
-              transition: "all 0.3s ease",
-              fontWeight: "500",
-              background: theme.cardBg,
-              color: theme.textPrimary,
-              border: `1px solid ${theme.border}`,
-            }}
-          />
+        {!showForgotPassword && (
+          <>
+            {!isLogin && (
+              <motion.input
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                whileFocus={{ scale: 1.02, boxShadow: `0 0 0 3px ${theme.accent}30` }}
+                type="text"
+                placeholder="Your name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                style={{
+                  width: "100%",
+                  padding: "14px 16px",
+                  marginBottom: "16px",
+                  borderRadius: "12px",
+                  fontSize: "0.95rem",
+                  outline: "none",
+                  transition: "all 0.3s ease",
+                  fontWeight: "500",
+                  background: theme.cardBg,
+                  color: theme.textPrimary,
+                  border: `1px solid ${theme.border}`,
+                }}
+              />
+            )}
+
+            <motion.input
+              whileFocus={{ scale: 1.02, boxShadow: `0 0 0 3px ${theme.accent}30` }}
+              type="email"
+              placeholder="Email address"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              style={{
+                width: "100%",
+                padding: "14px 16px",
+                marginBottom: "16px",
+                borderRadius: "12px",
+                fontSize: "0.95rem",
+                outline: "none",
+                transition: "all 0.3s ease",
+                fontWeight: "500",
+                background: theme.cardBg,
+                color: theme.textPrimary,
+                border: `1px solid ${theme.border}`,
+              }}
+            />
+
+            <motion.input
+              whileFocus={{ scale: 1.02, boxShadow: `0 0 0 3px ${theme.accent}30` }}
+              type="password"
+              placeholder="Password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              style={{
+                width: "100%",
+                padding: "14px 16px",
+                marginBottom: "16px",
+                borderRadius: "12px",
+                fontSize: "0.95rem",
+                outline: "none",
+                transition: "all 0.3s ease",
+                fontWeight: "500",
+                background: theme.cardBg,
+                color: theme.textPrimary,
+                border: `1px solid ${theme.border}`,
+              }}
+            />
+          </>
         )}
 
-        <motion.input
-          whileFocus={{ scale: 1.02, boxShadow: `0 0 0 3px ${theme.accent}30` }}
-          type="email"
-          placeholder="Email address"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          style={{
-            width: "100%",
-            padding: "14px 16px",
-            marginBottom: "16px",
-            borderRadius: "12px",
-            fontSize: "0.95rem",
-            outline: "none",
-            transition: "all 0.3s ease",
-            fontWeight: "500",
-            background: theme.cardBg,
-            color: theme.textPrimary,
-            border: `1px solid ${theme.border}`,
-          }}
-        />
+        {!showForgotPassword ? (
+          <>
+            <motion.button
+              whileHover={{ scale: 1.05, boxShadow: `0 10px 40px ${theme.accent}40` }}
+              whileTap={{ scale: 0.95 }}
+              onClick={handleAuth}
+              disabled={isLoading}
+              style={{
+                width: "100%",
+                padding: "16px",
+                borderRadius: "12px",
+                border: "none",
+                background: `linear-gradient(135deg, ${theme.accent}, ${theme.accentSecondary})`,
+                color: "#fff",
+                fontWeight: "700",
+                fontSize: "1.05rem",
+                cursor: isLoading ? "not-allowed" : "pointer",
+                letterSpacing: "0.5px",
+                transition: "all 0.3s ease",
+                opacity: isLoading ? 0.7 : 1,
+                boxShadow: `0 8px 25px ${theme.accent}30`,
+              }}
+            >
+              {isLoading ? (
+                <span style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "10px" }}>
+                  <span style={{ animation: "spin 1s linear infinite" }}>⏳</span>
+                  Processing...
+                </span>
+              ) : (
+                isLogin ? "Sign In" : "Create Account"
+              )}
+            </motion.button>
 
-        <motion.input
-          whileFocus={{ scale: 1.02, boxShadow: `0 0 0 3px ${theme.accent}30` }}
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          style={{
-            width: "100%",
-            padding: "14px 16px",
-            marginBottom: "16px",
-            borderRadius: "12px",
-            fontSize: "0.95rem",
-            outline: "none",
-            transition: "all 0.3s ease",
-            fontWeight: "500",
-            background: theme.cardBg,
-            color: theme.textPrimary,
-            border: `1px solid ${theme.border}`,
-          }}
-        />
+            {isLogin && (
+              <motion.p
+                whileHover={{ scale: 1.02 }}
+                style={{
+                  marginTop: "12px",
+                  cursor: "pointer",
+                  color: theme.textSecondary,
+                  fontWeight: "500",
+                  fontSize: "0.9rem",
+                  transition: "all 0.3s ease",
+                  textAlign: "right",
+                }}
+                onClick={() => {
+                  setShowForgotPassword(true);
+                  setMessage("");
+                  setResetEmail(email);
+                }}
+              >
+                Forgot password?
+              </motion.p>
+            )}
 
-        <motion.button
-          whileHover={{ scale: 1.05, boxShadow: `0 10px 40px ${theme.accent}40` }}
-          whileTap={{ scale: 0.95 }}
-          onClick={handleAuth}
-          disabled={isLoading}
-          style={{
-            width: "100%",
-            padding: "16px",
-            borderRadius: "12px",
-            border: "none",
-            background: `linear-gradient(135deg, ${theme.accent}, ${theme.accentSecondary})`,
-            color: "#fff",
-            fontWeight: "700",
-            fontSize: "1.05rem",
-            cursor: isLoading ? "not-allowed" : "pointer",
-            letterSpacing: "0.5px",
-            transition: "all 0.3s ease",
-            opacity: isLoading ? 0.7 : 1,
-            boxShadow: `0 8px 25px ${theme.accent}30`,
-          }}
-        >
-          {isLoading ? (
-            <span style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "10px" }}>
-              <span style={{ animation: "spin 1s linear infinite" }}>⏳</span>
-              Processing...
-            </span>
-          ) : (
-            isLogin ? "Sign In" : "Create Account"
-          )}
-        </motion.button>
+            <motion.p
+              whileHover={{ scale: 1.02, x: 5 }}
+              style={{
+                marginTop: "20px",
+                cursor: "pointer",
+                color: theme.accent,
+                fontWeight: "600",
+                fontSize: "0.95rem",
+                transition: "all 0.3s ease",
+              }}
+              onClick={() => {
+                setIsLogin(!isLogin);
+                setMessage("");
+              }}
+            >
+              {isLogin ? "Don't have an account? Sign up →" : "Already have an account? Sign in →"}
+            </motion.p>
+          </>
+        ) : (
+          <>
+            <motion.input
+              whileFocus={{ scale: 1.02, boxShadow: `0 0 0 3px ${theme.accent}30` }}
+              type="email"
+              placeholder="Enter your email"
+              value={resetEmail}
+              onChange={(e) => setResetEmail(e.target.value)}
+              style={{
+                width: "100%",
+                padding: "14px 16px",
+                marginBottom: "16px",
+                borderRadius: "12px",
+                fontSize: "0.95rem",
+                outline: "none",
+                transition: "all 0.3s ease",
+                fontWeight: "500",
+                background: theme.cardBg,
+                color: theme.textPrimary,
+                border: `1px solid ${theme.border}`,
+              }}
+            />
 
+            <motion.input
+              whileFocus={{ scale: 1.02, boxShadow: `0 0 0 3px ${theme.accent}30` }}
+              type="password"
+              placeholder="New password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              style={{
+                width: "100%",
+                padding: "14px 16px",
+                marginBottom: "16px",
+                borderRadius: "12px",
+                fontSize: "0.95rem",
+                outline: "none",
+                transition: "all 0.3s ease",
+                fontWeight: "500",
+                background: theme.cardBg,
+                color: theme.textPrimary,
+                border: `1px solid ${theme.border}`,
+              }}
+            />
 
-        <motion.p
-          whileHover={{ scale: 1.02, x: 5 }}
-          style={{
-            marginTop: "20px",
-            cursor: "pointer",
-            color: theme.accent,
-            fontWeight: "600",
-            fontSize: "0.95rem",
-            transition: "all 0.3s ease",
-          }}
-          onClick={() => {
-            setIsLogin(!isLogin);
-            setMessage("");
-          }}
-        >
-          {isLogin ? "Don't have an account? Sign up →" : "Already have an account? Sign in →"}
-        </motion.p>
+            <motion.input
+              whileFocus={{ scale: 1.02, boxShadow: `0 0 0 3px ${theme.accent}30` }}
+              type="password"
+              placeholder="Confirm new password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              style={{
+                width: "100%",
+                padding: "14px 16px",
+                marginBottom: "16px",
+                borderRadius: "12px",
+                fontSize: "0.95rem",
+                outline: "none",
+                transition: "all 0.3s ease",
+                fontWeight: "500",
+                background: theme.cardBg,
+                color: theme.textPrimary,
+                border: `1px solid ${theme.border}`,
+              }}
+            />
+
+            <motion.button
+              whileHover={{ scale: 1.05, boxShadow: `0 10px 40px ${theme.accent}40` }}
+              whileTap={{ scale: 0.95 }}
+              onClick={handleForgotPassword}
+              disabled={isLoading}
+              style={{
+                width: "100%",
+                padding: "16px",
+                borderRadius: "12px",
+                border: "none",
+                background: `linear-gradient(135deg, ${theme.accent}, ${theme.accentSecondary})`,
+                color: "#fff",
+                fontWeight: "700",
+                fontSize: "1.05rem",
+                cursor: isLoading ? "not-allowed" : "pointer",
+                letterSpacing: "0.5px",
+                transition: "all 0.3s ease",
+                opacity: isLoading ? 0.7 : 1,
+                boxShadow: `0 8px 25px ${theme.accent}30`,
+              }}
+            >
+              {isLoading ? (
+                <span style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "10px" }}>
+                  <span style={{ animation: "spin 1s linear infinite" }}>⏳</span>
+                  Resetting...
+                </span>
+              ) : (
+                "Reset Password"
+              )}
+            </motion.button>
+
+            <motion.p
+              whileHover={{ scale: 1.02, x: -5 }}
+              style={{
+                marginTop: "20px",
+                cursor: "pointer",
+                color: theme.accent,
+                fontWeight: "600",
+                fontSize: "0.95rem",
+                transition: "all 0.3s ease",
+              }}
+              onClick={() => {
+                setShowForgotPassword(false);
+                setMessage("");
+                setResetEmail("");
+                setNewPassword("");
+                setConfirmPassword("");
+              }}
+            >
+              ← Back to Sign In
+            </motion.p>
+          </>
+        )}
 
         {message && (
           <motion.div
@@ -366,14 +595,20 @@ function Auth({ setUser, setToken }) {
               marginTop: "15px",
               padding: "12px",
               borderRadius: "10px",
-              background: "rgba(239, 68, 68, 0.1)",
-              border: "1px solid rgba(239, 68, 68, 0.3)",
+              background: message.includes("sent") || message.includes("Check") 
+                ? "rgba(34, 197, 94, 0.1)" 
+                : "rgba(239, 68, 68, 0.1)",
+              border: message.includes("sent") || message.includes("Check") 
+                ? "1px solid rgba(34, 197, 94, 0.3)" 
+                : "1px solid rgba(239, 68, 68, 0.3)",
               fontSize: "0.9rem",
-              color: "#ef4444",
+              color: message.includes("sent") || message.includes("Check") 
+                ? "#22c55e" 
+                : "#ef4444",
               fontWeight: "500",
             }}
           >
-            ⚠️ {message}
+            {message.includes("sent") || message.includes("Check") ? "✅" : "⚠️"} {message}
           </motion.div>
         )}
       </motion.div>
