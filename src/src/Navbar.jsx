@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
+import CalorieTracker from "./components/CalorieTracker";
 
 function Navbar() {
     const navStyle = {
@@ -32,25 +33,73 @@ function Navbar() {
             transition={{ duration: 0.6, ease: "easeOut" }}
             style={navStyle}
         >
-            {[
-                { to: "/", label: "🏠 Dashboard" },
-                { to: "/profile", label: "👤 Profile" },
-                { to: "/leaderboard", label: "🏆 Leaderboard" },
-                { to: "/adventure", label: "🗺️ Adventure Map" },
-                { to: "/game", label: "🎮 Game" },
-                { to: "/ai-assistant", label: "✨ AI Assistant" }, // <-- ADDED THIS LINK
-            ].map((link) => (
-                <motion.div whileHover={{ scale: 1.15 }} whileTap={{ scale: 0.9 }} key={link.to}>
-                    <Link
-                        to={link.to}
-                        style={linkStyle}
-                        onMouseEnter={(e) => (e.target.style.color = "#7b2ff7")}
-                        onMouseLeave={(e) => (e.target.style.color = "#e8e8e8")}
-                    >
-                        {link.label}
-                    </Link>
-                </motion.div>
-            ))}
+            <motion.div whileHover={{ scale: 1.15 }} whileTap={{ scale: 0.9 }}>
+                <Link
+                    to="/"
+                    style={linkStyle}
+                    onMouseEnter={(e) => (e.target.style.color = "#7b2ff7")}
+                    onMouseLeave={(e) => (e.target.style.color = "#e8e8e8")}
+                >
+                    🏠 Dashboard
+                </Link>
+            </motion.div>
+            
+            <motion.div whileHover={{ scale: 1.15 }} whileTap={{ scale: 0.9 }}>
+                <Link
+                    to="/profile"
+                    style={linkStyle}
+                    onMouseEnter={(e) => (e.target.style.color = "#7b2ff7")}
+                    onMouseLeave={(e) => (e.target.style.color = "#e8e8e8")}
+                >
+                    👤 Profile
+                </Link>
+            </motion.div>
+            
+            <motion.div whileHover={{ scale: 1.15 }} whileTap={{ scale: 0.9 }}>
+                <Link
+                    to="/leaderboard"
+                    style={linkStyle}
+                    onMouseEnter={(e) => (e.target.style.color = "#7b2ff7")}
+                    onMouseLeave={(e) => (e.target.style.color = "#e8e8e8")}
+                >
+                    🏆 Leaderboard
+                </Link>
+            </motion.div>
+
+            <CalorieTracker />
+
+            <motion.div whileHover={{ scale: 1.15 }} whileTap={{ scale: 0.9 }}>
+                <Link
+                    to="/adventure"
+                    style={linkStyle}
+                    onMouseEnter={(e) => (e.target.style.color = "#7b2ff7")}
+                    onMouseLeave={(e) => (e.target.style.color = "#e8e8e8")}
+                >
+                    🗺️ Adventure Map
+                </Link>
+            </motion.div>
+            
+            <motion.div whileHover={{ scale: 1.15 }} whileTap={{ scale: 0.9 }}>
+                <Link
+                    to="/game"
+                    style={linkStyle}
+                    onMouseEnter={(e) => (e.target.style.color = "#7b2ff7")}
+                    onMouseLeave={(e) => (e.target.style.color = "#e8e8e8")}
+                >
+                    🎮 Game
+                </Link>
+            </motion.div>
+
+            <motion.div whileHover={{ scale: 1.15 }} whileTap={{ scale: 0.9 }}>
+                <Link
+                    to="/ai-assistant"
+                    style={linkStyle}
+                    onMouseEnter={(e) => (e.target.style.color = "#7b2ff7")}
+                    onMouseLeave={(e) => (e.target.style.color = "#e8e8e8")}
+                >
+                    ✨ AI Assistant
+                </Link>
+            </motion.div>
         </motion.nav>
     );
 }
