@@ -6,7 +6,13 @@ import { useTheme } from "./ThemeContext";
 import Game from "./Game";
 import LevelRoadmap from "./LevelRoadmap";
 import Leaderboard from "./Leaderboard";
-import UserProfile from "./UserProfile"; 
+import UserProfile from "./UserProfile";
+import { NavBar } from "./components/ui/tubelight-navbar";
+import { GlowingEffectDemo } from "./components/GlowingEffectDemo";
+import { ShaderAnimation } from "./components/ui/shader-animation";
+import CalorieTracker from "./CalorieTracker";
+
+import { Home, Gamepad2, Trophy, User, Palette, Flame } from "lucide-react";
 
 function Dashboard({ user, setUser, token, setToken }) {
   const { theme } = useTheme();
@@ -32,6 +38,17 @@ function Dashboard({ user, setUser, token, setToken }) {
   const navigate = useNavigate();
   const API_URL = 'http://localhost:5000/api';
 
+  // Navigation items for the navbar
+  const navItems = [
+    { name: 'Dashboard', url: '#', icon: Home },
+    { name: 'Journey', url: '#', icon: Gamepad2 },
+    { name: 'AI Assistant', url: '#', icon: Palette },
+    { name: 'Games', url: '#', icon: Trophy },
+    { name: 'Leaderboard', url: '#', icon: Trophy },
+    { name: 'Profile', url: '#', icon: User },
+    { name: 'Calorie Tracker', url: '#', icon: Flame }
+  ];
+
   // Helper function for authenticated requests
   const makeAuthenticatedRequest = async (url, data = null, method = 'GET') => {
     const config = {
@@ -48,17 +65,17 @@ function Dashboard({ user, setUser, token, setToken }) {
     { id: 'drink_water', name: 'Drink Water', xp: 5, icon: '💧', color: '#06b6d4' },
     { id: 'breakfast', name: 'Breakfast', xp: 10, icon: '🥐', color: '#f59e0b' },
     { id: 'lunch', name: 'Lunch', xp: 15, icon: '🍱', color: '#10b981' },
-    { id: 'dinner', name: 'Dinner', xp: 15, icon: '🍽️', color: '#ef4444' },
+    { id: 'dinner', name: 'Dinner', xp: 15, icon: '🍽', color: '#ef4444' },
     { id: 'take_break', name: 'Take Break', xp: 8, icon: '☕', color: '#8b5cf6' },
-    { id: 'run', name: 'Run', xp: 20, icon: '🏃‍♂️', color: '#f97316' },
+    { id: 'run', name: 'Run', xp: 20, icon: '🏃‍♂', color: '#f97316' },
     { id: 'coding', name: 'Coding', xp: 25, icon: '💻', color: '#3b82f6' },
     { id: 'reading', name: 'Reading', xp: 12, icon: '📚', color: '#6366f1' },
-    { id: 'meditation', name: 'Meditation', xp: 18, icon: '🧘‍♀️', color: '#14b8a6' },
+    { id: 'meditation', name: 'Meditation', xp: 18, icon: '🧘‍♀', color: '#14b8a6' },
     { id: 'exercise', name: 'Exercise', xp: 22, icon: '💪', color: '#ec4899' },
     { id: 'early_bedtime', name: 'Early Bedtime', xp: 12, icon: '😴', color: '#8b5cf6' },
-    { id: 'stretching', name: 'Stretching', xp: 10, icon: '🤸‍♀️', color: '#10b981' },
+    { id: 'stretching', name: 'Stretching', xp: 10, icon: '🤸‍♀', color: '#10b981' },
     { id: 'journaling', name: 'Journaling', xp: 15, icon: '📝', color: '#f59e0b' },
-    { id: 'walking', name: 'Walking', xp: 18, icon: '🚶‍♀️', color: '#06b6d4' },
+    { id: 'walking', name: 'Walking', xp: 18, icon: '🚶‍♀', color: '#06b6d4' },
     { id: 'gratitude', name: 'Gratitude Practice', xp: 8, icon: '🙏', color: '#fbbf24' },
     { id: 'learning', name: 'Learn Something New', xp: 20, icon: '🎓', color: '#6366f1' },
     { id: 'music', name: 'Listen to Music', xp: 8, icon: '🎵', color: '#ec4899' },
@@ -256,6 +273,7 @@ function Dashboard({ user, setUser, token, setToken }) {
             { title: 'Fun Challenges', icon: '🎮', color: '#ec4899' },
             { title: 'Leaderboard', icon: '🏆', color: '#f97316' },
             { title: 'Profile', icon: '👤', color: '#06b6d4' },
+            { title: 'Calorie Tracker', icon: '🔥', color: '#ff6b6b' },
           ].map((section, index) => (
             <motion.button
               key={section.title}
@@ -305,7 +323,7 @@ function Dashboard({ user, setUser, token, setToken }) {
             dragElastic={1}
             onDragEnd={(e, { offset, velocity }) => {
               const swipe = Math.abs(offset.x) * velocity.x;
-              if (swipe < -10000 && activeSection < 5) setActiveSection(activeSection + 1);
+              if (swipe < -10000 && activeSection < 6) setActiveSection(activeSection + 1);
               else if (swipe > 10000 && activeSection > 0) setActiveSection(activeSection - 1);
             }}
             style={{
@@ -794,7 +812,7 @@ function Dashboard({ user, setUser, token, setToken }) {
                       { title: "Streak Master", description: "Maintain a 7-day streak", icon: "🔥", color: "#ef4444", progress: Math.min(userStats.streak / 7 * 100, 100) },
                       { title: "Task Champion", description: "Complete 50 daily tasks", icon: "⭐", color: "#f59e0b", progress: Math.min(userStats.tasksCompleted / 50 * 100, 100) },
                       { title: "Level Up", description: "Reach level 10", icon: "🏆", color: "#10b981", progress: Math.min(userStats.level / 10 * 100, 100) },
-                      { title: "Mindful Warrior", description: "100 mindful minutes", icon: "🧘‍♀️", color: "#8b5cf6", progress: Math.min(userStats.mindfulMinutes / 100 * 100, 100) },
+                      { title: "Mindful Warrior", description: "100 mindful minutes", icon: "🧘‍♀", color: "#8b5cf6", progress: Math.min(userStats.mindfulMinutes / 100 * 100, 100) },
                     ].map((challenge, index) => (
                       <motion.div key={challenge.title} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: index * 0.1 }}
                         whileHover={{ scale: 1.02, y: -5 }} style={{ background: `linear-gradient(135deg, ${challenge.color}15, ${challenge.color}05)`, padding: "25px", borderRadius: "20px", textAlign: "center", border: `2px solid ${challenge.color}30` }}>
@@ -869,17 +887,66 @@ function Dashboard({ user, setUser, token, setToken }) {
                   <UserProfile user={user} setUser={setUser} />
                 </motion.div>
               )}
+              {activeSection === 6 && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.6 }}
+                  style={{
+                    width: "100%",
+                    maxWidth: "1400px",
+                    background: "linear-gradient(135deg, #ff6b6b15, #f9731615)",
+                    borderRadius: "25px",
+                    padding: "30px",
+                    border: "2px solid rgba(255, 107, 107, 0.3)",
+                    boxShadow: "0 20px 60px rgba(255, 107, 107, 0.1)"
+                  }}
+                >
+                  <motion.div
+                    animate={{ rotate: [0, 3, -3, 0], scale: [1, 1.02, 1] }}
+                    transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
+                    style={{ fontSize: "3.5rem", marginBottom: "20px", textAlign: "center" }}
+                  >
+                    🔥
+                  </motion.div>
+                  <motion.h2
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    style={{
+                      fontSize: "2.8rem",
+                      fontWeight: "900",
+                      background: "linear-gradient(135deg, #ff6b6b, #f97316, #22c55e)",
+                      WebkitBackgroundClip: "text",
+                      WebkitTextFillColor: "transparent",
+                      backgroundClip: "text",
+                      textAlign: "center",
+                      marginBottom: "30px",
+                      textShadow: "0 0 30px rgba(255, 107, 107, 0.3)"
+                    }}
+                  >
+                    Calorie Tracker
+                  </motion.h2>
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ duration: 0.8, delay: 0.2 }}
+                  >
+                    <CalorieTracker />
+                  </motion.div>
+                </motion.div>
+              )}
             </div>
           </motion.div>
         </AnimatePresence>
       </div>
+      <NavBar items={navItems} />
       {activeSection > 0 && (
         <motion.button
           onClick={() => setActiveSection(activeSection - 1)}
           style={{ position: "fixed", left: "20px", top: "50%", transform: "translateY(-50%)", zIndex: 50, /* styles */ }}
         >←</motion.button>
       )}
-      {activeSection < 5 && (
+      {activeSection < 6 && (
         <motion.button
           onClick={() => setActiveSection(activeSection + 1)}
           style={{ position: "fixed", right: "20px", top: "50%", transform: "translateY(-50%)", zIndex: 50, /* styles */ }}
