@@ -1,3 +1,5 @@
+@import "tailwindcss";
+
 :root {
   --font-main: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text",
     system-ui, Avenir, Helvetica, Arial, sans-serif;

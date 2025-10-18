@@ -1,8 +1,13 @@
 import { motion } from 'framer-motion';
-import { useTheme } from '../../contexts/ThemeContext';
+import { useTheme } from '../../ThemeContext';
 
 const ThemeToggle = () => {
-  const { theme, toggleTheme, isDark } = useTheme();
+  const { currentTheme, changeTheme, theme: themeColors } = useTheme();
+  const isDark = currentTheme === 'dark';
+  
+  const toggleTheme = () => {
+    changeTheme(isDark ? 'light' : 'dark');
+  };
 
   return (
     <motion.button
