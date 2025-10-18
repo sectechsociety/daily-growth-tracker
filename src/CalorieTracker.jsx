@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import axios from "axios";
 
-const CalorieTracker = () => {
+const CalorieTracker = ({ userId }) => {
   const [caloriesConsumed, setCaloriesConsumed] = useState(0);
   const [dailyGoal, setDailyGoal] = useState(2000);
   const [showAddMealModal, setShowAddMealModal] = useState(false);
@@ -10,48 +11,127 @@ const CalorieTracker = () => {
   const [mealCategory, setMealCategory] = useState("breakfast");
   const [confirmReset, setConfirmReset] = useState(false);
   const [showToast, setShowToast] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [meals, setMeals] = useState([]);
 
-  // Load data
+  const API_URL = 'http://localhost:5000/api';
+
+  // Helper function for authenticated requests
+  const makeAuthenticatedRequest = async (url, data = null, method = 'GET') => {
+    const config = {
+      method,
+      url: `${API_URL}${url}`,
+      headers: { userid: userId }
+    };
+    if (data) config.data = data;
+    return axios(config);
+  };
+
+  // Load today's calorie data from backend
   useEffect(() => {
+    if (userId) {
+      loadTodayData();
+    } else {
+      setLoading(false);
+    }
+  }, [userId]);
+
+  const loadTodayData = async () => {
+    try {
+      setLoading(true);
+      const response = await makeAuthenticatedRequest('/calories/today');
+      const data = response.data;
+
+      setCaloriesConsumed(data.totalCalories || 0);
+      setDailyGoal(data.dailyGoal || 2000);
+      setMeals(data.meals || []);
+    } catch (error) {
+      console.error('Error loading calorie data:', error);
+      // Fallback to localStorage for offline mode
+      loadFromLocalStorage();
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadFromLocalStorage = () => {
     const savedCalories = localStorage.getItem("caloriesConsumed");
     const savedGoal = localStorage.getItem("dailyCalorieGoal");
     if (savedCalories) setCaloriesConsumed(parseInt(savedCalories));
     if (savedGoal) setDailyGoal(parseInt(savedGoal));
-  }, []);
+  };
 
-  // Save data
-  useEffect(() => {
-    localStorage.setItem("caloriesConsumed", caloriesConsumed.toString());
-    localStorage.setItem("dailyCalorieGoal", dailyGoal.toString());
-  }, [caloriesConsumed, dailyGoal]);
-
-  const addMeal = () => {
+  const addMeal = async () => {
     if (!mealName.trim() || !mealCalories || isNaN(mealCalories)) return;
 
     const calories = parseInt(mealCalories);
-    setCaloriesConsumed((prev) => prev + calories);
-    setMealName("");
-    setMealCalories("");
-    setMealCategory("breakfast");
-    setShowAddMealModal(false);
 
-    // Show animated toast
-    setShowToast(true);
-    setTimeout(() => setShowToast(false), 2000);
+    try {
+      const response = await makeAuthenticatedRequest('/calories/add-meal', {
+        name: mealName,
+        calories,
+        category: mealCategory,
+      }, 'POST');
+
+      if (response.data.success) {
+        setCaloriesConsumed(response.data.calorieEntry.totalCalories);
+        setMeals(response.data.calorieEntry.meals);
+
+        // Show success toast with XP gained
+        setShowToast(true);
+        setTimeout(() => setShowToast(false), 3000);
+
+        // Reset form
+        setMealName("");
+        setMealCalories("");
+        setMealCategory("breakfast");
+        setShowAddMealModal(false);
+      }
+    } catch (error) {
+      console.error('Error adding meal:', error);
+      // Fallback to localStorage
+      setCaloriesConsumed((prev) => prev + calories);
+      setMealName("");
+      setMealCalories("");
+      setMealCategory("breakfast");
+      setShowAddMealModal(false);
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 2000);
+    }
   };
 
-  const handleReset = () => {
+  const handleReset = async () => {
     if (!confirmReset) {
       setConfirmReset(true);
       setTimeout(() => setConfirmReset(false), 2000);
     } else {
-      setCaloriesConsumed(0);
-      setConfirmReset(false);
+      try {
+        await makeAuthenticatedRequest('/calories/reset', {}, 'POST');
+        setCaloriesConsumed(0);
+        setMeals([]);
+        setConfirmReset(false);
+      } catch (error) {
+        console.error('Error resetting calories:', error);
+        // Fallback to local behavior
+        setCaloriesConsumed(0);
+        setConfirmReset(false);
+      }
     }
   };
 
-  const updateGoal = (newGoal) => {
-    if (newGoal > 0) setDailyGoal(newGoal);
+  const updateGoal = async (newGoal) => {
+    if (newGoal > 0) {
+      try {
+        await makeAuthenticatedRequest('/calories/goal', {
+          dailyGoal: newGoal,
+        }, 'PUT');
+        setDailyGoal(newGoal);
+      } catch (error) {
+        console.error('Error updating calorie goal:', error);
+        // Fallback to local behavior
+        setDailyGoal(newGoal);
+      }
+    }
   };
 
   const caloriesRemaining = dailyGoal - caloriesConsumed;
@@ -60,6 +140,36 @@ const CalorieTracker = () => {
     100
   );
   const isOverGoal = caloriesConsumed > dailyGoal;
+
+  if (loading) {
+    return (
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        style={{
+          width: "100%",
+          maxWidth: "1000px",
+          margin: "0 auto",
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          height: "400px",
+        }}
+      >
+        <motion.div
+          animate={{ rotate: 360 }}
+          transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+          style={{
+            width: "50px",
+            height: "50px",
+            border: "4px solid rgba(255, 255, 255, 0.1)",
+            borderTop: "4px solid #10b981",
+            borderRadius: "50%",
+          }}
+        />
+      </motion.div>
+    );
+  }
 
   return (
     <motion.div
@@ -93,7 +203,7 @@ const CalorieTracker = () => {
               zIndex: 1500,
             }}
           >
-            ✅ Meal Added Successfully!
+            ✅ Meal Added Successfully! +5 XP Gained!
           </motion.div>
         )}
       </AnimatePresence>

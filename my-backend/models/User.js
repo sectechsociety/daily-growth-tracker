@@ -50,6 +50,14 @@ const userSchema = new mongoose.Schema({
   lastActiveDate: { type: Date, default: Date.now },
   tasksCompleted: { type: Number, default: 0 },
 
+  // Calorie tracking preferences and stats
+  defaultDailyCalorieGoal: { type: Number, default: 2000, min: 500, max: 10000 },
+  totalCaloriesTracked: { type: Number, default: 0 },
+  caloriesGoalStreak: { type: Number, default: 0 },
+  bestCalorieStreak: { type: Number, default: 0 },
+  totalMealsLogged: { type: Number, default: 0 },
+  favoriteFoods: [{ type: mongoose.Schema.Types.ObjectId, ref: "Food" }],
+
   // Avatar customization data
   avatar: {
     skin: { type: String, default: '#FDBCB4' },

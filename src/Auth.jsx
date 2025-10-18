@@ -1,9 +1,9 @@
+
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import axios from "axios";
 import { useTheme } from "./ThemeContext";
-import { resetPassword } from "./firebase";
 
 function Auth({ setUser, setToken }) {
   const [email, setEmail] = useState("");
@@ -23,26 +23,69 @@ function Auth({ setUser, setToken }) {
 
   // Check for existing token on component load
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      // Verify token with backend
-      axios.get(`${API_URL}/verify`, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
-      .then(response => {
-        setUser(response.data.user);
-        setToken(token);
-        navigate("/");
-      })
-      .catch(() => {
-        localStorage.removeItem('token');
-      });
-    }
+    const checkExistingAuth = () => {
+      const token = localStorage.getItem('token');
+      const storedUser = localStorage.getItem('user');
+
+      if (token && storedUser) {
+        try {
+          const userData = JSON.parse(storedUser);
+
+          // Verify token validity
+          if (token.startsWith('offline_')) {
+            // Offline token - validate against stored users
+            const storedUsers = JSON.parse(localStorage.getItem('offline_users') || '[]');
+            const userExists = storedUsers.find(u => u.email === userData.email);
+
+            if (userExists) {
+              setUser(userData);
+              setToken(token);
+              return;
+            }
+          } else {
+            // Backend token - verify with backend
+            axios.get(`${API_URL}/verify`, {
+              headers: { Authorization: `Bearer ${token}` }
+            })
+            .then(response => {
+              setUser(response.data.user);
+              setToken(token);
+            })
+            .catch(() => {
+              localStorage.removeItem('token');
+              localStorage.removeItem('user');
+            });
+            return;
+          }
+        } catch (err) {
+          console.error('Error parsing stored auth data:', err);
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+        }
+      } else if (storedUser) {
+        // Has user data but no token - create temporary token for session
+        try {
+          const userData = JSON.parse(storedUser);
+          const tempToken = 'offline_temp_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+          setUser(userData);
+          setToken(tempToken);
+          localStorage.setItem('token', tempToken);
+        } catch (err) {
+          console.error('Error with stored user data:', err);
+          localStorage.removeItem('user');
+        }
+      }
+    };
+
+    checkExistingAuth();
   }, []);
+
+  const [authStatus, setAuthStatus] = useState('idle'); // idle, loading, success, error
 
   const handleAuth = async () => {
     setIsLoading(true);
     setMessage("");
+    setAuthStatus('loading');
 
     try {
       if (isLogin) {
@@ -50,19 +93,27 @@ function Auth({ setUser, setToken }) {
         try {
           const response = await axios.post(`${API_URL}/login`, { email, password });
           const { user, token } = response.data;
+
           setUser(user);
           setToken(token);
           localStorage.setItem('token', token);
           localStorage.setItem('user', JSON.stringify(user));
-          navigate("/");
+
+          setAuthStatus('success');
+          setMessage("✅ Welcome back! Redirecting...");
+
+          setTimeout(() => {
+            navigate("/");
+          }, 1000);
+
         } catch (backendError) {
           // Backend unavailable - use localStorage fallback
           console.log('Backend unavailable, using localStorage authentication');
           const storedUsers = JSON.parse(localStorage.getItem('offline_users') || '[]');
           const foundUser = storedUsers.find(u => u.email === email && u.password === password);
-          
+
           if (foundUser) {
-            const mockToken = 'offline_' + Date.now();
+            const mockToken = 'offline_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
             const userData = {
               _id: foundUser.id,
               email: foundUser.email,
@@ -72,56 +123,76 @@ function Auth({ setUser, setToken }) {
               streak: foundUser.streak || 0,
               tasksCompleted: foundUser.tasksCompleted || 0
             };
+
             setUser(userData);
             setToken(mockToken);
             localStorage.setItem('token', mockToken);
             localStorage.setItem('user', JSON.stringify(userData));
-            navigate("/");
+
+            setAuthStatus('success');
+            setMessage("✅ Signed in successfully! Redirecting..."); 
+
+            setTimeout(() => {
+              navigate("/");
+            }, 1000);
+
           } else {
-            setMessage("Invalid email or password. Please try again or create an account.");
+            setMessage("❌ Invalid email or password. Please try again or create an account.");
+            setAuthStatus('error');
           }
         }
       } else {
         // Register
         if (password.length < 6) {
-          setMessage("Password must be at least 6 characters");
+          setMessage("❌ Password must be at least 6 characters");
+          setAuthStatus('error');
           setIsLoading(false);
           return;
         }
 
         if (!name.trim()) {
-          setMessage("Name is required");
+          setMessage("❌ Name is required");
+          setAuthStatus('error');
           setIsLoading(false);
           return;
         }
 
         // Try backend first, fallback to localStorage
         try {
-          const response = await axios.post(`${API_URL}/register`, { 
-            email, 
-            password, 
-            name: name.trim() 
+          const response = await axios.post(`${API_URL}/register`, {
+            email,
+            password,
+            name: name.trim()
           });
           const { user, token } = response.data;
+
           setUser(user);
           setToken(token);
           localStorage.setItem('token', token);
           localStorage.setItem('user', JSON.stringify(user));
-          navigate("/");
+
+          setAuthStatus('success');
+          setMessage("✅ Account created successfully! Redirecting...");
+
+          setTimeout(() => {
+            navigate("/");
+          }, 1000);
+
         } catch (backendError) {
           // Backend unavailable - use localStorage fallback
           console.log('Backend unavailable, creating offline account');
           const storedUsers = JSON.parse(localStorage.getItem('offline_users') || '[]');
-          
+
           // Check if email already exists
           if (storedUsers.find(u => u.email === email)) {
-            setMessage("Email already registered. Please sign in.");
+            setMessage("❌ Email already registered. Please sign in.");
+            setAuthStatus('error');
             setIsLoading(false);
             return;
           }
 
           const newUser = {
-            id: 'offline_' + Date.now(),
+            id: 'offline_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
             email,
             password, // In production, this should be hashed
             name: name.trim(),
@@ -135,7 +206,7 @@ function Auth({ setUser, setToken }) {
           storedUsers.push(newUser);
           localStorage.setItem('offline_users', JSON.stringify(storedUsers));
 
-          const mockToken = 'offline_' + Date.now();
+          const mockToken = 'offline_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
           const userData = {
             _id: newUser.id,
             email: newUser.email,
@@ -145,17 +216,24 @@ function Auth({ setUser, setToken }) {
             streak: 0,
             tasksCompleted: 0
           };
-          
+
           setUser(userData);
           setToken(mockToken);
           localStorage.setItem('token', mockToken);
           localStorage.setItem('user', JSON.stringify(userData));
-          navigate("/");
+
+          setAuthStatus('success');
+          setMessage("✅ Account created successfully! Redirecting...");
+
+          setTimeout(() => {
+            navigate("/");
+          }, 1000);
         }
       }
     } catch (err) {
-      const errorMessage = err.response?.data?.error || 'Authentication failed. Please try again.';
+      const errorMessage = err.response?.data?.error || '❌ Authentication failed. Please check your connection and try again.';
       setMessage(errorMessage);
+      setAuthStatus('error');
       console.error('Auth error:', err);
     } finally {
       setIsLoading(false);
@@ -216,7 +294,7 @@ function Auth({ setUser, setToken }) {
         console.log('Backend unavailable, using localStorage for password reset');
         const storedUsers = JSON.parse(localStorage.getItem('offline_users') || '[]');
         const userIndex = storedUsers.findIndex(u => u.email === resetEmail);
-        
+
         if (userIndex === -1) {
           setMessage("No account found with this email address.");
           setIsLoading(false);
@@ -226,7 +304,7 @@ function Auth({ setUser, setToken }) {
         // Update password in localStorage
         storedUsers[userIndex].password = newPassword;
         localStorage.setItem('offline_users', JSON.stringify(storedUsers));
-        
+
         setMessage("Password reset successful! You can now sign in with your new password.");
         setTimeout(() => {
           setShowForgotPassword(false);
@@ -255,16 +333,64 @@ function Auth({ setUser, setToken }) {
         overflow: "hidden",
       }}
     >
-      {/* Animated Background Elements */}
+      {/* Enhanced Animated Background Elements */}
       <div style={{
-        position: "absolute", top: "15%", left: "10%", width: "250px", height: "250px",
-        background: `radial-gradient(circle, ${theme.accent}15 0%, transparent 70%)`,
-        borderRadius: "50%", animation: "float 18s ease-in-out infinite",
+        position: "absolute",
+        top: "10%",
+        left: "5%",
+        width: "300px",
+        height: "300px",
+        background: `radial-gradient(circle at 30% 20%, ${theme.accent}25 0%, ${theme.accentSecondary}15 40%, transparent 70%)`,
+        borderRadius: "50%",
+        animation: "float 20s ease-in-out infinite",
+        filter: "blur(1px)",
       }} />
       <div style={{
-        position: "absolute", bottom: "15%", right: "10%", width: "200px", height: "200px",
-        background: `radial-gradient(circle, ${theme.accentSecondary}15 0%, transparent 70%)`,
-        borderRadius: "50%", animation: "float 22s ease-in-out infinite reverse",
+        position: "absolute",
+        bottom: "10%",
+        right: "5%",
+        width: "250px",
+        height: "250px",
+        background: `radial-gradient(circle at 70% 80%, ${theme.accentSecondary}25 0%, ${theme.accent}15 40%, transparent 70%)`,
+        borderRadius: "50%",
+        animation: "float 25s ease-in-out infinite reverse",
+        filter: "blur(1px)",
+      }} />
+      <div style={{
+        position: "absolute",
+        top: "50%",
+        left: "50%",
+        transform: "translate(-50%, -50%)",
+        width: "400px",
+        height: "400px",
+        background: `conic-gradient(from 0deg, ${theme.accent}10, ${theme.accentSecondary}10, transparent, ${theme.accent}10)`,
+        borderRadius: "50%",
+        animation: "rotate 30s linear infinite",
+        filter: "blur(2px)",
+      }} />
+
+      {/* Additional floating particles */}
+      <div style={{
+        position: "absolute",
+        top: "20%",
+        right: "20%",
+        width: "8px",
+        height: "8px",
+        background: theme.accent,
+        borderRadius: "50%",
+        animation: "particle 15s ease-in-out infinite",
+        boxShadow: `0 0 20px ${theme.accent}`,
+      }} />
+      <div style={{
+        position: "absolute",
+        bottom: "30%",
+        left: "15%",
+        width: "6px",
+        height: "6px",
+        background: theme.accentSecondary,
+        borderRadius: "50%",
+        animation: "particle 18s ease-in-out infinite reverse",
+        boxShadow: `0 0 15px ${theme.accentSecondary}`,
       }} />
 
       <motion.div
@@ -272,16 +398,18 @@ function Auth({ setUser, setToken }) {
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ duration: 0.6, ease: "easeOut" }}
         style={{
-          background: theme.cardBg,
-          backdropFilter: "blur(20px)",
+          background: `rgba(255, 255, 255, 0.1)`,
+          backdropFilter: "blur(25px) saturate(180%)",
+          WebkitBackdropFilter: "blur(25px) saturate(180%)",
           padding: "50px 40px",
           borderRadius: "25px",
           width: "400px",
           textAlign: "center",
-          boxShadow: `0 20px 60px ${theme.shadow}`,
-          border: `1px solid ${theme.border}`,
+          boxShadow: `0 25px 80px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(255, 255, 255, 0.1)`,
+          border: `1px solid rgba(255, 255, 255, 0.2)`,
           position: "relative",
           zIndex: 1,
+          backgroundImage: `linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05))`,
         }}
       >
         <motion.div
@@ -626,10 +754,20 @@ function Auth({ setUser, setToken }) {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
           }
+          @keyframes particle {
+            0%, 100% { transform: translateY(0) scale(1); opacity: 0.7; }
+            25% { transform: translateY(-15px) scale(1.1); opacity: 1; }
+            50% { transform: translateY(-5px) scale(0.9); opacity: 0.8; }
+            75% { transform: translateY(-20px) scale(1.05); opacity: 0.9; }
+          }
+          @keyframes rotate {
+            0% { transform: translate(-50%, -50%) rotate(0deg); }
+            100% { transform: translate(-50%, -50%) rotate(360deg); }
+          }
         `}
       </style>
     </div>
   );
-}
+};
 
-export default Auth;
+export default Auth;             

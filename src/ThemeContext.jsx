@@ -99,6 +99,10 @@ export const ThemeProvider = ({ children }) => {
     setCustomColors(themes.custom);
   };
 
+  const toggleTheme = () => {
+    setCurrentTheme(prev => prev === 'dark' ? 'light' : 'dark');
+  };
+
   const getTheme = () => {
     if (currentTheme === 'custom') {
       return customColors;
@@ -111,6 +115,8 @@ export const ThemeProvider = ({ children }) => {
     theme: getTheme(),
     themes,
     changeTheme,
+    toggleTheme,
+    isDark: currentTheme === 'dark',
     customColors,
     updateCustomColor,
     resetCustomTheme,

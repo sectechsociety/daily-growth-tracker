@@ -23,6 +23,8 @@ const taskRoutes = require("./routes/taskRoutes");
 const progressRoutes = require("./routes/progressRoutes");
 const leaderboardRoutes = require("./routes/leaderboardRoutes");
 const authRoutes = require("./routes/authRoutes");
+const foodRoutes = require("./routes/foodRoutes");
+const calorieRoutes = require("./routes/calorieRoutes");
 
 // Health Check Route
 app.get("/", (req, res) => {
@@ -35,6 +37,8 @@ app.get("/", (req, res) => {
       progress: "/api/progress",
       leaderboard: "/api/leaderboard",
       auth: "/api/auth",
+      foods: "/api/foods",
+      calories: "/api/calories",
     },
   });
 });
@@ -45,6 +49,8 @@ app.use("/api/tasks", taskRoutes);
 app.use("/api/progress", progressRoutes);
 app.use("/api/leaderboard", leaderboardRoutes);
 app.use("/api/auth", authRoutes);
+app.use("/api/foods", foodRoutes);
+app.use("/api/calories", calorieRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

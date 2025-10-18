@@ -11,9 +11,10 @@
   },
   "dependencies": {
     "@dataconnect/generated": "file:src/dataconnect-generated",
+    "@supabase/supabase-js": "^2.75.1",
     "@tailwindcss/postcss": "^4.1.14",
     "axios": "^1.12.2",
-    "firebase": "^12.3.0",
+    "firebase": "^12.4.0",
     "framer-motion": "^12.23.13",
     "lucide-react": "^0.544.0",
     "phaser": "^3.90.0",
