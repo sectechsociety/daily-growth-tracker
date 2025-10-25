@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FaTrophy, FaStar, FaCrown, FaFire, FaBolt, FaGem, FaInfoCircle, FaLock, FaCheck, FaMedal } from 'react-icons/fa';
-import { getUserProfile, updateUserProfile } from './firebase'; // Assuming you have this file
+// import { getUserProfile, updateUserProfile } from './firebase'; // No longer needed
 import axios from 'axios'; // For backend API calls
 
-// Enhanced level data with rewards and descriptions
+// Enhanced level data (unchanged)
 const LEVELS = [
   { id: 1, name: "Sprout", xpRequired: 250, icon: "🌱", color: "#10b981", description: "Your journey begins! Take your first steps toward growth.", reward: "Basic Profile Badge" },
   { id: 2, name: "Seedling", xpRequired: 500, icon: "🌿", color: "#3b82f6", description: "Growing stronger each day. Keep up the momentum!", reward: "Daily Streak Multiplier" },
@@ -23,45 +23,63 @@ const LEVELS = [
   { id: 15, name: "Divine", xpRequired: 3750, icon: "✨", color: "#fcd34d", description: "You've reached the pinnacle of personal excellence.", reward: "Legacy Achievement" },
 ];
 
-function LevelRoadmap({ user }) {
-  const [userLevel, setUserLevel] = useState(1);
-  const [userXP, setUserXP] = useState(0);
-  const [userProfile, setUserProfile] = useState(null);
+// MODIFIED: Props now take level and xp directly from your Dashboard state
+function LevelRoadmap({ level, xp }) {
+  // REMOVED: userLevel, userXP, userProfile, loading states.
   const [showLevelUp, setShowLevelUp] = useState(false);
-  const [loading, setLoading] = useState(true);
   const [selectedLevel, setSelectedLevel] = useState(null);
   const [showLevelDetails, setShowLevelDetails] = useState(false);
   const [achievements, setAchievements] = useState([]);
   const [showConfetti, setShowConfetti] = useState(false);
-  
+  // REMOVED: roadmapAnimation state, as it's simpler to trigger animations from prop changes.
+
   // Refs for animations
   const confettiRef = useRef(null);
   const roadmapRef = useRef(null);
+  const prevLevelRef = useRef(level); // Ref to track previous level
 
+  // REMOVED: useEffect that depended on `user`
+
+  // ADDED: This effect watches for a change in the `level` prop.
+  // If the level increases, it triggers the celebration.
   useEffect(() => {
-    if (user?.uid) {
-      fetchUserProgress();
-      fetchUserAchievements();
-    } else {
-      // No user logged in, set default state
-      setLoading(false);
-    }
-  }, [user]);
+    if (level > prevLevelRef.current) {
+      setShowLevelUp(true);
+      setShowConfetti(true);
+      // You can still fetch achievements if you want
+      // fetchUserAchievements(); 
 
-  // Fetch user achievements from backend
+      const timer = setTimeout(() => {
+        setShowLevelUp(false);
+        setShowConfetti(false);
+      }, 5000); // Show celebration for 5 seconds
+      
+      return () => clearTimeout(timer);
+    }
+    // Update the ref *after* the check
+    prevLevelRef.current = level;
+  }, [level]); // This effect runs *only* when the `level` prop changes
+
+  // This effect can run once to get mock data
+  useEffect(() => {
+    fetchUserAchievements();
+  }, []);
+
+  // Fetch user achievements (Kept as-is, but will only return mock data)
   const fetchUserAchievements = async () => {
-    if (!user?.uid) return;
-    
+    // REMOVED: user.uid check
     try {
       // Try to fetch from backend first
-      const response = await axios.get(`http://localhost:5000/api/achievements/${user.uid}`);
+      // NOTE: This will fail without a user ID, so it will use the mock data.
+      // You might want to pass the user ID as another prop if you have it.
+      const response = await axios.get(`http://localhost:5000/api/achievements/mock-user`);
       if (response.data && response.data.achievements) {
         setAchievements(response.data.achievements);
         return;
       }
     } catch (error) {
       console.log('Using mock achievements data (backend may not be available)');
-      // Fallback to mock data if backend is not available
+      // Fallback to mock data
       setAchievements([
         { id: 'first_login', name: 'First Steps', description: 'Logged in for the first time', date: new Date().toISOString() },
         { id: 'level_5', name: 'Growing Strong', description: 'Reached level 5', date: new Date().toISOString() }
@@ -69,154 +87,49 @@ function LevelRoadmap({ user }) {
     }
   };
 
-  const fetchUserProgress = async () => {
-    try {
-      if (!user?.uid) {
-        setLoading(false);
-        return;
-      }
+  // REMOVED: fetchUserProgress function
+  // REMOVED: addXP function
 
-      const profile = await getUserProfile(user.uid);
-
-      if (profile) {
-        setUserProfile(profile);
-        setUserLevel(profile.level || 1);
-        setUserXP(profile.xp || 0);
-      } else {
-        // Create default profile if none exists
-        const defaultProfile = {
-          level: 1,
-          xp: 0,
-          totalPoints: 0,
-          streak: 0,
-          tasksCompleted: 0,
-          skillsUnlocked: 0,
-          mindfulMinutes: 0,
-          badges: []
-        };
-        setUserProfile(defaultProfile);
-        setUserLevel(1);
-        setUserXP(0);
-      }
-    } catch (error) {
-      console.error('Error fetching progress:', error);
-      // Set default values on error
-      setUserLevel(1);
-      setUserXP(0);
-      setUserProfile({
-        level: 1,
-        xp: 0,
-        totalPoints: 0,
-        streak: 0,
-        tasksCompleted: 0,
-        skillsUnlocked: 0,
-        mindfulMinutes: 0,
-        badges: []
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const addXP = async (amount) => {
-    if (!user?.uid) return;
-
-    try {
-      const newXP = (userProfile?.xp || 0) + amount;
-      const newLevel = Math.floor(newXP / 250) + 1;
-      const oldLevel = userLevel;
-
-      // Update local state first for immediate feedback
-      setUserXP(newXP);
-      if (newLevel > oldLevel) {
-        setUserLevel(newLevel);
-        setShowLevelUp(true);
-        setShowConfetti(true);
-        
-        // Try to update achievement on backend
-        try {
-          await axios.post(`http://localhost:5000/api/achievements/${user.uid}`, {
-            achievement: {
-              id: `level_${newLevel}`,
-              name: `Reached Level ${newLevel}`,
-              description: `Achieved ${LEVELS[newLevel-1].name} status`,
-              date: new Date().toISOString()
-            }
-          });
-        } catch (error) {
-          console.log('Could not save achievement to backend');
-        }
-        
-        setTimeout(() => {
-          setShowLevelUp(false);
-          setShowConfetti(false);
-        }, 5000);
-      }
-
-      // Update Firebase
-      await updateUserProfile(user.uid, {
-        xp: newXP,
-        level: newLevel,
-        totalPoints: (userProfile?.totalPoints || 0) + amount
-      });
-
-      // Update local profile
-      setUserProfile(prev => ({
-        ...prev,
-        xp: newXP,
-        level: newLevel,
-        totalPoints: (prev?.totalPoints || 0) + amount
-      }));
-
-    } catch (error) {
-      console.error('Error adding XP:', error);
-      // Still update local state for better UX even if Firebase fails
-      const newXP = (userProfile?.xp || 0) + amount;
-      const newLevel = Math.floor(newXP / 250) + 1;
-      setUserXP(newXP);
-      setUserLevel(newLevel);
-    }
-  };
-
+  // UPDATED: These functions now use the `level` and `xp` props directly
   const getCurrentLevelInfo = () => {
-    return LEVELS.find(l => l.id === userLevel) || LEVELS[0];
+    return LEVELS.find(l => l.id === level) || LEVELS[0];
   };
 
   const getNextLevelInfo = () => {
-    return LEVELS.find(l => l.id === userLevel + 1) || LEVELS[LEVELS.length - 1];
+    return LEVELS.find(l => l.id === level + 1) || LEVELS[LEVELS.length - 1];
   };
 
   const getProgressPercentage = () => {
     const currentLevelInfo = getCurrentLevelInfo();
-    const nextLevelInfo = getNextLevelInfo();
 
-    if (userLevel >= LEVELS.length) {
+    if (level >= LEVELS.length) {
         return 100;
     }
 
-    // Fix bug in progress calculation
-    const currentLevelStartXP = (currentLevelInfo.id - 1) * 250;
-    const xpInCurrentLevel = userXP - currentLevelStartXP;
+    // Use the *previous* level's XP requirement as the starting point
+    const currentLevelStartXP = LEVELS.find(l => l.id === level)?.xpRequired - 250 || 0;
     
-    // Always use 250 as the XP difference between levels
+    // XP earned *within* the current level
+    const xpInCurrentLevel = xp - currentLevelStartXP;
+    
+    // XP needed to pass this level is always 250
     const xpNeededForLevel = 250;
 
     return Math.min((xpInCurrentLevel / xpNeededForLevel) * 100, 100);
   };
 
-
-   // Function to handle level node click
+  // Function to handle level node click (unchanged)
   const handleLevelClick = (level) => {
     setSelectedLevel(level);
     setShowLevelDetails(true);
   };
 
-  // Function to close level details modal
+  // Function to close level details modal (unchanged)
   const closeLevelDetails = () => {
     setShowLevelDetails(false);
   };
 
-  // Confetti effect component
+  // Confetti effect component (unchanged)
   const Confetti = () => {
     useEffect(() => {
       if (!showConfetti || !confettiRef.current) return;
@@ -226,11 +139,9 @@ function LevelRoadmap({ user }) {
       const particles = [];
       const particleCount = 150;
       
-      // Set canvas size
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
       
-      // Create particles
       for (let i = 0; i < particleCount; i++) {
         particles.push({
           x: Math.random() * canvas.width,
@@ -243,7 +154,6 @@ function LevelRoadmap({ user }) {
         });
       }
       
-      // Animation loop
       let animationId;
       const animate = () => {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -259,7 +169,6 @@ function LevelRoadmap({ user }) {
           p.y += p.speed;
           p.rotation += p.rotationSpeed;
           
-          // Reset particles that fall out of view
           if (p.y > canvas.height) {
             p.y = -p.size;
             p.x = Math.random() * canvas.width;
@@ -271,7 +180,6 @@ function LevelRoadmap({ user }) {
       
       animate();
       
-      // Cleanup
       return () => {
         cancelAnimationFrame(animationId);
       };
@@ -293,15 +201,9 @@ function LevelRoadmap({ user }) {
     );
   };
 
-  if (loading) {
-    return (
-      <div style={styles.loadingContainer}>
-        <div style={styles.spinner}></div>
-        <p>Loading your growth journey...</p>
-      </div>
-    );
-  }
+  // REMOVED: Loading state check
 
+  // UPDATED: These variables now use the props
   const currentLevel = getCurrentLevelInfo();
   const nextLevel = getNextLevelInfo();
   const progressPercent = getProgressPercentage();
@@ -361,7 +263,8 @@ function LevelRoadmap({ user }) {
                 <div style={styles.modalSection}>
                   <h3 style={styles.modalSectionTitle}>Status</h3>
                   <div style={styles.statusBadge}>
-                    {userLevel >= selectedLevel.id ? (
+                    {/* UPDATED: Use `level` prop */}
+                    {level >= selectedLevel.id ? (
                       <>
                         <FaCheck color="#10b981" size={18} style={{ marginRight: '10px' }} />
                         <span>Unlocked</span>
@@ -369,7 +272,8 @@ function LevelRoadmap({ user }) {
                     ) : (
                       <>
                         <FaLock color="#9ca3af" size={18} style={{ marginRight: '10px' }} />
-                        <span>Locked - Need {selectedLevel.xpRequired - userXP} more XP</span>
+                        {/* UPDATED: Use `xp` prop */}
+                        <span>Locked - Need {selectedLevel.xpRequired - xp} more XP</span>
                       </>
                     )}
                   </div>
@@ -400,7 +304,8 @@ function LevelRoadmap({ user }) {
           >
             <FaCrown size={50} color="#fbbf24" />
             <h2>LEVEL UP!</h2>
-            <p>You've reached {currentLevel.name}!</p>
+            {/* UPDATED: Uses `currentLevel` which is derived from props */}
+            <p>🎉 Congratulations! You’ve reached Level {currentLevel.id}: {currentLevel.name}! Keep growing!</p>
             <div style={styles.rewardUnlocked}>
               <FaMedal color="#fbbf24" size={24} style={{ marginRight: '10px' }} />
               <span>Reward Unlocked: {currentLevel.reward}</span>
@@ -409,7 +314,7 @@ function LevelRoadmap({ user }) {
         )}
       </AnimatePresence>
 
-      {/* Header Section */}
+      {/* Header Section (unchanged) */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -440,7 +345,8 @@ function LevelRoadmap({ user }) {
             Level {currentLevel.id}: {currentLevel.name}
           </h2>
           <p style={styles.xpText}>
-            {userXP} / {nextLevel.xpRequired} XP
+            {/* UPDATED: Use `xp` prop */}
+            {xp} / {nextLevel.xpRequired} XP
           </p>
           <p style={styles.levelDescription}>{currentLevel.description}</p>
         </div>
@@ -469,9 +375,9 @@ function LevelRoadmap({ user }) {
         </div>
         <div style={styles.progressBarBg}>
           <motion.div
-            initial={{ width: 0 }}
+            // UPDATED: `animate` will now re-run whenever `progressPercent` changes
             animate={{ width: `${progressPercent}%` }}
-            transition={{ duration: 1, ease: "easeOut" }}
+            transition={{ duration: 0.8, ease: "easeOut" }}
             style={{
               ...styles.progressBarFill,
               background: `linear-gradient(90deg, ${currentLevel.color}, ${nextLevel.color})`,
@@ -480,44 +386,9 @@ function LevelRoadmap({ user }) {
         </div>
       </div>
 
-      {/* XP Actions */}
-      <div style={styles.xpActions}>
-        <motion.button
-          whileHover={{ scale: 1.05, boxShadow: `0 0 15px ${currentLevel.color}` }}
-          whileTap={{ scale: 0.95 }}
-          onClick={() => addXP(50)}
-          style={{
-            ...styles.xpButton,
-            background: `linear-gradient(135deg, ${currentLevel.color}, ${nextLevel.color})`,
-          }}
-        >
-          <FaFire /> +50 XP
-        </motion.button>
-        <motion.button
-          whileHover={{ scale: 1.05, boxShadow: `0 0 15px ${currentLevel.color}` }}
-          whileTap={{ scale: 0.95 }}
-          onClick={() => addXP(100)}
-          style={{
-            ...styles.xpButton,
-            background: `linear-gradient(135deg, ${currentLevel.color}, ${nextLevel.color})`,
-          }}
-        >
-          <FaBolt /> +100 XP
-        </motion.button>
-        <motion.button
-          whileHover={{ scale: 1.05, boxShadow: `0 0 15px ${currentLevel.color}` }}
-          whileTap={{ scale: 0.95 }}
-          onClick={() => addXP(250)}
-          style={{
-            ...styles.xpButton,
-            background: `linear-gradient(135deg, ${currentLevel.color}, ${nextLevel.color})`,
-          }}
-        >
-          <FaGem /> +250 XP
-        </motion.button>
-      </div>
+      {/* REMOVED: XP Actions test buttons */}
 
-      {/* Achievements Section */}
+      {/* Achievements Section (unchanged) */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -534,7 +405,7 @@ function LevelRoadmap({ user }) {
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: index * 0.1 }}
                 style={styles.achievementItem}
-                whileHover={{ scale: 1.02, background: 'rgba(255,255,255,0.1)' }}
+                whileHover={{ scale: 1.02, background: 'rgba(255,250,255,0.1)' }}
               >
                 <FaMedal color="#fbbf24" size={18} style={{ marginRight: '10px' }} />
                 <div style={styles.achievementInfo}>
@@ -544,7 +415,18 @@ function LevelRoadmap({ user }) {
               </motion.div>
             ))
           ) : (
-            <p style={styles.noAchievements}>Complete tasks to earn achievements!</p>
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0 }}
+              style={styles.achievementItem}
+              whileHover={{ scale: 1.02, background: 'rgba(255,255,255,0.1)' }}
+            >
+              <FaMedal color="#fbbf24" size={18} style={{ marginRight: '10px' }} />
+              <div style={styles.achievementInfo}>
+                <p style={styles.noAchievements}>Complete tasks to earn achievements!</p>
+              </div>
+            </motion.div>
           )}
         </div>
       </motion.div>
@@ -552,18 +434,29 @@ function LevelRoadmap({ user }) {
       {/* Roadmap Path */}
       <div style={styles.roadmapContainer} ref={roadmapRef}>
         <h3 style={styles.roadmapTitle}>Level Roadmap</h3>
-        <div style={styles.roadmapPath}>
-          {LEVELS.map((level, index) => {
-            const isUnlocked = userLevel >= level.id;
-            const isCurrent = userLevel === level.id;
-            const isNext = userLevel + 1 === level.id;
+        <motion.div
+          // REMOVED: complex roadmap animation state
+          style={styles.roadmapPath}
+        >
+          {LEVELS.map((levelNode, index) => {
+            // UPDATED: Use `level` prop for all checks
+            const isUnlocked = level >= levelNode.id;
+            const isCurrent = level === levelNode.id;
+            const isNext = level + 1 === levelNode.id;
 
             return (
               <motion.div
-                key={level.id}
+                key={levelNode.id}
                 initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: index * 0.05 }}
+                animate={{
+                  opacity: 1,
+                  x: 0,
+                }}
+                transition={{
+                  delay: index * 0.05,
+                  duration: 0.5,
+                  ease: "easeOut"
+                }}
                 style={{
                   ...styles.levelNode,
                   ...(isCurrent && styles.levelNodeCurrent),
@@ -573,11 +466,11 @@ function LevelRoadmap({ user }) {
               >
                 {/* Connector Line */}
                 {index < LEVELS.length - 1 && (
-                  <div
+                  <motion.div
                     style={{
                       ...styles.connector,
                       background: isUnlocked
-                        ? `linear-gradient(90deg, ${level.color}, ${LEVELS[index + 1].color})`
+                        ? `linear-gradient(90deg, ${levelNode.color}, ${LEVELS[index + 1].color})`
                         : '#333',
                     }}
                   />
@@ -585,50 +478,66 @@ function LevelRoadmap({ user }) {
 
                 {/* Level Circle */}
                 <motion.div
-                  whileHover={isUnlocked ? { scale: 1.1, boxShadow: `0 0 20px ${level.color}` } : { scale: 1.05 }}
+                  whileHover={isUnlocked ? { scale: 1.1, boxShadow: `0 0 20px ${levelNode.color}` } : { scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
-                  onClick={() => handleLevelClick(level)}
+                  // ADDED: Simple pulsing animation for the current level
+                  animate={isCurrent ? { 
+                    boxShadow: [
+                      `0 0 20px ${levelNode.color}66`, 
+                      `0 0 35px ${levelNode.color}aa`, 
+                      `0 0 20px ${levelNode.color}66`
+                    ] 
+                  } : {}}
+                  transition={isCurrent ? { duration: 1.5, repeat: Infinity, ease: "easeInOut" } : {}}
+                  onClick={() => handleLevelClick(levelNode)}
                   style={{
                     ...styles.levelCircle,
-                    borderColor: isUnlocked ? level.color : '#555',
+                    borderColor: isUnlocked ? levelNode.color : '#555',
                     background: isUnlocked
-                      ? `linear-gradient(135deg, ${level.color}33, ${level.color}66)`
+                      ? `linear-gradient(135deg, ${levelNode.color}33, ${levelNode.color}66)`
                       : '#1a1a1a',
-                    boxShadow: isCurrent
-                      ? `0 0 30px ${level.color}`
-                      : isUnlocked
-                      ? `0 0 15px ${level.color}66`
+                    boxShadow: isUnlocked && !isCurrent
+                      ? `0 0 15px ${levelNode.color}66`
                       : 'none',
                     cursor: 'pointer',
                   }}
                 >
-                  <span style={styles.levelEmoji}>{level.icon}</span>
+                  <span style={styles.levelEmoji}>{levelNode.icon}</span>
                   {isCurrent && (
                     <motion.div
                       animate={{ rotate: 360 }}
-                      transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                      transition={{
+                        duration: 2,
+                        repeat: Infinity,
+                        ease: "linear"
+                      }}
                       style={styles.currentIndicator}
                     />
                   )}
                 </motion.div>
 
                 {/* Level Info */}
-                <div style={styles.levelNodeInfo}>
-                  <p style={styles.levelNodeName}>{level.name}</p>
-                  <p style={styles.levelNodeXP}>{level.xpRequired} XP</p>
+                <motion.div
+                  style={styles.levelNodeInfo}
+                >
+                  <p style={styles.levelNodeName}>{levelNode.name}</p>
+                  <p style={styles.levelNodeXP}>{levelNode.xpRequired} XP</p>
                   {isUnlocked && (
-                    <FaStar color={level.color} size={12} style={styles.unlockedStar} />
+                    <motion.div>
+                      <FaStar color={levelNode.color} size={12} style={styles.unlockedStar} />
+                    </motion.div>
                   )}
-                </div>
+                </motion.div>
               </motion.div>
             );
           })}
-        </div>
+        </motion.div>
       </div>
     </div>
   );
-}
+} // <-- *** THIS WAS THE MISSING BRACE ***
 
+// Styles (unchanged)
 const styles = {
   container: {
     minHeight: '100vh',
@@ -662,12 +571,13 @@ const styles = {
     top: '50%',
     left: '50%',
     transform: 'translate(-50%, -50%)',
-    background: 'linear-gradient(135deg, #fbbf24, #f59e0b)',
+    background: 'linear-gradient(135deg, #1f2937, #374151)',
     padding: '40px 60px',
     borderRadius: '20px',
     textAlign: 'center',
     zIndex: 1000,
     boxShadow: '0 20px 60px rgba(251, 191, 36, 0.5)',
+    border: '1px solid #fbbf24',
   },
   rewardUnlocked: {
     display: 'flex',
@@ -675,9 +585,10 @@ const styles = {
     justifyContent: 'center',
     marginTop: '20px',
     padding: '10px 20px',
-    background: 'rgba(0,0,0,0.2)',
+    background: 'rgba(251, 191, 36, 0.2)',
     borderRadius: '10px',
     fontWeight: '600',
+    color: '#fbbf24',
   },
   header: {
     textAlign: 'center',

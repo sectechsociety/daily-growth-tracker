@@ -1,9 +1,51 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { 
-  FaTrophy, FaSearch, FaMedal, FaCrown, FaStar, 
-  FaFire, FaChartLine, FaCalendarAlt 
+import {
+  FaTrophy, FaSearch, FaMedal, FaCrown, FaStar,
+  FaFire, FaChartLine, FaCalendarAlt, FaExclamationTriangle, FaRedo
 } from "react-icons/fa";
+
+// XP Requirements for each level (cumulative)
+const LEVEL_XP_REQUIREMENTS = {
+  1: 0,
+  2: 1000,
+  3: 3000,
+  4: 6000,
+  5: 10000,
+  6: 15000,
+  7: 21000,
+  8: 28000,
+  9: 36000,
+  10: 45000,
+  11: 55000,
+  12: 66000,
+  13: 78000,
+  14: 91000,
+  15: 105000,
+  16: 120000,
+  17: 136000,
+  18: 153000,
+  19: 171000,
+  20: 190000,
+};
+
+// Function to get XP required for next level
+const getXPForLevel = (level) => {
+  return LEVEL_XP_REQUIREMENTS[level] || 0;
+};
+
+// Function to calculate progress percentage towards next level
+const getProgressPercentage = (currentXP, currentLevel) => {
+  const currentLevelXP = getXPForLevel(currentLevel);
+  const nextLevelXP = getXPForLevel(currentLevel + 1);
+
+  if (nextLevelXP === 0) return 100; // Max level reached
+
+  const xpForNextLevel = nextLevelXP - currentLevelXP;
+  const currentLevelProgress = currentXP - currentLevelXP;
+
+  return Math.min((currentLevelProgress / xpForNextLevel) * 100, 100);
+};
 
 // XP Badge Thresholds with darker, more vibrant colors
 const XP_BADGES = [
@@ -15,6 +57,10 @@ const XP_BADGES = [
   { name: "Master", min: 10000, max: 14999, color: "#ef4444", icon: "👑" },
   { name: "Legend", min: 15000, max: Infinity, color: "#fbbf24", icon: "⭐" },
 ];
+
+const getBadge = (xp) => {
+  return XP_BADGES.find(badge => xp >= badge.min && xp <= badge.max) || XP_BADGES[0];
+};
 
 // Level Colors for avatar backgrounds
 const LEVEL_COLORS = {
@@ -40,71 +86,201 @@ const LEVEL_COLORS = {
   20: "#1e40af",  // Blue
 };
 
-function Leaderboard() {
+function Leaderboard({ user }) {
   const [search, setSearch] = useState("");
   const [leaderboardData, setLeaderboardData] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [retrying, setRetrying] = useState(false);
   const [timeFilter, setTimeFilter] = useState("all"); // all, weekly, monthly
   const [currentUserId, setCurrentUserId] = useState(null);
+  const [userStats, setUserStats] = useState(null);
 
   useEffect(() => {
-    fetchLeaderboard();
-    getCurrentUser();
-  }, []);
+    if (user && user._id) {
+      setCurrentUserId(user._id);
+      initializeUserInLeaderboard(user);
 
-  const getCurrentUser = () => {
-    // Get current user ID from localStorage or context
-    const token = localStorage.getItem('token');
-    if (token) {
-      try {
-        const payload = JSON.parse(atob(token.split('.')[1]));
-        setCurrentUserId(payload.userId);
-      } catch (error) {
-        console.error('Error parsing token:', error);
-      }
+      // Load leaderboard data from localStorage
+      loadLeaderboardData().catch(() => {
+        console.log('Loading mock data as fallback...');
+        loadMockData();
+      });
+    }
+  }, [user, timeFilter]); // Re-run when timeFilter or user changes
+
+  const initializeUserInLeaderboard = (userData) => {
+    if (!userData?._id) return;
+
+    // Load existing users from localStorage
+    const storedUsers = JSON.parse(localStorage.getItem('offline_users') || '[]');
+
+    // Check if user already exists
+    const existingUserIndex = storedUsers.findIndex(u => u.id === userData._id);
+
+    if (existingUserIndex === -1) {
+      // Add new user with default values
+      const newUser = {
+        id: userData._id,
+        email: userData.email,
+        name: userData.name,
+        level: 1, // Start at level 1
+        xp: 0,    // Start with 0 XP
+        streak: 0,
+        tasksCompleted: 0,
+        createdAt: new Date().toISOString()
+      };
+
+      storedUsers.push(newUser);
+      localStorage.setItem('offline_users', JSON.stringify(storedUsers));
+    } else {
+      // Update existing user data if needed
+      storedUsers[existingUserIndex] = {
+        ...storedUsers[existingUserIndex],
+        email: userData.email,
+        name: userData.name,
+        level: userData.level || storedUsers[existingUserIndex].level,
+        xp: userData.xp || storedUsers[existingUserIndex].xp,
+        streak: userData.streak || storedUsers[existingUserIndex].streak,
+        tasksCompleted: userData.tasksCompleted || storedUsers[existingUserIndex].tasksCompleted,
+      };
+      localStorage.setItem('offline_users', JSON.stringify(storedUsers));
     }
   };
 
-  const fetchLeaderboard = async () => {
+  const loadLeaderboardData = useCallback(async () => {
     try {
-      // Skip backend fetch since no authentication is required
-      // Use mock data immediately for demo mode
-      console.log('📊 Loading demo leaderboard data...');
-      setLeaderboardData(getMockData());
+      setLoading(true);
+      setError(null);
+
+      // Load users from localStorage
+      const storedUsers = JSON.parse(localStorage.getItem('offline_users') || '[]');
+
+      if (storedUsers.length === 0) {
+        setError('No users found. Please register or log in to see the leaderboard.');
+        return;
+      }
+
+      // Sort by XP descending and add rank
+      const rankedData = storedUsers
+        .sort((a, b) => b.xp - a.xp)
+        .map((user, index) => ({
+          ...user,
+          rank: index + 1,
+          user_id: user.id,
+          username: user.name,
+          last_updated: user.createdAt // Use createdAt as last_updated
+        }));
+
+      setLeaderboardData(rankedData);
+
+      // Update current user's stats for display
+      if (currentUserId) {
+        const currentUserData = rankedData.find(u => u.user_id === currentUserId);
+        if (currentUserData) {
+          setUserStats(currentUserData);
+        }
+      }
+
     } catch (error) {
-      console.error('Error fetching leaderboard:', error);
-      // Use mock data if backend fails
-      setLeaderboardData(getMockData());
+      console.error('Error loading leaderboard data:', error);
+      setError('Failed to load leaderboard data');
     } finally {
       setLoading(false);
+      setRetrying(false);
     }
-  };
+  }, [currentUserId, timeFilter]);
 
-  const getMockData = () => [
-    { _id: '1', rank: 1, name: 'Alex Champion', email: 'alex@example.com', level: 12, xp: 12500, totalPoints: 15000, streak: 45 },
-    { _id: '2', rank: 2, name: 'Sarah Warrior', email: 'sarah@example.com', level: 10, xp: 10200, totalPoints: 12000, streak: 30 },
-    { _id: '3', rank: 3, name: 'Mike Legend', email: 'mike@example.com', level: 9, xp: 9800, totalPoints: 11000, streak: 25 },
-    { _id: '4', rank: 4, name: 'Emma Swift', email: 'emma@example.com', level: 8, xp: 8500, totalPoints: 9500, streak: 20 },
-    { _id: '5', rank: 5, name: 'John Titan', email: 'john@example.com', level: 7, xp: 7200, totalPoints: 8000, streak: 15 },
-    { _id: '6', rank: 6, name: 'Lisa Phoenix', email: 'lisa@example.com', level: 6, xp: 6500, totalPoints: 7200, streak: 12 },
-    { _id: '7', rank: 7, name: 'David Storm', email: 'david@example.com', level: 5, xp: 5800, totalPoints: 6500, streak: 10 },
-    { _id: '8', rank: 8, name: 'Rachel Star', email: 'rachel@example.com', level: 4, xp: 4200, totalPoints: 5000, streak: 8 },
-  ];
+  // Fallback function for when localStorage is empty
+  const loadMockData = useCallback(() => {
+    const mockData = [
+      {
+        id: '1',
+        user_id: 'demo-1',
+        username: 'Demo User 1',
+        email: 'demo1@example.com',
+        xp: 1500,
+        level: 3,
+        rank: 1,
+        last_updated: new Date().toISOString()
+      },
+      {
+        id: '2',
+        user_id: 'demo-2',
+        username: 'Demo User 2',
+        email: 'demo2@example.com',
+        xp: 1200,
+        level: 2,
+        rank: 2,
+        last_updated: new Date().toISOString()
+      },
+      {
+        id: '3',
+        user_id: 'demo-3',
+        username: 'Demo User 3',
+        email: 'demo3@example.com',
+        xp: 800,
+        level: 1,
+        rank: 3,
+        last_updated: new Date().toISOString()
+      }
+    ];
+
+    setLeaderboardData(mockData);
+    setError('Using demo data - No users found in localStorage');
+  }, []);
+
+  const retryLoad = () => {
+    setRetrying(true);
+    setError(null);
+    loadLeaderboardData().catch(() => {
+      console.log('Real data failed, loading mock data...');
+      loadMockData();
+    });
+  };
 
   const getBadge = (xp) => {
     return XP_BADGES.find(badge => xp >= badge.min && xp <= badge.max) || XP_BADGES[0];
   };
 
   const filteredData = leaderboardData.filter((user) =>
-    user.name.toLowerCase().includes(search.toLowerCase()) ||
-    user.email.toLowerCase().includes(search.toLowerCase())
+    user.username?.toLowerCase().includes(search.toLowerCase()) ||
+    user.email?.toLowerCase().includes(search.toLowerCase())
   );
 
-  if (loading) {
+  if (loading && !retrying) {
     return (
       <div style={styles.loadingContainer}>
         <div style={styles.spinner}></div>
         <p>Loading leaderboard...</p>
+        <motion.button
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          onClick={retryLoad}
+          style={styles.retryButton}
+        >
+          <FaRedo size={14} />
+          Retry if stuck
+        </motion.button>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div style={styles.errorContainer}>
+        <FaExclamationTriangle size={50} color="#ef4444" />
+        <h3 style={styles.errorTitle}>Leaderboard Issue</h3>
+        <p style={styles.errorText}>{error}</p>
+        <motion.button
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          onClick={retryLoad}
+          style={styles.retryButton}
+        >
+          <FaRedo size={14} />
+          Try Again
+        </motion.button>
       </div>
     );
   }
@@ -121,7 +297,19 @@ function Leaderboard() {
           <FaTrophy color="#fbbf24" size={40} />
           Global Leaderboard
         </h1>
-        <p style={styles.subtitle}>Compete with the best and climb to the top!</p>
+        <p style={styles.subtitle}>
+          Compete with the best and climb to the top!
+          {userStats && (
+            <span style={{ color: "#a855f7", marginLeft: "15px" }}>
+              Your Rank: #{userStats.rank}
+            </span>
+          )}
+          {error && error.includes('demo') && (
+            <span style={{ color: "#f59e0b", marginLeft: "15px", fontSize: "0.9rem" }}>
+              (Demo Mode)
+            </span>
+          )}
+        </p>
       </motion.div>
 
       {/* Filters & Search */}
@@ -162,11 +350,11 @@ function Leaderboard() {
       <div style={styles.podiumContainer}>
         {filteredData.slice(0, 3).map((user, index) => {
           const badge = getBadge(user.xp);
-          const isCurrentUser = user._id === currentUserId;
-          
+          const isCurrentUser = user.user_id === currentUserId;
+
           return (
             <motion.div
-              key={user._id}
+              key={user.user_id}
               initial={{ opacity: 0, y: 50 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.1 }}
@@ -190,11 +378,11 @@ function Leaderboard() {
                 ...styles.podiumAvatar,
                 background: `linear-gradient(135deg, ${LEVEL_COLORS[user.level] || '#8b5cf6'}, ${badge.color})`,
               }}>
-                {user.name.charAt(0).toUpperCase()}
+                {user.username?.charAt(0).toUpperCase() || user.email?.charAt(0).toUpperCase() || 'U'}
               </div>
 
               {/* User Info */}
-              <h3 style={styles.podiumName}>{user.name}</h3>
+              <h3 style={styles.podiumName}>{user.username || 'Unknown User'}</h3>
               <div style={{
                 ...styles.podiumBadge,
                 background: `${badge.color}33`,
@@ -203,17 +391,17 @@ function Leaderboard() {
               }}>
                 {badge.icon} {badge.name}
               </div>
+              <div style={styles.podiumEmail}>{user.email}</div>
 
               {/* XP Display */}
               <div style={styles.podiumXP}>
                 <FaStar color="#fbbf24" />
-                <span>{user.xp.toLocaleString()} XP</span>
+                <span>{user.xp?.toLocaleString() || 0} XP</span>
               </div>
 
-              {/* Streak */}
-              <div style={styles.podiumStreak}>
-                <FaFire color="#f59e0b" />
-                <span>{user.streak} day streak</span>
+              {/* Level */}
+              <div style={styles.podiumLevel}>
+                Level {user.level || 1}
               </div>
             </motion.div>
           );
@@ -225,12 +413,12 @@ function Leaderboard() {
         <AnimatePresence>
           {filteredData.slice(3).map((user, index) => {
             const badge = getBadge(user.xp);
-            const isCurrentUser = user._id === currentUserId;
+            const isCurrentUser = user.user_id === currentUserId;
             const actualRank = index + 4;
-            
+
             return (
               <motion.div
-                key={user._id}
+                key={user.user_id}
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: 20 }}
@@ -252,13 +440,13 @@ function Leaderboard() {
                   background: `linear-gradient(135deg, ${LEVEL_COLORS[user.level] || '#8b5cf6'}, ${badge.color})`,
                   boxShadow: isCurrentUser ? `0 0 20px ${badge.color}` : 'none',
                 }}>
-                  {user.name.charAt(0).toUpperCase()}
+                  {user.username?.charAt(0).toUpperCase() || user.email?.charAt(0).toUpperCase() || 'U'}
                 </div>
 
                 {/* User Info */}
                 <div style={styles.listUserInfo}>
                   <div style={styles.listName}>
-                    {user.name}
+                    {user.username || 'Unknown User'}
                     {isCurrentUser && <span style={styles.youBadge}>YOU</span>}
                   </div>
                   <div style={styles.listEmail}>{user.email}</div>
@@ -277,21 +465,24 @@ function Leaderboard() {
                 {/* XP Progress */}
                 <div style={styles.listXPContainer}>
                   <div style={styles.listXPValue}>
-                    {user.xp.toLocaleString()} XP
+                    {user.xp?.toLocaleString() || 0} XP
                   </div>
                   <div style={styles.progressBarBg}>
                     <div style={{
                       ...styles.progressBarFill,
-                      width: `${Math.min((user.xp / 15000) * 100, 100)}%`,
+                      width: `${getProgressPercentage(user.xp || 0, user.level || 1)}%`,
                       background: `linear-gradient(90deg, ${LEVEL_COLORS[user.level] || '#8b5cf6'}, ${badge.color})`,
                     }} />
                   </div>
+                  {/* Next Level Info */}
+                  <div style={styles.nextLevelInfo}>
+                    Next: Lv. {user.level + 1} ({getXPForLevel(user.level + 1) - (user.xp || 0)} XP to go)
+                  </div>
                 </div>
 
-                {/* Streak */}
-                <div style={styles.listStreak}>
-                  <FaFire color="#f59e0b" size={16} />
-                  <span>{user.streak}</span>
+                {/* Level */}
+                <div style={styles.listLevel}>
+                  Lv. {user.level || 1}
                 </div>
               </motion.div>
             );
@@ -501,13 +692,10 @@ const styles = {
     marginBottom: '10px',
     color: '#ffffff',
   },
-  podiumStreak: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: '6px',
-    fontSize: '0.95rem',
+  podiumEmail: {
+    fontSize: '0.9rem',
     color: '#d1d5db',
+    marginBottom: '15px',
   },
   listContainer: {
     display: 'flex',
@@ -594,6 +782,12 @@ const styles = {
     marginBottom: '6px',
     color: '#ffffff',
   },
+  nextLevelInfo: {
+    fontSize: '0.8rem',
+    color: '#d1d5db',
+    marginTop: '4px',
+    textAlign: 'center',
+  },
   progressBarBg: {
     width: '100%',
     height: '10px',
@@ -617,10 +811,50 @@ const styles = {
     minWidth: '70px',
     color: '#ffffff',
   },
-  emptyState: {
+  listLevel: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '6px',
+    fontSize: '1rem',
+    fontWeight: '700',
+    minWidth: '50px',
+    color: '#ffffff',
+  },
+  errorContainer: {
     textAlign: 'center',
     padding: '60px 20px',
-    color: '#9ca3af',
+    background: 'rgba(239, 68, 68, 0.1)',
+    borderRadius: '20px',
+    border: '2px solid rgba(239, 68, 68, 0.3)',
+    margin: '40px auto',
+    maxWidth: '600px',
+  },
+  errorTitle: {
+    fontSize: '1.5rem',
+    fontWeight: '700',
+    marginBottom: '10px',
+    color: '#ef4444',
+  },
+  errorText: {
+    fontSize: '1rem',
+    color: '#dc2626',
+    marginBottom: '20px',
+  },
+  retryButton: {
+    padding: '12px 24px',
+    borderRadius: '12px',
+    border: '2px solid #a855f7',
+    background: 'linear-gradient(135deg, #a855f7, #7c3aed)',
+    color: '#ffffff',
+    cursor: 'pointer',
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '8px',
+    fontSize: '1rem',
+    fontWeight: '600',
+    marginTop: '20px',
+    transition: 'all 0.3s',
   },
 };
 
