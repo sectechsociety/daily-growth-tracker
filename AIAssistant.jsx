@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from 'framer-motion';
 
 // Helper component for accordion icons
@@ -20,11 +20,7 @@ const AccordionIcon = ({ isOpen }) => (
 );
 
 // Target setting panel component
-const TargetSetterPanel = ({ goals, onAddGoal, onToggleGoal, onDeleteGoal, getCategoryIcon, getCategoryColor }) => {
-  const completedGoals = goals.filter(goal => goal.completed).length;
-  const totalGoals = goals.length;
-  const completionRate = totalGoals > 0 ? Math.round((completedGoals / totalGoals) * 100) : 0;
-
+const TargetSetterPanel = () => {
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -33,134 +29,28 @@ const TargetSetterPanel = ({ goals, onAddGoal, onToggleGoal, onDeleteGoal, getCa
       style={styles.panel}
     >
       <div style={styles.panelHeader}>
-        <span style={styles.panelIcon}>🎯</span>
+        <span style={styles.panelIcon}></span>
         <h2 style={styles.panelTitle}>My Growth Targets</h2>
       </div>
       <div style={styles.panelContent}>
-        {goals.length === 0 ? (
-          <div style={{ textAlign: 'center', color: '#9ca3af', fontSize: '0.9rem' }}>
-            <p style={{ marginBottom: '16px' }}>No goals set yet. Start your growth journey!</p>
-            <motion.button
-              style={styles.panelButton}
-              onClick={onAddGoal}
-              whileHover={{ scale: 1.03 }}
-              whileTap={{ scale: 0.98 }}
-            >
-              ➕ Set Your First Goal
-            </motion.button>
-          </div>
-        ) : (
-          <>
-            {/* Goals Summary */}
-            <div style={{
-              background: 'rgba(16, 185, 129, 0.1)',
-              padding: '16px',
-              borderRadius: '12px',
-              border: '1px solid rgba(16, 185, 129, 0.3)',
-              marginBottom: '20px'
-            }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                <span style={{ color: '#10b981', fontSize: '0.9rem', fontWeight: '600' }}>Progress</span>
-                <span style={{ color: '#10b981', fontSize: '1.2rem', fontWeight: '700' }}>{completionRate}%</span>
-              </div>
-              <div style={{
-                background: 'rgba(16, 185, 129, 0.2)',
-                borderRadius: '8px',
-                height: '6px',
-                overflow: 'hidden'
-              }}>
-                <div style={{
-                  background: 'linear-gradient(90deg, #10b981, #34d399)',
-                  width: `${completionRate}%`,
-                  height: '100%',
-                  borderRadius: '8px',
-                  transition: 'width 0.5s ease'
-                }}></div>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '8px' }}>
-                <span style={{ color: '#9ca3af', fontSize: '0.8rem' }}>
-                  {completedGoals} of {totalGoals} completed
-                </span>
-                <span style={{ color: '#9ca3af', fontSize: '0.8rem' }}>
-                  {totalGoals - completedGoals} remaining
-                </span>
-              </div>
-            </div>
-
-            {goals.map((goal) => (
-              <div key={goal.id} style={{
-                ...styles.targetItem,
-                borderLeft: `4px solid ${getCategoryColor(goal.category)}`,
-                opacity: goal.completed ? 0.7 : 1,
-                background: goal.completed 
-                  ? 'rgba(16, 185, 129, 0.1)' 
-                  : 'rgba(255, 255, 255, 0.05)'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span style={{ fontSize: '1.2rem' }}>
-                    {goal.completed ? '✅' : getCategoryIcon(goal.category)}
-                  </span>
-                  <span style={{ 
-                    textDecoration: goal.completed ? 'line-through' : 'none',
-                    color: goal.completed ? '#9ca3af' : '#e5e7eb'
-                  }}>
-                    {goal.text}
-                  </span>
-                </div>
-                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                  <motion.button
-                    onClick={() => onToggleGoal(goal.id)}
-                    style={{
-                      background: goal.completed ? '#10b981' : 'rgba(139, 92, 246, 0.3)',
-                      border: 'none',
-                      borderRadius: '50%',
-                      width: '24px',
-                      height: '24px',
-                      cursor: 'pointer',
-                      fontSize: '12px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center'
-                    }}
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.9 }}
-                    title={goal.completed ? 'Mark as incomplete' : 'Mark as complete'}
-                  >
-                    {goal.completed ? '✓' : '○'}
-                  </motion.button>
-                  <motion.button
-                    onClick={() => onDeleteGoal(goal.id)}
-                    style={{
-                      background: 'rgba(239, 68, 68, 0.3)',
-                      border: 'none',
-                      borderRadius: '50%',
-                      width: '20px',
-                      height: '20px',
-                      cursor: 'pointer',
-                      fontSize: '10px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center'
-                    }}
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.9 }}
-                    title="Delete goal"
-                  >
-                    ×
-                  </motion.button>
-                </div>
-              </div>
-            ))}
-            <motion.button
-              style={styles.panelButton}
-              onClick={onAddGoal}
-              whileHover={{ scale: 1.03 }}
-              whileTap={{ scale: 0.98 }}
-            >
-              ➕ Add New Goal
-            </motion.button>
-          </>
-        )}
+        <p style={{ color: '#9ca3af', fontSize: '0.9rem', textAlign: 'center' }}>
+          Your personal goals will appear here. We'll connect this to your database next!
+        </p>
+        <div style={styles.targetItem}>
+          <span>Walk 8,000 steps</span>
+          <div style={styles.targetProgress}>...</div>
+        </div>
+        <div style={styles.targetItem}>
+          <span>Log Calories Daily</span>
+          <div style={styles.targetProgress}>...</div>
+        </div>
+        <motion.button
+          style={styles.panelButton}
+          whileHover={{ scale: 1.03 }}
+          whileTap={{ scale: 0.98 }}
+        >
+          Set a New Goal
+        </motion.button>
       </div>
     </motion.div>
   );
@@ -172,24 +62,24 @@ const GuidancePanel = () => {
 
   const tips = [
     {
-      icon: '🏋️‍♂️',
+      icon: '',
       title: 'Gym Workout Tips',
-      content: '• Focus on compound lifts like squats, deadlifts, and bench press.\n• Ensure proper form to prevent injury.\n• Aim for progressive overload—gradually increase weight or reps.'
+      content: ' Focus on compound lifts like squats, deadlifts, and bench press.\n Ensure proper form to prevent injury.\n Aim for progressive overloadâ€”gradually increase weight or reps.'
     },
     {
-      icon: '🧘',
+      icon: '',
       title: 'Yoga & Flexibility',
-      content: '• Start with a 5-10 minute warm-up.\n• Listen to your body and don\'t push past pain.\n• Hold stretches for 15-30 seconds. Consistency is key!'
+      content: ' Start with a 5-10 minute warm-up.\n Listen to your body and don\'t push past pain.\n Hold stretches for 15-30 seconds. Consistency is key!'
     },
     {
-      icon: '🏃',
+      icon: '',
       title: 'Running & Cardio',
-      content: '• Mix steady-state cardio with high-intensity interval training (HIIT).\n• Invest in good running shoes to protect your joints.\n• Remember to hydrate before, during, and after your run.'
+      content: ' Mix steady-state cardio with high-intensity interval training (HIIT).\n Invest in good running shoes to protect your joints.\n Remember to hydrate before, during, and after your run.'
     },
     {
-      icon: '🍎',
+      icon: '',
       title: 'Food & Nutrition',
-      content: '• Prioritize protein for muscle repair and satiety.\n• Eat a variety of colorful fruits and vegetables.\n• A balanced meal includes protein, carbs, and healthy fats.'
+      content: ' Prioritize protein for muscle repair and satiety.\n Eat a variety of colorful fruits and vegetables.\n A balanced meal includes protein, carbs, and healthy fats.'
     }
   ];
 
@@ -244,38 +134,13 @@ export default function AIAssistant() {
   const [messages, setMessages] = useState([
     {
       role: 'assistant',
-      content: "👋 Hi! I'm your AI Growth Assistant. Ask me anything about:\n\n• Building better habits\n• Productivity tips\n• Goal setting strategies\n• Time management\n• Personal development\n• Motivation and mindset\n\nWhat would you like to know?"
+      content: " Hi! I'm your AI Growth Assistant. Ask me anything about:\n\n Building better habits\n Productivity tips\n Goal setting strategies\n Time management\n Personal development\n Motivation and mindset\n\nWhat would you like to know?"
     }
   ]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [goals, setGoals] = useState([]);
-  const [showGoalModal, setShowGoalModal] = useState(false);
-  const [newGoal, setNewGoal] = useState('');
-  const [goalCategory, setGoalCategory] = useState('health');
-  const [modalInputRef, setModalInputRef] = useState(null);
 
   const chatEndRef = useRef(null);
-
-  // Load goals from localStorage on component mount
-  useEffect(() => {
-    const savedGoals = localStorage.getItem('growth-goals');
-    if (savedGoals) {
-      setGoals(JSON.parse(savedGoals));
-    }
-  }, []);
-
-  // Save goals to localStorage whenever goals change
-  useEffect(() => {
-    localStorage.setItem('growth-goals', JSON.stringify(goals));
-  }, [goals]);
-
-  // Focus textarea when modal opens
-  useEffect(() => {
-    if (showGoalModal && modalInputRef) {
-      modalInputRef.focus();
-    }
-  }, [showGoalModal, modalInputRef]);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -341,7 +206,7 @@ User question: ${trimmedPrompt}`
       setMessages(prev => [...prev, { role: 'assistant', content: aiResponse }]);
     } catch (err) {
       console.error('AI Error:', err);
-      setError(`❌ ${err.message || 'Failed to get AI response. Please try again.'}`);
+      setError(`âŒ ${err.message || 'Failed to get AI response. Please try again.'}`);
       setMessages(prev => [...prev, {
         role: 'assistant',
         content: ' Sorry, I encountered an error. Please try asking your question again!'
@@ -351,80 +216,10 @@ User question: ${trimmedPrompt}`
     }
   };
 
-  const handleAddGoal = () => {
-    if (newGoal.trim()) {
-      const goal = {
-        id: Date.now(),
-        text: newGoal.trim(),
-        category: goalCategory,
-        completed: false,
-        createdAt: new Date().toISOString(),
-        completedAt: null
-      };
-      setGoals(prev => [...prev, goal]);
-      setNewGoal('');
-      setShowGoalModal(false);
-      setGoalCategory('health');
-      // Show success message
-      console.log('Goal added successfully:', goal);
-    } else {
-      console.log('Cannot add empty goal');
-    }
-  };
-
-  const handleToggleGoal = (goalId) => {
-    setGoals(prev => prev.map(goal => 
-      goal.id === goalId 
-        ? { 
-            ...goal, 
-            completed: !goal.completed,
-            completedAt: !goal.completed ? new Date().toISOString() : null 
-          }
-        : goal
-    ));
-  };
-
-  const handleDeleteGoal = (goalId) => {
-    setGoals(prev => prev.filter(goal => goal.id !== goalId));
-  };
-
   const handleKeyPress = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSubmit(e);
-    }
-  };
-
-  const handleModalKeyPress = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      if (newGoal.trim()) {
-        handleAddGoal();
-      }
-    } else if (e.key === 'Escape') {
-      setShowGoalModal(false);
-    }
-  };
-
-  const getCategoryIcon = (category) => {
-    switch (category) {
-      case 'health': return '💪';
-      case 'productivity': return '⚡';
-      case 'learning': return '📚';
-      case 'mindfulness': return '🧘';
-      case 'social': return '👥';
-      default: return '🎯';
-    }
-  };
-
-  const getCategoryColor = (category) => {
-    switch (category) {
-      case 'health': return '#10b981';
-      case 'productivity': return '#f59e0b';
-      case 'learning': return '#3b82f6';
-      case 'mindfulness': return '#8b5cf6';
-      case 'social': return '#ef4444';
-      default: return '#6ee7b7';
     }
   };
 
@@ -447,7 +242,7 @@ User question: ${trimmedPrompt}`
           style={styles.header}
         >
           <h1 style={styles.title}>
-            <span style={styles.icon}>🤖</span>
+            <span style={styles.icon}></span>
             AI Growth Assistant
           </h1>
           <p style={styles.subtitle}>
@@ -468,7 +263,7 @@ User question: ${trimmedPrompt}`
                     style={msg.role === 'user' ? styles.userMessage : styles.assistantMessage}
                   >
                     <div style={styles.messageIcon}>
-                      {msg.role === 'user' ? '👤' : '🤖'}
+                      {msg.role === 'user' ? 'ðŸ‘¤' : 'ðŸ¤–'}
                     </div>
                     <div style={styles.messageContent}>
                       <div style={styles.messageRole}>
@@ -489,9 +284,9 @@ User question: ${trimmedPrompt}`
                   style={styles.loadingContainer}
                 >
                   <div style={styles.loadingDots}>
-                    <span style={styles.dot}>●</span>
-                    <span style={{...styles.dot, animationDelay: '0.2s'}}>●</span>
-                    <span style={{...styles.dot, animationDelay: '0.4s'}}>●</span>
+                    <span style={styles.dot}></span>
+                    <span style={{...styles.dot, animationDelay: '0.2s'}}></span>
+                    <span style={{...styles.dot, animationDelay: '0.4s'}}></span>
                   </div>
                   <span style={styles.loadingText}>AI is thinking...</span>
                 </motion.div>
@@ -547,7 +342,7 @@ User question: ${trimmedPrompt}`
                     </>
                   ) : (
                     <>
-                      <span>✨</span>
+                      <span>âœ¨</span>
                       Ask AI
                     </>
                   )}
@@ -561,7 +356,7 @@ User question: ${trimmedPrompt}`
               transition={{ delay: 0.6 }}
               style={styles.suggestions}
             >
-              <p style={styles.suggestionsTitle}>💡 Try asking:</p>
+              <p style={styles.suggestionsTitle}>ðŸ’¡ Try asking:</p>
               <div style={styles.suggestionButtons}>
                 {[
                   "How can I build a morning routine?",
@@ -584,103 +379,11 @@ User question: ${trimmedPrompt}`
           </div>
 
           <div style={styles.rightColumn}>
-            <TargetSetterPanel 
-              goals={goals}
-              onAddGoal={() => setShowGoalModal(true)}
-              onToggleGoal={handleToggleGoal}
-              onDeleteGoal={handleDeleteGoal}
-              getCategoryIcon={getCategoryIcon}
-              getCategoryColor={getCategoryColor}
-            />
+            <TargetSetterPanel />
             <GuidancePanel />
           </div>
         </div>
       </motion.div>
-
-      {/* Goal Modal */}
-      <AnimatePresence>
-        {showGoalModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            style={styles.modalOverlay}
-            onClick={() => setShowGoalModal(false)}
-          >
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              transition={{ type: 'spring', duration: 0.3 }}
-              style={styles.modal}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div style={styles.modalHeader}>
-                <h3 style={styles.modalTitle}>🎯 Set New Goal</h3>
-                <motion.button
-                  onClick={() => setShowGoalModal(false)}
-                  style={styles.modalCloseButton}
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.9 }}
-                >
-                  ×
-                </motion.button>
-              </div>
-              <div style={styles.modalContent}>
-                <div style={styles.inputGroup}>
-                  <label style={styles.label}>Goal Description</label>
-                  <textarea
-                    ref={setModalInputRef}
-                    value={newGoal}
-                    onChange={(e) => setNewGoal(e.target.value)}
-                    onKeyPress={handleModalKeyPress}
-                    style={styles.modalInput}
-                    placeholder="What do you want to achieve?"
-                    rows={3}
-                  />
-                </div>
-                <div style={styles.inputGroup}>
-                  <label style={styles.label}>Category</label>
-                  <select
-                    value={goalCategory}
-                    onChange={(e) => setGoalCategory(e.target.value)}
-                    style={styles.modalSelect}
-                  >
-                    <option value="health">💪 Health & Fitness</option>
-                    <option value="productivity">⚡ Productivity</option>
-                    <option value="learning">📚 Learning</option>
-                    <option value="mindfulness">🧘 Mindfulness</option>
-                    <option value="social">👥 Social</option>
-                  </select>
-                </div>
-                <div style={styles.modalActions}>
-                  <motion.button
-                    onClick={() => setShowGoalModal(false)}
-                    style={styles.modalCancelButton}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                  >
-                    Cancel
-                  </motion.button>
-                  <motion.button
-                    onClick={handleAddGoal}
-                    disabled={!newGoal.trim()}
-                    style={{
-                      ...styles.modalSaveButton,
-                      opacity: newGoal.trim() ? 1 : 0.5,
-                      cursor: newGoal.trim() ? 'pointer' : 'not-allowed'
-                    }}
-                    whileHover={newGoal.trim() ? { scale: 1.05 } : {}}
-                    whileTap={newGoal.trim() ? { scale: 0.95 } : {}}
-                  >
-                    Save Goal
-                  </motion.button>
-                </div>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   );
 }
@@ -1018,125 +721,10 @@ const styles = {
     lineHeight: '1.6',
     whiteSpace: 'pre-wrap',
   },
-  // Modal styles
-  modalOverlay: {
-    position: 'fixed',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
-    backdropFilter: 'blur(10px)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 9999,
-    padding: '20px',
-  },
-  modal: {
-    background: 'linear-gradient(135deg, #1e1b4b, #312e81)',
-    borderRadius: '20px',
-    border: '1px solid rgba(139, 92, 246, 0.3)',
-    boxShadow: '0 25px 80px rgba(0, 0, 0, 0.8)',
-    width: '100%',
-    maxWidth: '500px',
-    maxHeight: '90vh',
-    overflow: 'auto',
-  },
-  modalHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: '24px',
-    borderBottom: '1px solid rgba(139, 92, 246, 0.2)',
-    background: 'rgba(139, 92, 246, 0.1)',
-  },
-  modalTitle: {
-    margin: 0,
-    color: '#fff',
-    fontSize: '1.5rem',
-    fontWeight: '700',
-  },
-  modalCloseButton: {
-    background: 'rgba(239, 68, 68, 0.3)',
-    border: 'none',
-    borderRadius: '50%',
-    width: '32px',
-    height: '32px',
-    color: '#fff',
-    fontSize: '18px',
-    cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  modalContent: {
-    padding: '24px',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '20px',
-  },
-  inputGroup: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '8px',
-  },
-  label: {
-    color: '#9ca3af',
-    fontSize: '0.9rem',
-    fontWeight: '600',
-  },
-  modalInput: {
-    background: 'rgba(31, 41, 55, 0.8)',
-    border: '2px solid rgba(139, 92, 246, 0.3)',
-    borderRadius: '12px',
-    padding: '16px',
-    color: '#fff',
-    fontSize: '1rem',
-    fontFamily: 'inherit',
-    resize: 'vertical',
-    transition: 'all 0.3s ease',
-  },
-  modalSelect: {
-    background: 'rgba(31, 41, 55, 0.8)',
-    border: '2px solid rgba(139, 92, 246, 0.3)',
-    borderRadius: '12px',
-    padding: '16px',
-    color: '#fff',
-    fontSize: '1rem',
-    fontFamily: 'inherit',
-    transition: 'all 0.3s ease',
-  },
-  modalActions: {
-    display: 'flex',
-    gap: '12px',
-    justifyContent: 'flex-end',
-    marginTop: '10px',
-  },
-  modalCancelButton: {
-    background: 'rgba(107, 114, 128, 0.8)',
-    color: '#fff',
-    border: 'none',
-    borderRadius: '12px',
-    padding: '12px 24px',
-    fontSize: '1rem',
-    fontWeight: '600',
-    cursor: 'pointer',
-    transition: 'all 0.3s ease',
-  },
-  modalSaveButton: {
-    background: 'linear-gradient(135deg, #8b5cf6, #6366f1)',
-    color: '#fff',
-    border: 'none',
-    borderRadius: '12px',
-    padding: '12px 24px',
-    fontSize: '1rem',
-    fontWeight: '600',
-    transition: 'all 0.3s ease',
-  },
 };
 
 // CSS animations
 const styleSheet = document.createElement("style");
 styleSheet.textContent = `\n  @keyframes pulse {\n    0%, 100% { opacity: 0.5; transform: translate(-50%, -50%) scale(1); }\n    50% { opacity: 0.8; transform: translate(-50%, -50%) scale(1.1); }\n  }\n  @keyframes float {\n    0%, 100% { transform: translateY(0px); }\n    50% { transform: translateY(-20px); }\n  }\n  @keyframes bounce {\n    0%, 80%, 100% { transform: scale(0); opacity: 0.5; }\n    40% { transform: scale(1); opacity: 1; }\n  }\n  @keyframes spin {\n    to { transform: rotate(360deg); }\n  }\n`;
 document.head.appendChild(styleSheet);
+

@@ -6,31 +6,8 @@
 // Import Firebase core
 import { initializeApp } from "firebase/app";
 import { getAnalytics } from "firebase/analytics";
-
-// Import Authentication functions
-import {
-  getAuth,
-  onAuthStateChanged,
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
-  signOut,
-  sendPasswordResetEmail,
-  updateProfile,
-  GoogleAuthProvider,
-  signInWithPopup
-} from "firebase/auth";
-
-// Import Firestore functions
-import {
-  getFirestore,
-  doc,
-  getDoc,
-  setDoc,
-  updateDoc,
-  onSnapshot
-} from "firebase/firestore";
-
-// Import Storage functions
+import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, sendPasswordResetEmail, updateProfile, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
+import { getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
 // ============================================
