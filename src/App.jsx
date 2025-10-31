@@ -14,7 +14,8 @@ import AdventureMap from "./AdventureMap.jsx";
 import Game from "./Game";
 import AIAssistant from "./AIAssistant";
 import LevelRoadmap from "./LevelRoadmap";
-import { onAuthStateChange } from './firebase';
+import { onAuthStateChange, db, logout } from './firebase';
+import { doc, getDoc } from "firebase/firestore";
 
 function AnimatedRoutes({ user, setUser, token, setToken }) {
   const location = useLocation();
@@ -313,17 +314,52 @@ function AppContent() {
 
   // Listen for Firebase auth state changes
   useEffect(() => {
-    const unsubscribe = onAuthStateChange((user) => {
-      if (user) {
-        // User is signed in
-        setUser(user);
-        user.getIdToken().then(token => {
-          setToken(token);
-          localStorage.setItem('token', token);
-          localStorage.setItem('user', JSON.stringify(user));
-        });
+    const unsubscribe = onAuthStateChange(async (authUser) => {
+      if (authUser) {
+        try {
+          const [tokenValue, firestoreDoc] = await Promise.all([
+            authUser.getIdToken(),
+            getDoc(doc(db, 'users', authUser.uid))
+          ]);
+
+          const firestoreData = firestoreDoc.exists() ? firestoreDoc.data() : {};
+          const existingLocalUser = JSON.parse(localStorage.getItem('user') || '{}');
+
+          const mergedUser = {
+            uid: authUser.uid,
+            email: authUser.email,
+            displayName: authUser.displayName,
+            photoURL: authUser.photoURL,
+            xp: firestoreData.xp ?? existingLocalUser.xp ?? 0,
+            level: firestoreData.level ?? existingLocalUser.level ?? 1,
+            tasksCompleted: firestoreData.tasksCompleted ?? existingLocalUser.tasksCompleted ?? 0,
+            streak: firestoreData.streak ?? existingLocalUser.streak ?? 0,
+            mindfulMinutes: firestoreData.mindfulMinutes ?? existingLocalUser.mindfulMinutes ?? 0,
+            skillsUnlocked: firestoreData.skillsUnlocked ?? existingLocalUser.skillsUnlocked ?? 0,
+            last_updated: firestoreData.last_updated ?? existingLocalUser.last_updated ?? null,
+            createdAt: firestoreData.createdAt ?? existingLocalUser.createdAt ?? null,
+          };
+
+          setUser(mergedUser);
+          setToken(tokenValue);
+
+          localStorage.setItem('token', tokenValue);
+          localStorage.setItem('user', JSON.stringify(mergedUser));
+        } catch (err) {
+          console.error('Failed to hydrate user profile:', err);
+          const fallbackToken = await authUser.getIdToken();
+          const fallbackUser = {
+            uid: authUser.uid,
+            email: authUser.email,
+            displayName: authUser.displayName,
+            photoURL: authUser.photoURL,
+          };
+          setUser(fallbackUser);
+          setToken(fallbackToken);
+          localStorage.setItem('token', fallbackToken);
+          localStorage.setItem('user', JSON.stringify(fallbackUser));
+        }
       } else {
-        // User is signed out
         setUser(null);
         setToken(null);
         localStorage.removeItem('token');

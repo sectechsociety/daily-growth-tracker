@@ -1,10 +1,11 @@
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { supabase } from "./supabaseClient";
 import axios from "axios";
 import { useTheme } from "./ThemeContext";
+import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { db } from "./firebase";
 import Game from "./Game";
 import LevelRoadmap from "./LevelRoadmap";
 import Leaderboard from "./Leaderboard";
@@ -160,11 +161,21 @@ function Dashboard({ user, setUser, token, setToken }) {
   const [dailyProgress, setDailyProgress] = useState(0); 
   // `taskXP` tracks completion count for EACH task today { taskId: count }
   const [taskXP, setTaskXP] = useState({}); 
+  // Cumulative progress across sessions
+  const [overallTaskXP, setOverallTaskXP] = useState({});
+  const [overallStats, setOverallStats] = useState({ totalCompletions: 0, uniqueTasks: 0 });
 
   const [taskToDelete, setTaskToDelete] = useState(null);
   const [editingTask, setEditingTask] = useState(null);
   const [newTask, setNewTask] = useState({ name: '', xp: 10, icon: '⭐', color: '#60a5fa' });
   const [toast, setToast] = useState(null);
+
+  const totalAvailableTasks = Math.max(tasks.length, 1);
+  const overallCompletionPercent = useMemo(() => {
+    const rawPercent = (overallStats.totalCompletions / totalAvailableTasks) * 100;
+    return Number.isFinite(rawPercent) ? Math.min(rawPercent, 100) : 0;
+  }, [overallStats.totalCompletions, totalAvailableTasks]);
+  const overallPercentRounded = Math.round(overallCompletionPercent);
 
   // --- API & Core Logic (Unchanged) ---
   const makeAuthenticatedRequest = async (url, data = null, method = 'GET') => {
@@ -183,28 +194,10 @@ function Dashboard({ user, setUser, token, setToken }) {
   // ** UPDATED load function **
   const loadDailyProgress = () => {
     try {
-      // Load the detailed task status object
       const progressData = JSON.parse(localStorage.getItem('dailyTaskStatus') || '{}');
-      const todayKey = getTodayKey();
-
-      let todaysTaskXP = {};
-
-      // Check if we need to reset for a new day
-      if (progressData.lastUpdated !== todayKey) {
-        // If it's a new day, today's task completions start empty
-        todaysTaskXP = {};
-        // Update storage for the new day
-        localStorage.setItem('dailyTaskStatus', JSON.stringify({ todayTaskXP: {}, lastUpdated: todayKey }));
-      } else {
-        // Otherwise, load today's completions from storage
-        todaysTaskXP = progressData.todayTaskXP || {};
-      }
-
-      // Set the detailed task completion state
+      const todaysTaskXP = progressData.todayTaskXP || progressData.taskXP || {};
       setTaskXP(todaysTaskXP);
-      // Set the unique count state based on the loaded data
       setDailyProgress(Object.keys(todaysTaskXP).length);
-
     } catch (error) {
       console.error('Error loading daily progress:', error);
       setTaskXP({});
@@ -225,6 +218,29 @@ function Dashboard({ user, setUser, token, setToken }) {
     }
   };
 
+  const loadOverallProgress = () => {
+    try {
+      const stored = JSON.parse(localStorage.getItem('overallTaskStatus') || '{}');
+      const storedTaskXP = stored.taskXP || {};
+      const uniqueTasks = Object.keys(storedTaskXP).length;
+      const totalCompletions = Object.values(storedTaskXP).reduce((sum, count) => sum + (count || 0), 0);
+      setOverallTaskXP(storedTaskXP);
+      setOverallStats({ totalCompletions, uniqueTasks });
+    } catch (error) {
+      console.error('Error loading overall progress:', error);
+      setOverallTaskXP({});
+      setOverallStats({ totalCompletions: 0, uniqueTasks: 0 });
+    }
+  };
+
+  const saveOverallTaskStatus = (currentTaskXP) => {
+    try {
+      localStorage.setItem('overallTaskStatus', JSON.stringify({ taskXP: currentTaskXP }));
+    } catch (error) {
+      console.error('Error saving overall task status:', error);
+    }
+  };
+
   // ** REMOVED `updateDailyProgress` - logic moved to addXP **
 
   // ** UPDATED reset function **
@@ -240,6 +256,7 @@ function Dashboard({ user, setUser, token, setToken }) {
   useEffect(() => {
     setProfile({ name: "Growth Seeker", email: "demo@example.com", photoURL: null });
     loadDailyProgress(); // Load daily progress on component mount
+    loadOverallProgress();
     if (user?._id && token) {
       makeAuthenticatedRequest('/users/profile-stats')
         .then(response => {
@@ -270,99 +287,117 @@ function Dashboard({ user, setUser, token, setToken }) {
   }, [user, token]); 
 
   // ** UPDATED addXP function **
-  const addXP = async (taskId, xpToAdd) => {
-    try {
-      const isOffline = !token || token.startsWith('offline_');
-      let newLevel, newXp;
-      const currentLevel = userStats.level; // Get level *before* adding XP
+  const addXP = async (taskId, xpToAdd, clickPosition = { x: window.innerWidth / 2, y: window.innerHeight / 2 }) => {
+    const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
+    const isOffline = !token || token.startsWith('offline_');
 
-      if (isOffline) {
-        const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
-        const currentXp = storedUser.xp || 0;
-        newXp = currentXp + xpToAdd;
-        // Correct level calculation (assuming 100 XP per level)
-        newLevel = Math.floor(newXp / 100) + 1; 
+    const baseXp = typeof storedUser.xp === 'number' ? storedUser.xp : userStats.xp || 0;
+    const baseLevel = storedUser.level || userStats.level || 1;
+    const baseTasksCompleted = typeof storedUser.tasksCompleted === 'number'
+      ? storedUser.tasksCompleted
+      : userStats.tasksCompleted || 0;
 
-        storedUser.xp = newXp;
-        storedUser.level = newLevel;
-        storedUser.tasksCompleted = (storedUser.tasksCompleted || 0) + 1;
-        localStorage.setItem('user', JSON.stringify(storedUser));
-        // Update the user prop if setUser is available
-        if (setUser) setUser(storedUser); 
-      } else {
+    let finalXp = baseXp + xpToAdd;
+    let finalLevel = Math.floor(finalXp / 100) + 1;
+    let finalTasksCompleted = baseTasksCompleted + 1;
+
+    if (!isOffline) {
+      try {
         const response = await makeAuthenticatedRequest('/users/add-xp', { xp: xpToAdd }, 'POST');
-        newLevel = response.data.level;
-        newXp = response.data.xp;
-        // Update the user prop if setUser is available
-        if (setUser) setUser(prev => ({...prev, xp: newXp, level: newLevel, tasksCompleted: (prev.tasksCompleted || 0) + 1}));
-      }
-
-      // Update userStats state (used by LevelRoadmap)
-      setUserStats(prev => ({ 
-          ...prev, 
-          xp: newXp, 
-          level: newLevel, 
-          tasksCompleted: prev.tasksCompleted + 1 
-      }));
-      
-      // Check for level up *after* states are updated
-      if (newLevel > currentLevel) {
-          setToast({ message: `Level Up! Reached Level ${newLevel}! ✨`, type: 'success' });
-      } else {
-          setToast({ message: `+${xpToAdd} XP Gained!`, type: 'success' });
-      }
-      setTimeout(() => setToast(null), 3000);
-
-
-      // Trigger roadmap animation for visual feedback (optional)
-      setRoadmapAnimation(true);
-      setTimeout(() => setRoadmapAnimation(false), 2000);
-
-      // XP floating animation
-      const newAnimation = { id: Date.now(), xp: xpToAdd, x: window.innerWidth / 2, y: window.innerHeight / 2 };
-      setXpAnimations(prev => [...prev, newAnimation]);
-      setTimeout(() => setXpAnimations(prev => prev.filter(anim => anim.id !== newAnimation.id)), 2500);
-
-      // Update daily task completions (taskXP) and unique count (dailyProgress)
-      setTaskXP(prev => {
-        const newTaskXP = { ...prev, [taskId]: (prev[taskId] || 0) + 1 };
-        
-        // Calculate unique tasks completed
-        const uniqueCount = Object.keys(newTaskXP).length;
-        setDailyProgress(uniqueCount); // Update state for unique count
-        
-        // Save the updated detailed status
-        saveDailyTaskStatus(newTaskXP); 
-        
-        return newTaskXP; // Return the new state for taskXP
-      });
-
-      // **IMPORTANT: Update leaderboard in Supabase**
-      if (user && user.id) {
-        try {
-          const { error } = await supabase
-            .from('leaderboard')
-            .upsert({
-              user_id: user.id,
-              email: user.email,
-              username: user.name || user.email?.split('@')[0] || 'User',
-              xp: newXp,
-              level: newLevel,
-              last_updated: new Date().toISOString()
-            });
-
-          if (error) {
-            console.error('Error updating leaderboard:', error);
-          }
-        } catch (error) {
-          console.error('Error updating leaderboard:', error);
+        if (response?.data) {
+          const { xp: remoteXp, level: remoteLevel, tasksCompleted: remoteTasks } = response.data;
+          if (typeof remoteXp === 'number') finalXp = remoteXp;
+          if (typeof remoteLevel === 'number') finalLevel = remoteLevel;
+          if (typeof remoteTasks === 'number') finalTasksCompleted = remoteTasks;
         }
+      } catch (error) {
+        console.warn('API /add-xp failed, applying local fallback.', error);
       }
+    }
 
-    } catch (error) {
-      console.error('Error adding XP:', error);
-      setToast({ message: 'Failed to add XP. Please try again.', type: 'error' });
-      setTimeout(() => setToast(null), 3000);
+    const leveledUp = finalLevel > baseLevel;
+
+    const firebaseUid = user?.uid || storedUser.uid || storedUser.id || storedUser._id || user?._id || user?.id || null;
+    const resolvedEmail = user?.email || storedUser.email || '';
+    const resolvedName = user?.displayName || storedUser.name || storedUser.username || resolvedEmail.split('@')[0] || 'Explorer';
+    const resolvedStreak = typeof storedUser.streak === 'number' ? storedUser.streak : userStats.streak || 0;
+
+    const updatedUser = {
+      ...storedUser,
+      uid: firebaseUid || storedUser.uid,
+      id: firebaseUid || storedUser.id,
+      _id: storedUser._id || user?._id,
+      email: resolvedEmail,
+      name: resolvedName,
+      xp: finalXp,
+      level: finalLevel,
+      tasksCompleted: finalTasksCompleted,
+      streak: resolvedStreak,
+    };
+
+    localStorage.setItem('user', JSON.stringify(updatedUser));
+    if (setUser) {
+      setUser(updatedUser);
+    }
+
+    setUserStats((prev) => ({
+      ...(prev || {}),
+      xp: finalXp,
+      level: finalLevel,
+      tasksCompleted: finalTasksCompleted,
+    }));
+
+    if (leveledUp) {
+      setToast({ message: `Level Up! Reached Level ${finalLevel}! ✨`, type: 'success' });
+    } else {
+      setToast({ message: `+${xpToAdd} XP Gained!`, type: 'success' });
+    }
+    setTimeout(() => setToast(null), 3000);
+
+    setRoadmapAnimation(true);
+    setTimeout(() => setRoadmapAnimation(false), 2000);
+
+    const animationId = Date.now();
+    const newAnimation = { id: animationId, xp: xpToAdd, x: clickPosition.x - 30, y: clickPosition.y - 30 };
+    setXpAnimations((prev) => [...prev, newAnimation]);
+    setTimeout(() => setXpAnimations((prev) => prev.filter((anim) => anim.id !== animationId)), 2500);
+
+    setTaskXP((prev) => {
+      const newTaskXP = { ...prev, [taskId]: (prev[taskId] || 0) + 1 };
+      const uniqueCount = Object.keys(newTaskXP).length;
+      setDailyProgress(uniqueCount);
+      saveDailyTaskStatus(newTaskXP);
+      return newTaskXP;
+    });
+
+    setOverallTaskXP((prev) => {
+      const updated = { ...prev, [taskId]: (prev[taskId] || 0) + 1 };
+      const uniqueTasks = Object.keys(updated).length;
+      const totalCompletions = Object.values(updated).reduce((sum, count) => sum + (count || 0), 0);
+      setOverallStats({ totalCompletions, uniqueTasks });
+      saveOverallTaskStatus(updated);
+      return updated;
+    });
+
+    if (firebaseUid) {
+      try {
+        await setDoc(
+          doc(db, 'users', firebaseUid),
+          {
+            name: resolvedName,
+            email: resolvedEmail,
+            xp: finalXp,
+            level: finalLevel,
+            tasksCompleted: finalTasksCompleted,
+            streak: resolvedStreak,
+            last_updated: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+          },
+          { merge: true }
+        );
+      } catch (firestoreError) {
+        console.error('Error syncing leaderboard to Firestore:', firestoreError);
+      }
     }
   };
 
@@ -530,6 +565,7 @@ function Dashboard({ user, setUser, token, setToken }) {
                           <motion.div
                             initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.1 }}
                             style={{ background: "rgba(139, 92, 246, 0.1)", borderRadius: "15px", padding: "15px", border: "1px solid rgba(139, 92, 246, 0.2)", textAlign: "center" }}
+                            key={`unique-progress-${dailyProgress}-${tasks.length}`}
                           >
                             <div style={{ fontSize: "2rem", marginBottom: "8px" }}>📋</div>
                             <h4 style={{ fontSize: "0.9rem", color: "#9ca3af", margin: "0 0 5px 0", fontWeight: "600" }}>Unique Tasks Done</h4>
@@ -543,8 +579,9 @@ function Dashboard({ user, setUser, token, setToken }) {
 
                           {/* Total XP Gained Today (Logic Unchanged, uses taskXP) */}
                           <motion.div
-                             initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.2 }}
+                            initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.2 }}
                             style={{ background: "rgba(251, 191, 36, 0.1)", borderRadius: "15px", padding: "15px", border: "1px solid rgba(251, 191, 36, 0.2)", textAlign: "center" }}
+                            key={`xp-gained-${Object.values(taskXP).reduce((sum, count) => sum + count, 0)}`}
                           >
                             <div style={{ fontSize: "2rem", marginBottom: "8px" }}>⭐</div>
                             <h4 style={{ fontSize: "0.9rem", color: "#9ca3af", margin: "0 0 5px 0", fontWeight: "600" }}>XP Gained Today</h4>
@@ -561,8 +598,9 @@ function Dashboard({ user, setUser, token, setToken }) {
 
                           {/* Current Level Progress (Uses userStats from parent) */}
                           <motion.div
-                             initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.3 }}
+                            initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.3 }}
                             style={{ background: "rgba(16, 185, 129, 0.1)", borderRadius: "15px", padding: "15px", border: "1px solid rgba(16, 185, 129, 0.2)", textAlign: "center" }}
+                            key={`level-${userStats.level}-${userStats.xp}`}
                           >
                             <div style={{ fontSize: "2rem", marginBottom: "8px" }}>🏆</div>
                             <h4 style={{ fontSize: "0.9rem", color: "#9ca3af", margin: "0 0 5px 0", fontWeight: "600" }}>Current Level</h4>
@@ -575,164 +613,66 @@ function Dashboard({ user, setUser, token, setToken }) {
                           </motion.div>
                         </div>
 
-                        {/* Enhanced Progress Bar (UPDATED) */}
-                        <div style={{ marginBottom: "15px" }}>
+                        {/* Overall Progress */}
+                        <div style={{ marginBottom: "20px" }}>
                           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px", width: "100%" }}>
-                            <span style={{ fontSize: "0.9rem", color: "#9ca3af", fontWeight: "600" }}>Daily Task Progress</span>
+                            <span style={{ fontSize: "0.9rem", color: "#9ca3af", fontWeight: "600" }}>Overall Task Progress</span>
                             <span style={{ fontSize: "0.8rem", color: "#64748b" }}>
-                              {dailyProgress}/{Math.max(tasks.length, 1)} unique tasks completed
+                              {overallStats.totalCompletions} total completions • {overallStats.uniqueTasks} unique tasks explored
                             </span>
                           </div>
 
-                          <div className="progress-container" style={{ position: "relative", height: "32px", background: "linear-gradient(135deg, rgba(55, 65, 81, 0.8), rgba(31, 41, 55, 0.9))", borderRadius: "16px", overflow: "hidden", boxShadow: "inset 0 2px 8px rgba(0, 0, 0, 0.2), 0 4px 16px rgba(59, 130, 246, 0.15)", border: "2px solid rgba(59, 130, 246, 0.3)", width: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                            {/* Main Progress Fill (Enhanced) */}
-                            <motion.div
-                              className="progress-fill"
-                              key={`progress-main-${dailyProgress}-${tasks.length}-${Date.now()}`}
-                              initial={{ width: "0%" }}
-                              animate={{ width: `${Math.min((dailyProgress / Math.max(tasks.length, 1)) * 100, 100)}%` }}
-                              transition={{ duration: 1.2, ease: [0.25, 0.46, 0.45, 0.94] }}
+                          <div style={{ position: "relative", height: "32px", background: "linear-gradient(135deg, rgba(55, 65, 81, 0.8), rgba(31, 41, 55, 0.9))", borderRadius: "16px", overflow: "hidden", boxShadow: "inset 0 2px 8px rgba(0, 0, 0, 0.2), 0 4px 16px rgba(59, 130, 246, 0.15)", border: "2px solid rgba(59, 130, 246, 0.3)", width: "100%" }}>
+                            <div
                               style={{
-                                height: "100%",
-                                background: "linear-gradient(135deg, #3b82f6 0%, #8b5cf6 30%, #ec4899 60%, #f59e0b 100%)",
-                                borderRadius: "16px",
                                 position: "absolute",
-                                left: 0,
-                                top: 0,
-                                overflow: "hidden",
-                                boxShadow: "0 0 25px rgba(59, 130, 246, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.2)",
-                                transformOrigin: "left center"
-                              }}
-                            >
-                              {/* Animated Gradient Overlay */}
-                              <motion.div
-                                animate={{ background: ["linear-gradient(135deg, rgba(59, 130, 246, 0.6), rgba(139, 92, 246, 0.6))", "linear-gradient(135deg, rgba(139, 92, 246, 0.6), rgba(236, 72, 153, 0.6))", "linear-gradient(135deg, rgba(236, 72, 153, 0.6), rgba(245, 158, 11, 0.6))", "linear-gradient(135deg, rgba(245, 158, 11, 0.6), rgba(59, 130, 246, 0.6))"] }}
-                                transition={{ duration: 3, repeat: Infinity, repeatType: "reverse", ease: "easeInOut" }}
-                                style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, borderRadius: "16px" }}
-                              />
-                              {/* Enhanced Shimmer Effect */}
-                              <motion.div
-                                animate={{ x: ["-150%", "150%"] }}
-                                transition={{ duration: 2.5, repeat: Infinity, repeatDelay: 1.5, ease: "easeInOut" }}
-                                style={{
-                                  position: "absolute",
-                                  top: 0,
-                                  left: 0,
-                                  width: "40%",
-                                  height: "100%",
-                                  background: "linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0.6), transparent)",
-                                  borderRadius: "16px",
-                                  filter: "blur(1px)"
-                                }}
-                              />
-                              {/* Pulsing Glow Effect */}
-                              <motion.div
-                                animate={{ opacity: [0.3, 0.7, 0.3] }}
-                                transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-                                style={{
-                                  position: "absolute",
-                                  top: "-2px",
-                                  left: "-2px",
-                                  right: "-2px",
-                                  bottom: "-2px",
-                                  background: "linear-gradient(135deg, rgba(59, 130, 246, 0.4), rgba(139, 92, 246, 0.4), rgba(236, 72, 153, 0.4))",
-                                  borderRadius: "18px",
-                                  filter: "blur(4px)",
-                                  zIndex: -1
-                                }}
-                              />
-                              {/* Enhanced Sparkles */}
-                              {dailyProgress > 0 && (
-                                <>
-                                  <motion.div
-                                    className="progress-sparkle"
-                                    style={{ top: "15%", right: "8%", background: "#ffffff", boxShadow: "0 0 8px rgba(255, 255, 255, 0.9)" }}
-                                    animate={{ opacity: [0, 1, 1, 0], scale: [0, 1, 1, 0] }}
-                                    transition={{ duration: 2, repeat: Infinity, delay: 0.5 }}
-                                  />
-                                  <motion.div
-                                    className="progress-sparkle"
-                                    style={{ top: "65%", right: "20%", background: "#fbbf24", boxShadow: "0 0 10px rgba(251, 191, 36, 0.9)" }}
-                                    animate={{ opacity: [0, 1, 1, 0], scale: [0, 1.2, 1.2, 0] }}
-                                    transition={{ duration: 1.8, repeat: Infinity, delay: 1.2 }}
-                                  />
-                                  <motion.div
-                                    className="progress-sparkle"
-                                    style={{ top: "35%", right: "35%", background: "#ec4899", boxShadow: "0 0 6px rgba(236, 72, 153, 0.9)", width: "4px", height: "4px" }}
-                                    animate={{ opacity: [0, 1, 1, 0], scale: [0, 0.8, 0.8, 0] }}
-                                    transition={{ duration: 2.2, repeat: Infinity, delay: 0.8 }}
-                                  />
-                                  <motion.div
-                                    className="progress-sparkle"
-                                    style={{ top: "80%", right: "50%", background: "#10b981", boxShadow: "0 0 8px rgba(16, 185, 129, 0.9)", width: "2px", height: "2px" }}
-                                    animate={{ opacity: [0, 1, 1, 0], scale: [0, 1.5, 1.5, 0] }}
-                                    transition={{ duration: 1.5, repeat: Infinity, delay: 1.8 }}
-                                  />
-                                </>
-                              )}
-                            </motion.div>
-
-                            {/* Progress Text */}
-                            <motion.div
-                              key={`progress-text-${dailyProgress}-${Date.now()}`}
-                              initial={{ opacity: 0, y: 10 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              transition={{ delay: 0.4 }}
-                              style={{
-                                position: "relative",
-                                color: "#fff",
-                                fontWeight: "900",
+                                inset: 0,
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                fontWeight: 900,
                                 fontSize: "0.95rem",
-                                textShadow: "0 2px 6px rgba(0, 0, 0, 0.7), 0 0 12px rgba(255, 255, 255, 0.4)",
-                                zIndex: 10,
-                                textAlign: "center",
-                                lineHeight: "32px",
-                                padding: "0 4px"
+                                color: "#fff",
+                                textShadow: "0 2px 6px rgba(0, 0, 0, 0.7)"
                               }}
                             >
-                              {Math.round((dailyProgress / Math.max(tasks.length, 1)) * 100)}%
-                            </motion.div>
-
-                            {/* Completion Celebration */}
-                            {dailyProgress >= tasks.length && (
-                              <motion.div
-                                initial={{ scale: 0, opacity: 0 }}
-                                animate={{ scale: [0, 1.3, 1], opacity: [0, 1, 0.9] }}
-                                transition={{ duration: 1.8, ease: "easeOut" }}
-                                style={{
-                                  position: "absolute",
-                                  top: "50%",
-                                  left: "50%",
-                                  transform: "translate(-50%, -50%)",
-                                  fontSize: "1.8rem",
-                                  zIndex: 15
-                                }}
-                              >
-                                🎉✨
-                              </motion.div>
-                            )}
+                              {overallPercentRounded}%
+                            </div>
+                            <div
+                              style={{
+                                position: "absolute",
+                                top: 0,
+                                left: 0,
+                                bottom: 0,
+                                width: `${overallCompletionPercent}%`,
+                                background: "linear-gradient(135deg, #3b82f6 0%, #8b5cf6 30%, #ec4899 60%, #f59e0b 100%)",
+                                transition: "width 0.2s ease",
+                                borderRadius: "16px",
+                                boxShadow: "0 0 15px rgba(59, 130, 246, 0.4)"
+                              }}
+                            />
                           </div>
 
-                          {/* Progress Milestones (UPDATED - uses dailyProgress) */}
-                          <div style={{ display: "flex", justifyContent: "space-between", marginTop: "8px", width: "100%" }}>
+                          {dailyProgress >= tasks.length && (
+                            <div style={{ marginTop: "10px", textAlign: "center", fontSize: "1.5rem" }}>🎉✨</div>
+                          )}
+
+                          <div style={{ display: "flex", justifyContent: "space-between", marginTop: "12px", width: "100%" }}>
                             {[0, 25, 50, 75, 100].map((milestone) => {
-                                const isMilestoneReached = (dailyProgress / Math.max(tasks.length, 1)) * 100 >= milestone;
-                                return (
-                                    <motion.div
-                                    key={`milestone-${milestone}-${dailyProgress}`}
-                                    animate={{
-                                        scale: isMilestoneReached ? [1, 1.2, 1] : 1,
-                                        opacity: isMilestoneReached ? 1 : 0.3
-                                    }}
-                                    transition={{ duration: 0.5 }}
-                                    style={{
-                                        width: "8px", height: "8px", borderRadius: "50%",
-                                        background: isMilestoneReached ? "linear-gradient(135deg, #3b82f6, #8b5cf6)" : "rgba(255, 255, 255, 0.2)",
-                                        boxShadow: isMilestoneReached ? "0 0 8px rgba(59, 130, 246, 0.6)" : "none"
-                                    }}
-                                    />
-                                );
-                             })}
+                              const reached = (dailyProgress / Math.max(tasks.length, 1)) * 100 >= milestone;
+                              return (
+                                <div
+                                  key={`milestone-${milestone}`}
+                                  style={{
+                                    width: "8px",
+                                    height: "8px",
+                                    borderRadius: "50%",
+                                    background: reached ? "linear-gradient(135deg, #3b82f6, #8b5cf6)" : "rgba(255, 255, 255, 0.2)",
+                                    boxShadow: reached ? "0 0 8px rgba(59, 130, 246, 0.6)" : "none",
+                                  }}
+                                />
+                              );
+                            })}
                           </div>
                         </div>
 
@@ -787,7 +727,16 @@ function Dashboard({ user, setUser, token, setToken }) {
                                 padding: "25px", border: `2px solid ${task.color}25`, textAlign: "center",
                                 position: "relative", overflow: "hidden", cursor: "pointer"
                               }}
-                              onClick={() => addXP(task.id, task.xp)}
+                              onClick={(event) => {
+                                const bounds = event.currentTarget.getBoundingClientRect();
+                                const clickPosition = {
+                                  x: event.clientX,
+                                  y: event.clientY,
+                                  centerX: bounds.left + bounds.width / 2,
+                                  centerY: bounds.top + bounds.height / 2,
+                                };
+                                addXP(task.id, task.xp, clickPosition);
+                              }}
                             >
                               <div style={{ fontSize: "3rem", marginBottom: "20px" }}>{task.icon}</div>
                               <div style={{ fontSize: "1.2rem", fontWeight: "700", color: task.color, marginBottom: "12px" }}>{task.name}</div>

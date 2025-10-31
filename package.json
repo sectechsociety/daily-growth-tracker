@@ -11,11 +11,13 @@
   },
   "dependencies": {
     "@dataconnect/generated": "file:src/dataconnect-generated",
+    "@radix-ui/react-slot": "^1.2.3",
     "@supabase/supabase-js": "^2.75.1",
     "@tailwindcss/postcss": "^4.1.14",
     "axios": "^1.12.2",
+    "class-variance-authority": "^0.7.1",
     "firebase": "^12.4.0",
-    "framer-motion": "^12.23.13",
+    "framer-motion": "^12.23.24",
     "lucide-react": "^0.544.0",
     "phaser": "^3.90.0",
     "react": "^19.1.1",
@@ -29,6 +31,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.33.0",
+    "@tailwindcss/vite": "^4.1.16",
     "@types/react": "^19.1.10",
     "@types/react-dom": "^19.1.7",
     "@vitejs/plugin-react": "^5.0.0",
@@ -40,5 +43,18 @@
     "postcss": "^8.5.6",
     "tailwindcss": "^4.1.13",
     "vite": "^7.1.4"
-  }
+  },
+  "description": "**A smart productivity and personal growth app to track, manage, and improve your daily habits and tasks.**",
+  "main": "eslint.config.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Tech-Society-SEC/daily-growth-tracker.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Tech-Society-SEC/daily-growth-tracker/issues"
+  },
+  "homepage": "https://github.com/Tech-Society-SEC/daily-growth-tracker#readme"
 }

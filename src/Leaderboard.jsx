@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   FaTrophy, FaSearch, FaMedal, FaCrown, FaStar,
   FaFire, FaChartLine, FaCalendarAlt, FaExclamationTriangle, FaRedo, FaSpinner
 } from "react-icons/fa";
-import { collection, query, orderBy, limit, getDocs, onSnapshot } from "firebase/firestore";
+import { collection, query, orderBy, limit, onSnapshot } from "firebase/firestore";
 import { db } from "./firebase";
 
 // XP Requirements for each level (cumulative)
@@ -94,79 +94,125 @@ function Leaderboard({ user }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [timeFilter, setTimeFilter] = useState("all"); // all, weekly, monthly
-  const [currentUserId, setCurrentUserId] = useState(user?.uid || null);
+  const [currentUserId, setCurrentUserId] = useState(user?.id || user?._id || user?.uid || null);
   const [userStats, setUserStats] = useState(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
-  // Fetch leaderboard data from Firestore
-  useEffect(() => {
-    if (!user) {
-      setError('Please sign in to view the leaderboard');
-      setLoading(false);
-      return;
+  const resolvedUser = useMemo(() => {
+    if (user) return user;
+    try {
+      const stored = localStorage.getItem('user');
+      return stored ? JSON.parse(stored) : null;
+    } catch (err) {
+      console.warn('Unable to parse stored user for leaderboard highlight:', err);
+      return null;
     }
+  }, [user]);
 
-    setCurrentUserId(user.uid);
+  useEffect(() => {
+    let unsubscribe;
+    let cancelled = false;
+
+    const resolvedUserId = resolvedUser?.id || resolvedUser?._id || resolvedUser?.uid || null;
+    setCurrentUserId(resolvedUserId);
     setLoading(true);
     setError(null);
 
-    // Create a query against the collection
     const leaderboardQuery = query(
       collection(db, 'users'),
       orderBy('xp', 'desc'),
       limit(100)
     );
 
-    // Set up real-time listener
-    const unsubscribe = onSnapshot(leaderboardQuery, 
-      (querySnapshot) => {
-        const users = [];
-        querySnapshot.forEach((doc) => {
-          const userData = doc.data();
-          users.push({
-            id: doc.id,
-            ...userData,
-            user_id: doc.id,
-            username: userData.name || userData.email.split('@')[0],
-            last_updated: userData.updatedAt?.toDate()?.toISOString() || new Date().toISOString(),
-            // Ensure all required fields have default values
-            level: userData.level || 1,
-            xp: userData.xp || 0,
-            streak: userData.streak || 0,
-            tasksCompleted: userData.tasksCompleted || 0,
-          });
+    const computeLastUpdatedDate = (rawValue) => {
+      if (!rawValue) return null;
+      if (typeof rawValue === 'string') {
+        const parsed = new Date(rawValue);
+        return Number.isNaN(parsed.getTime()) ? null : parsed;
+      }
+      if (rawValue instanceof Date) {
+        return rawValue;
+      }
+      if (typeof rawValue.toDate === 'function') {
+        try {
+          return rawValue.toDate();
+        } catch (err) {
+          console.warn('Unable to convert Firestore timestamp:', err);
+        }
+      }
+      return null;
+    };
+
+    const passesTimeFilter = (lastUpdated) => {
+      if (timeFilter === 'all') return true;
+      if (!lastUpdated) return true;
+      const windowMs = timeFilter === 'weekly' ? 7 * 24 * 60 * 60 * 1000 : 30 * 24 * 60 * 60 * 1000;
+      return Date.now() - lastUpdated.getTime() <= windowMs;
+    };
+
+    unsubscribe = onSnapshot(
+      leaderboardQuery,
+      (snapshot) => {
+        if (cancelled) return;
+
+        const users = snapshot.docs
+          .map((doc) => {
+            const data = doc.data();
+            const xp = typeof data.xp === 'number' ? data.xp : Number(data.xp) || 0;
+            const level = typeof data.level === 'number' ? data.level : Number(data.level) || 1;
+            const tasksCompleted = data.tasksCompleted ?? data.totalPoints ?? 0;
+            const streak = data.streak ?? data.streak_days ?? 0;
+            const lastUpdated = computeLastUpdatedDate(
+              data.last_updated || data.updatedAt || data.updated_at || data.lastUpdated
+            );
+
+            return {
+              user_id: doc.id,
+              email: data.email || '',
+              username: data.name || data.username || data.email?.split('@')[0] || 'Explorer',
+              xp,
+              level,
+              tasksCompleted,
+              streak,
+              last_updated: lastUpdated?.toISOString?.() || null,
+              _lastUpdatedDate: lastUpdated,
+            };
+          })
+          .filter((entry) => passesTimeFilter(entry._lastUpdatedDate))
+          .sort((a, b) => (b.xp || 0) - (a.xp || 0))
+          .map((entry, index) => ({
+            ...entry,
+            rank: index + 1,
+          }));
+
+        users.forEach((entry) => {
+          delete entry._lastUpdatedDate;
         });
 
-        // Add ranks
-        const rankedData = users.map((user, index) => ({
-          ...user,
-          rank: index + 1
-        }));
-
-        setLeaderboardData(rankedData);
-        
-        // Set current user's stats
-        const currentUserData = rankedData.find(u => u.id === user.uid);
-        if (currentUserData) {
-          setUserStats(currentUserData);
-        }
-
+        setLeaderboardData(users);
+        setUserStats(users.find((u) => u.user_id === resolvedUserId) || null);
         setLoading(false);
       },
-      (error) => {
-        console.error('Error getting leaderboard data:', error);
-        setError('Failed to load leaderboard data. Please try again.');
+      (err) => {
+        if (cancelled) return;
+        console.error('Error loading leaderboard:', err);
+        setError('Failed to load leaderboard. Please try again.');
         setLoading(false);
       }
     );
 
-    // Clean up the listener on unmount
-    return () => unsubscribe();
-  }, [user, timeFilter]);
+    return () => {
+      cancelled = true;
+      if (typeof unsubscribe === 'function') {
+        unsubscribe();
+      }
+    };
+  }, [resolvedUser, timeFilter, reloadKey]);
 
   // Retry loading leaderboard data
   const retryLoad = () => {
     setError(null);
-    setLoading(true);
+    setReloadKey(prev => prev + 1);
   };
 
   const getBadge = (xp) => {

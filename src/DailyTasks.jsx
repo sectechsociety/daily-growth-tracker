@@ -35,7 +35,12 @@ const DAILY_TASKS = [
   { id: 'coding', name: 'Coding Practice', xp: 25, icon: '💻', category: 'Learning' },
 ];
 
-function DailyTasks({ user }) {
+DailyTasks.propTypes = {
+  user: PropTypes.object,
+  onTaskComplete: PropTypes.func,
+};
+
+function DailyTasks({ user, onTaskComplete }) {
   const [completedTasks, setCompletedTasks] = useState([]);
   const [dailyXP, setDailyXP] = useState(0);
   const [streak, setStreak] = useState(0);
@@ -258,6 +263,10 @@ function DailyTasks({ user }) {
         setShowCelebration(true);
         setTimeout(() => setShowCelebration(false), 1500);
 
+        if (onTaskComplete) {
+          onTaskComplete(task.id, task.xp);
+        }
+
         if (newLevel > userLevel) {
           setShowLevelUp(true);
           setTimeout(() => setShowLevelUp(false), 2500);
@@ -267,7 +276,7 @@ function DailyTasks({ user }) {
       console.error('Error updating task:', error);
       setError('Failed to update task. Please try again.');
     }
-  }, [user, completedTasks, dailyXP, totalXP, userLevel, lastCompletedDate, streak, calculateLevel]);
+  }, [user, completedTasks, dailyXP, totalXP, userLevel, lastCompletedDate, streak, calculateLevel, onTaskComplete]);
 
   if (loading) {
     return (
