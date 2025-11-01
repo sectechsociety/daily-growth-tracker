@@ -1,0 +1,94 @@
+═══════════════════════════════════════════════════════════════
+  AI FOOD SEARCH - QUICK INTEGRATION GUIDE
+═══════════════════════════════════════════════════════════════
+
+📋 STEP 1: Add Import (Line ~6 in CalorieTracker.jsx)
+───────────────────────────────────────────────────────────────
+Add this line after the existing imports:
+
+import AiFoodSearch from "./AiFoodSearch";
+
+───────────────────────────────────────────────────────────────
+
+
+📋 STEP 2: Add Handler Function (Line ~595 in CalorieTracker.jsx)
+───────────────────────────────────────────────────────────────
+Add this function after the getFilteredFoods function:
+
+  // Add AI-searched food to intake
+  const addAiFoodToIntake = async (food) => {
+    try {
+      const response = await makeAuthenticatedRequest('/calories/add-meal', {
+        name: food.name,
+        calories: food.calories,
+        category: 'ai_search',
+        protein: food.protein,
+        carbs: food.carbs,
+        fat: food.fat,
+      }, 'POST');
+
+      if (response.data.success) {
+        setCaloriesConsumed(response.data.calorieEntry.totalCalories);
+        setMeals(response.data.calorieEntry.meals);
+
+        if (addXP) {
+          addXP(`ai_food_${food.id}`, 5);
+        }
+
+        setToastMessage(`Added ${food.name}! +5 XP gained!`);
+        setToastType("success");
+        setShowToast(true);
+        setTimeout(() => setShowToast(false), 3000);
+
+        const mealLogItem = {
+          id: food.id,
+          name: food.name,
+          calories: food.calories,
+          protein: food.protein,
+          carbs: food.carbs,
+          fat: food.fat,
+          category: 'ai_search',
+          timestamp: new Date().toISOString(),
+          source: 'ai_search'
+        };
+        setTodayMealLog(prev => [...prev, mealLogItem]);
+        localStorage.setItem("todayMealLog", JSON.stringify([...todayMealLog, mealLogItem]));
+      }
+    } catch (error) {
+      console.error('Error adding AI food:', error);
+      const newCalories = caloriesConsumed + food.calories;
+      setCaloriesConsumed(newCalories);
+      localStorage.setItem("caloriesConsumed", newCalories.toString());
+
+      setToastMessage(`Added ${food.name} (offline mode)`);
+      setToastType("success");
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
+    }
+  };
+
+───────────────────────────────────────────────────────────────
+
+
+📋 STEP 3: Add Component to JSX (Line ~1307 in CalorieTracker.jsx)
+───────────────────────────────────────────────────────────────
+Find this line:
+      {/* Today's Meal Log Section */}
+
+Add this RIGHT BEFORE it:
+
+      {/* AI Food Search Component */}
+      <AiFoodSearch onAddFood={addAiFoodToIntake} />
+
+───────────────────────────────────────────────────────────────
+
+
+✅ THAT'S IT! Your AI food search is ready to use!
+
+🎯 Test it by:
+1. Running your app
+2. Going to Calorie Tracker
+3. Searching for "apple" or "chicken breast"
+4. Adding the food to your daily intake
+
+═══════════════════════════════════════════════════════════════

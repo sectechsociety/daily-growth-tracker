@@ -1,0 +1,83 @@
+═══════════════════════════════════════════════════════════════
+  AI MEAL PLANNER - QUICK ADD GUIDE
+═══════════════════════════════════════════════════════════════
+
+📋 STEP 1: Add Import (Line ~7 in CalorieTracker.jsx)
+───────────────────────────────────────────────────────────────
+After the AiFoodSearch import, add:
+
+import AiMealPlanner from "./AiMealPlanner";
+
+───────────────────────────────────────────────────────────────
+
+
+📋 STEP 2: Add Component to JSX (Line ~1309 in CalorieTracker.jsx)
+───────────────────────────────────────────────────────────────
+Find this line:
+      <AiFoodSearch onAddFood={addAiFoodToIntake} />
+
+Add this RIGHT AFTER it:
+
+      {/* AI Meal Planner Component */}
+      <AiMealPlanner 
+        user={user}
+        dailyGoal={dailyGoal}
+      />
+
+───────────────────────────────────────────────────────────────
+
+
+✅ THAT'S IT! Your AI Meal Planner is ready!
+
+🎯 Features You Get:
+───────────────────────────────────────────────────────────────
+✨ 7-Day Automated Meal Plans
+🔥 Weight Loss Mode (20% calorie deficit)
+💪 Weight Gain Mode (20% calorie surplus)
+⚖️ Maintenance Mode
+🥗 Diet Options: Balanced, Vegetarian, High Protein
+🍴 3, 4, or 5 meals per day
+📊 Full nutrition breakdown per meal
+⏰ Suggested meal timing
+📋 Copy plan to clipboard
+🗑️ Clear and regenerate anytime
+
+🎨 How to Use:
+───────────────────────────────────────────────────────────────
+1. Go to Calorie Tracker
+2. Scroll to "AI-Powered Smart Meal Planner"
+3. Select:
+   - Fitness Goal (Weight Loss/Gain/Maintain)
+   - Diet Type (Balanced/Vegetarian/High Protein)
+   - Meals Per Day (3/4/5)
+4. Click "Generate 7-Day Meal Plan"
+5. Wait 30-60 seconds (generating 21-35 meals)
+6. View your personalized weekly plan!
+
+⚠️ Important:
+───────────────────────────────────────────────────────────────
+- Generation takes 30-60 seconds (fetching real nutrition data)
+- Don't spam the generate button (API rate limits)
+- Each meal is optimized for your calorie goal
+- Use as a guide - adjust portions as needed
+
+📊 Example Plan:
+───────────────────────────────────────────────────────────────
+Goal: Weight Loss | Diet: Balanced | Meals: 3
+Target: 1600 cal/day (~533 cal/meal)
+
+Monday:
+  🌅 Breakfast (8:00 AM) - Oatmeal - 350 cal
+  🌞 Lunch (1:00 PM) - Grilled Chicken Salad - 450 cal
+  🌙 Dinner (7:00 PM) - Grilled Fish - 400 cal
+  Total: 1200 cal
+
+Tuesday:
+  🌅 Breakfast (8:00 AM) - Greek Yogurt - 300 cal
+  🌞 Lunch (1:00 PM) - Quinoa Bowl - 500 cal
+  🌙 Dinner (7:00 PM) - Chicken Breast - 450 cal
+  Total: 1250 cal
+
+... and so on for 7 days!
+
+═══════════════════════════════════════════════════════════════

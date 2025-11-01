@@ -1,8 +1,11 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "./supabaseClient";
 import axios from "axios";
-
+import { getAllIndianFoods, getFoodsByCategory, searchFoods } from "./indianFoodData";
+import { API_CONFIG } from "./config";
+import AiMealPlanner from "./AiMealPlanner";
+import AiFoodSearch from "./AiFoodSearch";
 const CalorieTracker = ({ user, addXP, userStats, setUserStats }) => {
   const [caloriesConsumed, setCaloriesConsumed] = useState(0);
   const [dailyGoal, setDailyGoal] = useState(2000);
@@ -23,6 +26,12 @@ const CalorieTracker = ({ user, addXP, userStats, setUserStats }) => {
   const [foodSearch, setFoodSearch] = useState("");
   const [showFoodModal, setShowFoodModal] = useState(false);
   const [selectedFood, setSelectedFood] = useState(null);
+  
+  // AI Food Search States
+  const [aiSearchQuery, setAiSearchQuery] = useState("");
+  const [aiSearchResults, setAiSearchResults] = useState([]);
+  const [aiSearchLoading, setAiSearchLoading] = useState(false);
+  const [showAiSearch, setShowAiSearch] = useState(false);
 
   // Ref for meal log section
   const mealLogRef = useRef(null);
@@ -435,49 +444,155 @@ const CalorieTracker = ({ user, addXP, userStats, setUserStats }) => {
     }
   };
 
-  // Sample Food Recommendations Data
-  const FOOD_RECOMMENDATIONS = {
-    fat_loss: [
-      { id: "fl1", name: "Grilled Chicken Breast", calories: 165, protein: 31, carbs: 0, fat: 3.6, benefits: ["High protein for muscle maintenance", "Low calories for fat loss", "Rich in B vitamins"] },
-      { id: "fl2", name: "Spinach Salad", calories: 23, protein: 3, carbs: 4, fat: 0.4, benefits: ["Low calorie density", "High in fiber", "Packed with vitamins A, C, K"] },
-      { id: "fl3", name: "Greek Yogurt", calories: 59, protein: 10, carbs: 3.6, fat: 0.4, benefits: ["Probiotic for gut health", "High protein content", "Low calorie snack"] },
-      { id: "fl4", name: "Almonds", calories: 161, protein: 6, carbs: 6, fat: 14, benefits: ["Healthy fats for satiety", "Fiber for digestion", "Rich in vitamin E"] },
-      { id: "fl5", name: "Quinoa", calories: 120, protein: 4.4, carbs: 22, fat: 1.9, benefits: ["Complete protein source", "High in fiber", "Gluten-free grain"] },
-      { id: "fl6", name: "Broccoli", calories: 34, protein: 2.8, carbs: 7, fat: 0.4, benefits: ["Very low calories", "High in vitamin C", "Antioxidant properties"] },
-      { id: "fl7", name: "Turkey Breast", calories: 135, protein: 30, carbs: 0, fat: 1.2, benefits: ["Lean protein source", "Low in fat", "Rich in selenium"] },
-      { id: "fl8", name: "Cucumber", calories: 16, protein: 0.7, carbs: 3.6, fat: 0.1, benefits: ["Hydrating vegetable", "Very low calories", "High water content"] }
-    ],
-    muscle_gain: [
-      { id: "mg1", name: "Chicken Breast", calories: 165, protein: 31, carbs: 0, fat: 3.6, benefits: ["High quality protein", "Essential amino acids", "Supports muscle repair"] },
-      { id: "mg2", name: "Sweet Potato", calories: 86, protein: 2, carbs: 20, fat: 0.1, benefits: ["Complex carbohydrates", "Vitamin A for recovery", "Sustained energy"] },
-      { id: "mg3", name: "Greek Yogurt", calories: 59, protein: 10, carbs: 3.6, fat: 0.4, benefits: ["Probiotic benefits", "Calcium for bones", "High protein content"] },
-      { id: "mg4", name: "Brown Rice", calories: 111, protein: 2.6, carbs: 23, fat: 0.9, benefits: ["Complex carbs for energy", "Fiber for digestion", "B vitamins"] },
-      { id: "mg5", name: "Salmon", calories: 206, protein: 22, carbs: 0, fat: 12, benefits: ["Omega-3 fatty acids", "High quality protein", "Anti-inflammatory"] },
-      { id: "mg6", name: "Eggs", calories: 155, protein: 13, carbs: 1.1, fat: 11, benefits: ["Complete protein", "Vitamin D and B12", "Choline for brain health"] },
-      { id: "mg7", name: "Oats", calories: 68, protein: 2.4, carbs: 12, fat: 1.4, benefits: ["Slow-release carbs", "Beta-glucan fiber", "Sustained energy"] },
-      { id: "mg8", name: "Peanut Butter", calories: 188, protein: 8, carbs: 6, fat: 16, benefits: ["Healthy fats", "Protein boost", "Calorie dense for bulking"] }
-    ],
-    balanced: [
-      { id: "b1", name: "Avocado Toast", calories: 234, protein: 6, carbs: 22, fat: 15, benefits: ["Healthy fats", "Fiber rich", "Satisfying meal"] },
-      { id: "b2", name: "Mixed Berry Smoothie", calories: 120, protein: 8, carbs: 20, fat: 2, benefits: ["Antioxidant rich", "Natural sweetness", "Vitamin C boost"] },
-      { id: "b3", name: "Quinoa Bowl", calories: 180, protein: 8, carbs: 30, fat: 4, benefits: ["Complete protein", "Balanced macros", "Fiber for digestion"] },
-      { id: "b4", name: "Salmon Salad", calories: 280, protein: 25, carbs: 8, fat: 16, benefits: ["Omega-3 rich", "Protein packed", "Heart healthy"] },
-      { id: "b5", name: "Vegetable Stir Fry", calories: 150, protein: 6, carbs: 25, fat: 4, benefits: ["Vitamin rich", "Low calorie", "Colorful nutrients"] },
-      { id: "b6", name: "Chia Pudding", calories: 137, protein: 4, carbs: 12, fat: 9, benefits: ["Omega-3 from chia", "Fiber rich", "Healthy dessert"] },
-      { id: "b7", name: "Turkey Wrap", calories: 250, protein: 20, carbs: 25, fat: 8, benefits: ["Balanced meal", "Portable lunch", "Protein + carbs"] },
-      { id: "b8", name: "Apple with Almonds", calories: 181, protein: 6, carbs: 16, fat: 12, benefits: ["Natural sweetness", "Healthy fats", "Fiber from fruit"] }
-    ]
+  // Get all Indian foods from the database
+  const getAllFoods = useMemo(() => {
+    return getAllIndianFoods();
+  }, []);
+
+  // Map activeFoodCategory to the corresponding category in the database
+  const getMappedCategory = (category) => {
+    switch (category) {
+      case 'fat_loss':
+        return 'fat_loss';
+      case 'muscle_gain':
+        return 'muscle_gain';
+      case 'balanced':
+        return 'balanced';
+      default:
+        return 'balanced';
+    }
   };
 
   // Filter foods based on search and category
   const getFilteredFoods = () => {
-    const foods = FOOD_RECOMMENDATIONS[activeFoodCategory] || [];
-    if (!foodSearch.trim()) return foods;
+    // Get foods by category first
+    const category = getMappedCategory(activeFoodCategory);
+    let foods = getFoodsByCategory(category);
+    
+    // If there's a search term, filter by that
+    if (foodSearch.trim()) {
+      const searchResults = searchFoods(foodSearch.trim().toLowerCase());
+      // Filter to only include foods from the current category
+      foods = searchResults.filter(food => 
+        getMappedCategory(food.category) === category
+      );
+    }
+    
+    return foods;
+  };
 
-    return foods.filter(food =>
-      food.name.toLowerCase().includes(foodSearch.toLowerCase()) ||
-      food.benefits.some(benefit => benefit.toLowerCase().includes(foodSearch.toLowerCase()))
-    );
+  // AI-Powered Food Search using API Ninjas
+  const searchFoodWithAI = async (query) => {
+    if (!query.trim()) {
+      setToastMessage("Please enter a food name to search");
+      setToastType("warning");
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
+      return;
+    }
+
+    setAiSearchLoading(true);
+    try {
+      const response = await axios.get(API_CONFIG.NINJAS_API_URL, {
+        params: { query: query },
+        headers: {
+          'X-Api-Key': API_CONFIG.NINJAS_API_KEY
+        }
+      });
+
+      if (response.data && response.data.length > 0) {
+        // Transform API response to match our food format
+        const transformedResults = response.data.map((item, index) => ({
+          id: `ai_${Date.now()}_${index}`,
+          name: item.name,
+          calories: Math.round(item.calories),
+          protein: Math.round(item.protein_g),
+          carbs: Math.round(item.carbohydrates_total_g),
+          fat: Math.round(item.fat_total_g),
+          fiber: Math.round(item.fiber_g || 0),
+          sugar: Math.round(item.sugar_g || 0),
+          serving: `${item.serving_size_g}g`,
+          category: 'balanced',
+          source: 'api_ninjas'
+        }));
+
+        setAiSearchResults(transformedResults);
+        setToastMessage(`Found ${transformedResults.length} results!`);
+        setToastType("success");
+      } else {
+        setAiSearchResults([]);
+        setToastMessage("No results found. Try a different search term.");
+        setToastType("warning");
+      }
+    } catch (error) {
+      console.error('Error searching food with AI:', error);
+      setToastMessage("Failed to search. Please try again.");
+      setToastType("error");
+      setAiSearchResults([]);
+    } finally {
+      setAiSearchLoading(false);
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
+    }
+  };
+
+  // Add AI-searched food to intake
+  const addAiFoodToIntake = async (food) => {
+    try {
+      const response = await makeAuthenticatedRequest('/calories/add-meal', {
+        name: food.name,
+        calories: food.calories,
+        category: 'ai_search',
+        protein: food.protein,
+        carbs: food.carbs,
+        fat: food.fat,
+      }, 'POST');
+
+      if (response.data.success) {
+        setCaloriesConsumed(response.data.calorieEntry.totalCalories);
+        setMeals(response.data.calorieEntry.meals);
+
+        // Add XP for logging food
+        if (addXP) {
+          addXP(`ai_food_${food.id}`, 5);
+        }
+
+        setToastMessage(`Added ${food.name}! +5 XP gained!`);
+        setToastType("success");
+        setShowToast(true);
+        setTimeout(() => setShowToast(false), 3000);
+
+        // Add to meal log
+        const mealLogItem = {
+          id: food.id,
+          name: food.name,
+          calories: food.calories,
+          protein: food.protein,
+          carbs: food.carbs,
+          fat: food.fat,
+          category: 'ai_search',
+          timestamp: new Date().toISOString(),
+          source: 'ai_search'
+        };
+        setTodayMealLog(prev => [...prev, mealLogItem]);
+        localStorage.setItem("todayMealLog", JSON.stringify([...todayMealLog, mealLogItem]));
+
+        // Close modal
+        setShowFoodModal(false);
+        setSelectedFood(null);
+      }
+    } catch (error) {
+      console.error('Error adding AI food:', error);
+      // Fallback to localStorage
+      const newCalories = caloriesConsumed + food.calories;
+      setCaloriesConsumed(newCalories);
+      localStorage.setItem("caloriesConsumed", newCalories.toString());
+
+      setToastMessage(`Added ${food.name} (offline mode)`);
+      setToastType("success");
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
+    }
   };
 
   // Safe calculations with defaults
@@ -1190,7 +1305,13 @@ const CalorieTracker = ({ user, addXP, userStats, setUserStats }) => {
           </motion.div>
         )}
       </motion.div>
-
+      {/* AI Food Search Component */}
+<AiFoodSearch onAddFood={addAiFoodToIntake} />
+{/* AI Meal Planner Component */}
+<AiMealPlanner 
+  user={user}
+  dailyGoal={dailyGoal}
+/>
       {/* Today's Meal Log Section */}
       <motion.div
         ref={mealLogRef}
