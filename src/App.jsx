@@ -50,9 +50,9 @@ function AnimatedRoutes({ user, setUser, token, setToken }) {
   return (
     <AnimatePresence mode="wait" initial={false}>
       <Routes location={location} key={location.pathname}>
-        {/* Welcome Page */}
+        {/* Welcome Page (NEW LANDING PAGE) */}
         <Route
-          path="/welcome"
+          path="/"
           element={
             <motion.div
               custom="welcome"
@@ -65,220 +65,255 @@ function AnimatedRoutes({ user, setUser, token, setToken }) {
             </motion.div>
           }
         />
+        
+        {/* Redirect old /welcome to new root / */}
+        <Route path="/welcome" element={<Navigate to="/" replace />} />
 
-        {/* Dashboard - No auth required */}
+        {/* Dashboard - (NEW PATH & PROTECTED) */}
         <Route
-          path="/"
+          path="/dashboard"
           element={
-            <motion.div
-              custom="dashboard"
-              variants={pageVariants}
-              initial="initial"
-              animate="in"
-              exit="out"
-            >
-              <Dashboard user={user} setUser={setUser} token={token} setToken={setToken} />
-            </motion.div>
+            user ? (
+              <motion.div
+                custom="dashboard"
+                variants={pageVariants}
+                initial="initial"
+                animate="in"
+                exit="out"
+              >
+                <Dashboard user={user} setUser={setUser} token={token} setToken={setToken} />
+              </motion.div>
+            ) : (
+              <Navigate to="/auth" state={{ from: location }} replace />
+            )
           }
         />
 
-        {/* Auth - Optional */}
+        {/* Auth - (PROTECTED from logged-in users) */}
         <Route
           path="/auth"
           element={
-            <motion.div
-              custom="auth"
-              variants={{
-                initial: { opacity: 0, scale: 0.95 },
-                in: {
-                  opacity: 1,
-                  scale: 1,
-                  transition: { duration: 0.4, ease: "easeOut" }
-                },
-                out: {
-                  opacity: 0,
-                  scale: 0.9,
-                  transition: { duration: 0.3, ease: "easeIn" }
-                }
-              }}
-              initial="initial"
-              animate="in"
-              exit="out"
-            >
-              <LoginPage setUser={setUser} setToken={setToken} />
-            </motion.div>
+            !user ? (
+              <motion.div
+                custom="auth"
+                variants={{
+                  initial: { opacity: 0, scale: 0.95 },
+                  in: {
+                    opacity: 1,
+                    scale: 1,
+                    transition: { duration: 0.4, ease: "easeOut" }
+                  },
+                  out: {
+                    opacity: 0,
+                    scale: 0.9,
+                    transition: { duration: 0.3, ease: "easeIn" }
+                  }
+                }}
+                initial="initial"
+                animate="in"
+                exit="out"
+              >
+                <LoginPage setUser={setUser} setToken={setToken} />
+              </motion.div>
+            ) : (
+              <Navigate to="/dashboard" replace />
+            )
           }
         />
 
-        {/* Profile */}
+        {/* Profile - (PROTECTED) */}
         <Route
           path="/profile"
           element={
-            <motion.div
-              custom="profile"
-              variants={{
-                initial: { opacity: 0, x: 50 },
-                in: {
-                  opacity: 1,
-                  x: 0,
-                  transition: { duration: 0.5, ease: "easeOut" }
-                },
-                out: {
-                  opacity: 0,
-                  x: -50,
-                  transition: { duration: 0.3, ease: "easeIn" }
-                }
-              }}
-              initial="initial"
-              animate="in"
-              exit="out"
-            >
-              <Profile user={user} setUser={setUser} />
-            </motion.div>
+            user ? (
+              <motion.div
+                custom="profile"
+                variants={{
+                  initial: { opacity: 0, x: 50 },
+                  in: {
+                    opacity: 1,
+                    x: 0,
+                    transition: { duration: 0.5, ease: "easeOut" }
+                  },
+                  out: {
+                    opacity: 0,
+                    x: -50,
+                    transition: { duration: 0.3, ease: "easeIn" }
+                  }
+                }}
+                initial="initial"
+                animate="in"
+                exit="out"
+              >
+                <Profile user={user} setUser={setUser} />
+              </motion.div>
+            ) : (
+              <Navigate to="/auth" state={{ from: location }} replace />
+            )
           }
         />
 
-        {/* Leaderboard */}
+        {/* Leaderboard - (PROTECTED) */}
         <Route
           path="/leaderboard"
           element={
-            <motion.div
-              custom="leaderboard"
-              variants={{
-                initial: { opacity: 0, scale: 0.9, y: 30 },
-                in: {
-                  opacity: 1,
-                  scale: 1,
-                  y: 0,
-                  transition: { duration: 0.5, ease: "easeOut" }
-                },
-                out: {
-                  opacity: 0,
-                  scale: 0.95,
-                  y: -30,
-                  transition: { duration: 0.3, ease: "easeIn" }
-                }
-              }}
-              initial="initial"
-              animate="in"
-              exit="out"
-            >
-              <Leaderboard />
-            </motion.div>
+            user ? (
+              <motion.div
+                custom="leaderboard"
+                variants={{
+                  initial: { opacity: 0, scale: 0.9, y: 30 },
+                  in: {
+                    opacity: 1,
+                    scale: 1,
+                    y: 0,
+                    transition: { duration: 0.5, ease: "easeOut" }
+                  },
+                  out: {
+                    opacity: 0,
+                    scale: 0.95,
+                    y: -30,
+                    transition: { duration: 0.3, ease: "easeIn" }
+                  }
+                }}
+                initial="initial"
+                animate="in"
+                exit="out"
+              >
+                <Leaderboard />
+              </motion.div>
+            ) : (
+              <Navigate to="/auth" state={{ from: location }} replace />
+            )
           }
         />
 
-        {/* Adventure Map */}
+        {/* Adventure Map - (PROTECTED) */}
         <Route
           path="/adventure"
           element={
-            <motion.div
-              custom="adventure"
-              variants={{
-                initial: { opacity: 0, scale: 0.8 },
-                in: {
-                  opacity: 1,
-                  scale: 1,
-                  transition: { duration: 0.6, ease: "easeOut" }
-                },
-                out: {
-                  opacity: 0,
-                  scale: 0.9,
-                  transition: { duration: 0.4, ease: "easeIn" }
-                }
-              }}
-              initial="initial"
-              animate="in"
-              exit="out"
-            >
-              <AdventureMap />
-            </motion.div>
+            user ? (
+              <motion.div
+                custom="adventure"
+                variants={{
+                  initial: { opacity: 0, scale: 0.8 },
+                  in: {
+                    opacity: 1,
+                    scale: 1,
+                    transition: { duration: 0.6, ease: "easeOut" }
+                  },
+                  out: {
+                    opacity: 0,
+                    scale: 0.9,
+                    transition: { duration: 0.4, ease: "easeIn" }
+                  }
+                }}
+                initial="initial"
+                animate="in"
+                exit="out"
+              >
+                <AdventureMap />
+              </motion.div>
+            ) : (
+              <Navigate to="/auth" state={{ from: location }} replace />
+            )
           }
         />
 
-        {/* Game */}
+        {/* Game - (PROTECTED) */}
         <Route
           path="/game"
           element={
-            <motion.div
-              custom="game"
-              variants={{
-                initial: { opacity: 0, rotateY: -90 },
-                in: {
-                  opacity: 1,
-                  rotateY: 0,
-                  transition: { duration: 0.6, ease: "easeOut" }
-                },
-                out: {
-                  opacity: 0,
-                  rotateY: 90,
-                  transition: { duration: 0.4, ease: "easeIn" }
-                }
-              }}
-              initial="initial"
-              animate="in"
-              exit="out"
-            >
-              <Game />
-            </motion.div>
+            user ? (
+              <motion.div
+                custom="game"
+                variants={{
+                  initial: { opacity: 0, rotateY: -90 },
+                  in: {
+                    opacity: 1,
+                    rotateY: 0,
+                    transition: { duration: 0.6, ease: "easeOut" }
+                  },
+                  out: {
+                    opacity: 0,
+                    rotateY: 90,
+                    transition: { duration: 0.4, ease: "easeIn" }
+                  }
+                }}
+                initial="initial"
+                animate="in"
+                exit="out"
+              >
+                <Game />
+              </motion.div>
+            ) : (
+              <Navigate to="/auth" state={{ from: location }} replace />
+            )
           }
         />
 
-        {/* AI Assistant */}
+        {/* AI Assistant - (PROTECTED) */}
         <Route
           path="/ai-assistant"
           element={
-            <motion.div
-              custom="ai"
-              variants={{
-                initial: { opacity: 0, x: -100 },
-                in: {
-                  opacity: 1,
-                  x: 0,
-                  transition: { duration: 0.5, ease: "easeOut" }
-                },
-                out: {
-                  opacity: 0,
-                  x: 100,
-                  transition: { duration: 0.3, ease: "easeIn" }
-                }
-              }}
-              initial="initial"
-              animate="in"
-              exit="out"
-            >
-              <AIAssistant />
-            </motion.div>
+            user ? (
+              <motion.div
+                custom="ai"
+                variants={{
+                  initial: { opacity: 0, x: -100 },
+                  in: {
+                    opacity: 1,
+                    x: 0,
+                    transition: { duration: 0.5, ease: "easeOut" }
+                  },
+                  out: {
+                    opacity: 0,
+                    x: 100,
+                    transition: { duration: 0.3, ease: "easeIn" }
+                  }
+                }}
+                initial="initial"
+                animate="in"
+                exit="out"
+              >
+                <AIAssistant />
+              </motion.div>
+            ) : (
+              <Navigate to="/auth" state={{ from: location }} replace />
+            )
           }
         />
 
-        {/* Level Roadmap */}
+        {/* Level Roadmap - (PROTECTED) */}
         <Route
           path="/levels"
           element={
-            <motion.div
-              custom="levels"
-              variants={{
-                initial: { opacity: 0, y: 100, scale: 0.8 },
-                in: {
-                  opacity: 1,
-                  y: 0,
-                  scale: 1,
-                  transition: { duration: 0.7, ease: "easeOut" }
-                },
-                out: {
-                  opacity: 0,
-                  y: -100,
-                  scale: 0.9,
-                  transition: { duration: 0.4, ease: "easeIn" }
-                }
-              }}
-              initial="initial"
-              animate="in"
-              exit="out"
-            >
-              <LevelRoadmap user={user} />
-            </motion.div>
+            user ? (
+              <motion.div
+                custom="levels"
+                variants={{
+                  initial: { opacity: 0, y: 100, scale: 0.8 },
+                  in: {
+                    opacity: 1,
+                    y: 0,
+                    scale: 1,
+                    transition: { duration: 0.7, ease: "easeOut" }
+                  },
+                  out: {
+                    opacity: 0,
+                    y: -100,
+                    scale: 0.9,
+                    transition: { duration: 0.4, ease: "easeIn" }
+                  }
+                }}
+                initial="initial"
+                animate="in"
+                exit="out"
+              >
+                <LevelRoadmap user={user} />
+              </motion.div>
+            ) : (
+              <Navigate to="/auth" state={{ from: location }} replace />
+            )
           }
         />
       </Routes>
@@ -364,7 +399,10 @@ function AppContent() {
         setToken(null);
         localStorage.removeItem('token');
         localStorage.removeItem('user');
-        navigate('/auth');
+        // ---------------------------------
+        // **FIX 1: REMOVED a** `Maps('/auth')` **from here**
+        // This stops the forced redirect on logout.
+        // ---------------------------------
       }
       setLoading(false);
     });
@@ -383,12 +421,14 @@ function AppContent() {
 
       // Then logout from Firebase
       await logout();
+      
+      // Navigate to home after logout
+      navigate('/');
 
-      // Navigation will be handled automatically by onAuthStateChange listener
     } catch (error) {
       console.error('Logout failed:', error);
       // Fallback navigation in case auth state listener doesn't trigger
-      navigate('/auth');
+      navigate('/');
     }
   };
 
@@ -499,60 +539,10 @@ function AppContent() {
         )}
       </motion.div>
 
-      {/* Optional Navbar - Only show if user is logged in and NOT on Dashboard */}
-      {user && location.pathname !== "/" && (
-        <motion.nav
-          initial={{ y: -80, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ duration: 0.6, ease: "easeOut" }}
-          style={{
-            position: "sticky",
-            top: 0,
-            zIndex: 100,
-            display: "flex",
-            justifyContent: "center",
-            gap: "2rem",
-            padding: "16px 40px",
-            marginBottom: "20px",
-            marginTop: "60px",
-            paddingInline: "clamp(24px, 6vw, 64px)",
-            backdropFilter: "blur(24px) saturate(170%)",
-            WebkitBackdropFilter: "blur(24px) saturate(170%)",
-            background: currentTheme.navBg,
-            borderRadius: "22px",
-            border: `1px solid ${currentTheme.border}`,
-            boxShadow: `0 12px 45px ${currentTheme.shadow}`,
-            backgroundClip: "padding-box",
-          }}
-        >
-          {[
-            { to: "/", label: "🏠 Dashboard" },
-            { to: "/levels", label: "⭐ Levels" },
-            { to: "/leaderboard", label: "🏆 Leaderboard" },
-            { to: "/profile", label: "👤 Profile" },
-            { to: "/adventure", label: "🗺 Adventure" },
-            { to: "/game", label: "🎮 Game" },
-            { to: "/ai-assistant", label: "🤖 AI" },
-          ].map((link) => (
-            <motion.div whileHover={{ scale: 1.15 }} whileTap={{ scale: 0.9 }} key={link.to}>
-              <Link
-                to={link.to}
-                style={{
-                  fontWeight: 600,
-                  color: currentTheme.textPrimary,
-                  textDecoration: "none",
-                  fontSize: "1rem",
-                  transition: "color 0.3s ease",
-                }}
-                onMouseEnter={(e) => (e.target.style.color = currentTheme.accent)}
-                onMouseLeave={(e) => (e.target.style.color = currentTheme.textPrimary)}
-              >
-                {link.label}
-              </Link>
-            </motion.div>
-          ))}
-        </motion.nav>
-      )}
+      {/* --------------------------------- */}
+      {/* **FIX: Main Navigation Bar REMOVED** */}
+      {/* --------------------------------- */}
+      
 
       {/* Theme Customizer Modal */}
       <ThemeCustomizer 
@@ -563,10 +553,9 @@ function AppContent() {
       {/* Routes - All accessible without authentication */}
       <AnimatedRoutes user={user} setUser={setUser} token={token} setToken={setToken} />
       
-      {/* Add catch-all route for /dashboard to redirect to root */}
-      <Routes>
-        <Route path="/dashboard" element={<Navigate to="/" replace />} />
-      </Routes>
+      {/* --------------------------------- */}
+      {/* **FIX 3: Removed the stray <Routes> component from here.** */}
+      {/* --------------------------------- */}
     </>
   );
 }
