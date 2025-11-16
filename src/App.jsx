@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route, Navigate, Link, useLocation, useNavigate } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Navigate, Link, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Palette, LogOut } from "lucide-react";
@@ -18,8 +18,7 @@ import { onAuthStateChange, db, logout } from './firebase';
 import { doc, getDoc } from "firebase/firestore";
 
 function AnimatedRoutes({ user, setUser, token, setToken }) {
-  const location = useLocation();
-  const { theme } = useTheme();
+  // ...existing code...
 
   const pageVariants = {
     initial: {
@@ -328,7 +327,6 @@ function AppContent() {
   const [isThemeCustomizerOpen, setIsThemeCustomizerOpen] = useState(false);
   const { theme } = useTheme();
   const navigate = useNavigate();
-  const location = useLocation();
 
   console.log('AppContent rendering, loading:', loading, 'user:', user);
 

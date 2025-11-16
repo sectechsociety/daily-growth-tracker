@@ -1,6 +1,8 @@
+/* eslint-disable no-unused-vars */
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from './ThemeContext';
+import { theme as designTheme } from './theme';
 
 // Helper component for accordion icons
 const AccordionIcon = ({ isOpen }) => (
@@ -54,7 +56,7 @@ const TargetSetterPanel = ({ goals, onAddGoal, onToggleGoal, onDeleteGoal, getCa
           <>
             {/* Goals Summary */}
             <div style={{
-              background: 'rgba(16, 185, 129, 0.1)',
+              background: 'rgba(234, 243, 240, 0.1)',
               padding: '16px',
               borderRadius: '12px',
               border: '1px solid rgba(16, 185, 129, 0.3)',
@@ -65,13 +67,13 @@ const TargetSetterPanel = ({ goals, onAddGoal, onToggleGoal, onDeleteGoal, getCa
                 <span style={{ color: '#10b981', fontSize: '1.2rem', fontWeight: '700' }}>{completionRate}%</span>
               </div>
               <div style={{
-                background: 'rgba(16, 185, 129, 0.2)',
+                background: 'rgba(251, 255, 254, 0.2)',
                 borderRadius: '8px',
                 height: '6px',
                 overflow: 'hidden'
               }}>
                 <div style={{
-                  background: 'linear-gradient(90deg, #10b981, #34d399)',
+                  background: designTheme.success,
                   width: `${completionRate}%`,
                   height: '100%',
                   borderRadius: '8px',
@@ -931,49 +933,19 @@ Respond like:
 
 // Styles object
 const styles = {
+  // Unified white page container
   container: {
-    background: 'linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #312e81 100%)',
+    background: designTheme.background,
     minHeight: '100vh',
-    padding: '20px',
+    padding: '48px 32px',
     fontFamily: "'Inter', 'Segoe UI', sans-serif",
     position: 'relative',
     overflow: 'hidden',
   },
-  backgroundEffect: {
-    position: 'absolute',
-    top: '50%',
-    left: '50%',
-    transform: 'translate(-50%, -50%)',
-    width: '800px',
-    height: '800px',
-    background: 'radial-gradient(circle, rgba(139, 92, 246, 0.15) 0%, transparent 70%)',
-    pointerEvents: 'none',
-    animation: 'pulse 4s ease-in-out infinite',
-  },
-  floatingOrb1: {
-    position: 'absolute',
-    top: '10%',
-    left: '10%',
-    width: '300px',
-    height: '300px',
-    background: 'radial-gradient(circle, rgba(59, 130, 246, 0.2) 0%, transparent 70%)',
-    borderRadius: '50%',
-    filter: 'blur(60px)',
-    animation: 'float 6s ease-in-out infinite',
-    pointerEvents: 'none',
-  },
-  floatingOrb2: {
-    position: 'absolute',
-    bottom: '10%',
-    right: '10%',
-    width: '400px',
-    height: '400px',
-    background: 'radial-gradient(circle, rgba(168, 85, 247, 0.2) 0%, transparent 70%)',
-    borderRadius: '50%',
-    filter: 'blur(80px)',
-    animation: 'float 8s ease-in-out infinite reverse',
-    pointerEvents: 'none',
-  },
+  // Decorative effects removed for pure white aesthetic
+  backgroundEffect: { display: 'none' },
+  floatingOrb1: { display: 'none' },
+  floatingOrb2: { display: 'none' },
   innerContainer: {
     maxWidth: '1400px',
     margin: '0 auto',
@@ -988,77 +960,78 @@ const styles = {
     marginBottom: '0px',
   },
   title: {
-    fontSize: '3rem',
-    fontWeight: '900',
-    background: 'linear-gradient(135deg, #a855f7, #60a5fa, #10b981)',
-    WebkitBackgroundClip: 'text',
-    WebkitTextFillColor: 'transparent',
-    marginBottom: '10px',
+    fontSize: '2.8rem',
+    fontWeight: '800',
+    color: designTheme.textPrimary,
+    marginBottom: '12px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: '15px',
+    gap: '16px',
   },
   icon: {
-    fontSize: '3rem',
-    filter: 'drop-shadow(0 0 20px rgba(168, 85, 247, 0.6))',
+    fontSize: '2.8rem',
+    filter: 'drop-shadow(0 0 16px rgba(168, 85, 247, 0.5))',
   },
   subtitle: {
     fontSize: '1.1rem',
-    color: '#9ca3af',
-    fontWeight: '400',
+    color: '#718096',
+    fontWeight: '500',
   },
   mainLayout: {
     display: 'grid',
-    gridTemplateColumns: '2fr 1fr',
-    gap: '24px',
+    gridTemplateColumns: typeof window !== 'undefined' && window.innerWidth <= 1024 ? '1fr' : '1.4fr 1fr',
+    gap: '32px',
     alignItems: 'flex-start',
+    maxWidth: '1400px',
+    margin: '0 auto'
   },
   leftColumn: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '24px',
+    gap: '28px',
   },
   rightColumn: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '24px',
+    gap: '28px',
     position: 'sticky',
     top: '20px',
   },
   chatContainer: {
-    background: 'rgba(15, 23, 42, 0.6)',
-    backdropFilter: 'blur(20px)',
-    borderRadius: '20px',
-    padding: '30px',
-    minHeight: '400px',
-    maxHeight: '500px',
+    background: 'rgba(255, 255, 255, 0.98)',
+    backdropFilter: 'blur(12px)',
+    borderRadius: '24px',
+    padding: '32px',
+    minHeight: '450px',
+    maxHeight: '550px',
     overflowY: 'auto',
-    border: '1px solid rgba(255, 255, 255, 0.1)',
-    boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5)',
+    border: '2px solid rgba(139, 127, 199, 0.2)',
+    boxShadow: '0 12px 40px rgba(139, 127, 199, 0.15)',
     display: 'flex',
     flexDirection: 'column',
-    gap: '20px',
+    gap: '24px',
   },
   userMessage: {
     display: 'flex',
     gap: '12px',
     alignSelf: 'flex-end',
-    maxWidth: '80%',
-    background: 'linear-gradient(135deg, #8b5cf6, #6366f1)',
-    padding: '16px',
-    borderRadius: '16px 16px 4px 16px',
-    boxShadow: '0 4px 15px rgba(139, 92, 246, 0.3)',
+    maxWidth: '75%',
+    background: 'rgba(255,255,255,0.95)',
+    padding: '18px',
+    borderRadius: '18px 18px 4px 18px',
+    border: `2px solid ${designTheme.borderColor}`,
+    boxShadow: designTheme.shadow,
   },
   assistantMessage: {
     display: 'flex',
     gap: '12px',
     alignSelf: 'flex-start',
-    maxWidth: '80%',
-    background: 'rgba(31, 41, 55, 0.8)',
-    padding: '16px',
-    borderRadius: '16px 16px 16px 4px',
-    border: '1px solid rgba(139, 92, 246, 0.3)',
+    maxWidth: '75%',
+    background: 'rgba(255,255,255,0.9)',
+    padding: '18px',
+    borderRadius: '18px 18px 18px 4px',
+    border: '2px solid rgba(139, 127, 199, 0.2)',
   },
   messageIcon: {
     fontSize: '1.5rem',
@@ -1079,7 +1052,7 @@ const styles = {
   messageText: {
     fontSize: '1rem',
     lineHeight: '1.6',
-    color: '#fff',
+    color: '#2D3748',
     whiteSpace: 'pre-wrap',
   },
   loadingContainer: {
@@ -1105,7 +1078,7 @@ const styles = {
     fontSize: '0.9rem',
   },
   errorBanner: {
-    background: 'linear-gradient(135deg, #ef4444, #dc2626)',
+    background: designTheme.danger,
     padding: '16px 24px',
     borderRadius: '12px',
     color: '#fff',
@@ -1118,37 +1091,38 @@ const styles = {
   },
   inputWrapper: {
     display: 'flex',
-    gap: '12px',
+    gap: '14px',
     alignItems: 'flex-end',
   },
   input: {
     flex: 1,
-    background: 'rgba(31, 41, 55, 0.8)',
-    border: '2px solid rgba(139, 92, 246, 0.3)',
+    background: 'rgba(255, 255, 255, 0.9)',
+    border: '2px solid rgba(139, 127, 199, 0.3)',
     borderRadius: '16px',
-    padding: '16px 20px',
-    color: '#fff',
+    padding: '18px 22px',
+    color: '#2D3748',
     fontSize: '1rem',
     fontFamily: 'inherit',
     resize: 'none',
-    minHeight: '56px',
+    minHeight: '60px',
     maxHeight: '150px',
     transition: 'all 0.3s ease',
     backdropFilter: 'blur(10px)',
   },
   button: {
-    background: 'linear-gradient(135deg, #8b5cf6, #6366f1)',
+    background: designTheme.accent,
     color: '#fff',
     border: 'none',
     borderRadius: '16px',
-    padding: '16px 32px',
+    padding: '18px 36px',
     fontSize: '1rem',
     fontWeight: '700',
     display: 'flex',
     alignItems: 'center',
-    gap: '8px',
-    boxShadow: '0 8px 30px rgba(139, 92, 246, 0.4)',
+    gap: '10px',
+    boxShadow: '0 8px 24px rgba(139, 92, 246, 0.3)',
     transition: 'all 0.3s ease',
+    cursor: 'pointer',
   },
   spinner: {
     width: '16px',
@@ -1184,52 +1158,54 @@ const styles = {
     transition: 'all 0.3s ease',
   },
   panel: {
-    background: 'rgba(15, 23, 42, 0.6)',
+    background: 'rgba(255, 255, 255, 0.95)',
     backdropFilter: 'blur(20px)',
-    borderRadius: '20px',
-    border: '1px solid rgba(255, 255, 255, 0.1)',
-    boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5)',
-    color: '#fff',
+    borderRadius: '24px',
+    border: '2px solid rgba(139, 127, 199, 0.2)',
+    boxShadow: '0 12px 40px rgba(139, 127, 199, 0.15), 0 4px 16px rgba(0, 0, 0, 0.08)',
+    color: '#2D3748',
     overflow: 'hidden',
   },
   panelHeader: {
     display: 'flex',
     alignItems: 'center',
     gap: '12px',
-    padding: '20px',
-    background: 'rgba(255, 255, 255, 0.05)',
-    borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+    padding: '24px',
+    background: designTheme.cardBg,
+    borderBottom: `2px solid ${designTheme.borderColor}`,
   },
   panelIcon: {
-    fontSize: '1.5rem',
+    fontSize: '1.6rem',
   },
   panelTitle: {
-    fontSize: '1.2rem',
+    fontSize: '1.3rem',
     fontWeight: '700',
     margin: 0,
+    color: '#2D3748',
   },
   panelContent: {
-    padding: '20px',
+    padding: '24px',
     display: 'flex',
     flexDirection: 'column',
-    gap: '16px',
+    gap: '18px',
   },
   targetItem: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    background: 'rgba(255, 255, 255, 0.05)',
-    padding: '12px 16px',
-    borderRadius: '12px',
-    color: '#e5e7eb',
-    fontSize: '0.9rem',
+    background: 'rgba(255, 255, 255, 0.7)',
+    padding: '14px 18px',
+    borderRadius: '14px',
+    color: '#2D3748',
+    fontSize: '0.95rem',
+    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)',
   },
   targetProgress: {
     color: '#6ee7b7',
     fontWeight: '600',
   },
   panelButton: {
-    background: 'linear-gradient(135deg, #8b5cf6, #6366f1)',
+    background: designTheme.accent,
     color: '#fff',
     border: 'none',
     borderRadius: '12px',
@@ -1241,25 +1217,27 @@ const styles = {
     transition: 'all 0.3s ease',
   },
   accordionItem: {
-    border: '1px solid rgba(139, 92, 246, 0.3)',
-    borderRadius: '12px',
+    border: '2px solid rgba(139, 127, 199, 0.2)',
+    borderRadius: '14px',
     overflow: 'hidden',
-    background: 'rgba(31, 41, 55, 0.5)',
+    background: 'rgba(255, 255, 255, 0.6)',
+    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)',
   },
   accordionHeader: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: '16px',
+    padding: '18px',
     cursor: 'pointer',
     fontWeight: '600',
     transition: 'background-color 0.3s ease',
+    color: '#2D3748',
   },
   accordionContent: {
-    padding: '0 16px 16px 16px',
-    fontSize: '0.9rem',
-    color: '#d1d5db',
-    lineHeight: '1.6',
+    padding: '0 18px 18px 18px',
+    fontSize: '0.95rem',
+    color: '#4A5568',
+    lineHeight: '1.7',
     whiteSpace: 'pre-wrap',
   },
   // Modal styles
@@ -1278,10 +1256,10 @@ const styles = {
     padding: '20px',
   },
   modal: {
-    background: 'linear-gradient(135deg, #1e1b4b, #312e81)',
+    background: designTheme.cardBg,
     borderRadius: '20px',
-    border: '1px solid rgba(139, 92, 246, 0.3)',
-    boxShadow: '0 25px 80px rgba(0, 0, 0, 0.8)',
+    border: `2px solid ${designTheme.borderColor}`,
+    boxShadow: designTheme.shadow,
     width: '100%',
     maxWidth: '500px',
     maxHeight: '90vh',
@@ -1292,22 +1270,22 @@ const styles = {
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: '24px',
-    borderBottom: '1px solid rgba(139, 92, 246, 0.2)',
-    background: 'rgba(139, 92, 246, 0.1)',
+    borderBottom: `1px solid ${designTheme.borderColor}`,
+    background: designTheme.cardBg,
   },
   modalTitle: {
     margin: 0,
-    color: '#fff',
+    color: designTheme.textPrimary,
     fontSize: '1.5rem',
     fontWeight: '700',
   },
   modalCloseButton: {
-    background: 'rgba(239, 68, 68, 0.3)',
+    background: 'rgba(239, 68, 68, 0.12)',
     border: 'none',
     borderRadius: '50%',
     width: '32px',
     height: '32px',
-    color: '#fff',
+    color: '#ef4444',
     fontSize: '18px',
     cursor: 'pointer',
     display: 'flex',
@@ -1331,22 +1309,22 @@ const styles = {
     fontWeight: '600',
   },
   modalInput: {
-    background: 'rgba(31, 41, 55, 0.8)',
-    border: '2px solid rgba(139, 92, 246, 0.3)',
+    background: '#ffffff',
+    border: `2px solid ${designTheme.borderColor}`,
     borderRadius: '12px',
     padding: '16px',
-    color: '#fff',
+    color: designTheme.textPrimary,
     fontSize: '1rem',
     fontFamily: 'inherit',
     resize: 'vertical',
     transition: 'all 0.3s ease',
   },
   modalSelect: {
-    background: 'rgba(31, 41, 55, 0.8)',
-    border: '2px solid rgba(139, 92, 246, 0.3)',
+    background: '#ffffff',
+    border: `2px solid ${designTheme.borderColor}`,
     borderRadius: '12px',
     padding: '16px',
-    color: '#fff',
+    color: designTheme.textPrimary,
     fontSize: '1rem',
     fontFamily: 'inherit',
     transition: 'all 0.3s ease',
@@ -1369,7 +1347,7 @@ const styles = {
     transition: 'all 0.3s ease',
   },
   modalSaveButton: {
-    background: 'linear-gradient(135deg, #8b5cf6, #6366f1)',
+    background: designTheme.accent,
     color: '#fff',
     border: 'none',
     borderRadius: '12px',
@@ -1381,9 +1359,9 @@ const styles = {
   
   // --- 🧠 NEW: STYLE FOR CLEAR BUTTON ---
   clearButton: {
-    background: 'rgba(239, 68, 68, 0.2)',
-    color: '#f87171',
-    border: '1px solid rgba(239, 68, 68, 0.4)',
+    background: 'rgba(239, 68, 68, 0.08)',
+    color: '#ef4444',
+    border: '1px solid rgba(239, 68, 68, 0.25)',
     borderRadius: '10px',
     padding: '8px 14px',
     cursor: 'pointer',
@@ -1413,6 +1391,41 @@ styleSheet.textContent = `
   }
   @keyframes spin {
     to { transform: rotate(360deg); }
+  }
+
+  /* Responsive styles */
+  @media (max-width: 1024px) {
+    .mainLayout {
+      grid-template-columns: 1fr !important;
+      gap: 24px !important;
+    }
+  }
+
+  @media (max-width: 768px) {
+    h1 {
+      font-size: 2rem !important;
+    }
+    .chatContainer {
+      padding: 24px !important;
+      min-height: 350px !important;
+    }
+    .inputWrapper {
+      flex-direction: column !important;
+      gap: 12px !important;
+    }
+    .button {
+      width: 100% !important;
+      justify-content: center !important;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .container {
+      padding: 16px !important;
+    }
+    h1 {
+      font-size: 1.8rem !important;
+    }
   }
 `;
 document.head.appendChild(styleSheet);
