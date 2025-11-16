@@ -4,6 +4,13 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from './ThemeContext';
 import { theme as designTheme } from './theme';
 
+// --- React Icon Imports ---
+import { 
+  FiTarget, FiPlus, FiCheck, FiCircle, FiX, FiHeart, FiZap, 
+  FiBookOpen, FiSunrise, FiUsers, FiHelpCircle, FiActivity, 
+  FiWind, FiCpu, FiUser, FiSend, FiTrash2, FiSun, FiAward
+} from 'react-icons/fi';
+
 // Helper component for accordion icons
 const AccordionIcon = ({ isOpen }) => (
   <motion.svg
@@ -36,12 +43,12 @@ const TargetSetterPanel = ({ goals, onAddGoal, onToggleGoal, onDeleteGoal, getCa
       style={styles.panel}
     >
       <div style={styles.panelHeader}>
-        <span style={styles.panelIcon}>🎯</span>
+        <span style={styles.panelIcon}><FiTarget /></span>
         <h2 style={styles.panelTitle}>My Growth Targets</h2>
       </div>
       <div style={styles.panelContent}>
         {goals.length === 0 ? (
-          <div style={{ textAlign: 'center', color: '#9ca3af', fontSize: '0.9rem' }}>
+          <div style={{ textAlign: 'center', color: '#6b7280', fontSize: '0.9rem' }}>
             <p style={{ marginBottom: '16px' }}>No goals set yet. Start your growth journey!</p>
             <motion.button
               style={styles.panelButton}
@@ -49,31 +56,31 @@ const TargetSetterPanel = ({ goals, onAddGoal, onToggleGoal, onDeleteGoal, getCa
               whileHover={{ scale: 1.03 }}
               whileTap={{ scale: 0.98 }}
             >
-              ➕ Set Your First Goal
+              <FiPlus size={16} style={{ marginRight: '6px' }} /> Set Your First Goal
             </motion.button>
           </div>
         ) : (
           <>
             {/* Goals Summary */}
             <div style={{
-              background: 'rgba(234, 243, 240, 0.1)',
+              background: 'rgba(239, 246, 255, 0.8)',
               padding: '16px',
               borderRadius: '12px',
               border: '1px solid rgba(16, 185, 129, 0.3)',
               marginBottom: '20px'
             }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                <span style={{ color: '#10b981', fontSize: '0.9rem', fontWeight: '600' }}>Progress</span>
-                <span style={{ color: '#10b981', fontSize: '1.2rem', fontWeight: '700' }}>{completionRate}%</span>
+                <span style={{ color: '#059669', fontSize: '0.9rem', fontWeight: '600' }}>Progress</span>
+                <span style={{ color: '#059669', fontSize: '1.2rem', fontWeight: '700' }}>{completionRate}%</span>
               </div>
               <div style={{
-                background: 'rgba(251, 255, 254, 0.2)',
+                background: 'rgba(0, 0, 0, 0.05)',
                 borderRadius: '8px',
                 height: '6px',
                 overflow: 'hidden'
               }}>
                 <div style={{
-                  background: designTheme.success,
+                  background: '#10b981',
                   width: `${completionRate}%`,
                   height: '100%',
                   borderRadius: '8px',
@@ -81,10 +88,10 @@ const TargetSetterPanel = ({ goals, onAddGoal, onToggleGoal, onDeleteGoal, getCa
                 }}></div>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '8px' }}>
-                <span style={{ color: '#9ca3af', fontSize: '0.8rem' }}>
+                <span style={{ color: '#6b7280', fontSize: '0.8rem' }}>
                   {completedGoals} of {totalGoals} completed
                 </span>
-                <span style={{ color: '#9ca3af', fontSize: '0.8rem' }}>
+                <span style={{ color: '#6b7280', fontSize: '0.8rem' }}>
                   {totalGoals - completedGoals} remaining
                 </span>
               </div>
@@ -95,24 +102,34 @@ const TargetSetterPanel = ({ goals, onAddGoal, onToggleGoal, onDeleteGoal, getCa
                 ...styles.targetItem,
                 borderLeft: `4px solid ${getCategoryColor(goal.category)}`,
                 opacity: goal.completed ? 0.7 : 1,
-                background: goal.completed 
-                  ? 'rgba(16, 185, 129, 0.1)' 
-                  : 'rgba(255, 255, 255, 0.05)'
+                background: goal.completed
+                  ? 'rgba(16, 185, 129, 0.1)'
+                  : 'rgba(255, 255, 255, 0.7)'
               }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span style={{ fontSize: '1.2rem' }}>
-                    {goal.completed ? '✅' : getCategoryIcon(goal.category)}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexGrow: 1, overflow: 'hidden' }}>
+                  <span style={{ fontSize: '1.2rem', color: goal.completed ? '#10b981' : getCategoryColor(goal.category), flexShrink: 0 }}>
+                    {goal.completed ? <FiCheck /> : getCategoryIcon(goal.category)}
                   </span>
-                  <span style={{ 
-                    textDecoration: goal.completed ? 'line-through' : 'none',
-                    color: goal.completed ? '#9ca3af' : '#e5e7eb'
-                  }}>
-                    {goal.text}
-                  </span>
+                  <div style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    <span style={{
+                      textDecoration: goal.completed ? 'line-through' : 'none',
+                      color: goal.completed ? '#6b7280' : '#374151',
+                      fontWeight: '600',
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      display: 'block',
+                    }}>
+                      {goal.text}
+                    </span>
+                    <div style={{ fontSize: '0.8rem', color: '#8b5cf6', fontWeight: '500' }}>
+                      +{goal.xpValue || 30} XP
+                    </div>
+                  </div>
                 </div>
-                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexShrink: 0 }}>
                   <motion.button
-                    onClick={() => onToggleGoal(goal.id)}
+                    onClick={() => onToggleGoal(goal.id, goal.xpValue || 30)} // Pass XP value
                     style={{
                       background: goal.completed ? '#10b981' : 'rgba(139, 92, 246, 0.3)',
                       border: 'none',
@@ -121,6 +138,7 @@ const TargetSetterPanel = ({ goals, onAddGoal, onToggleGoal, onDeleteGoal, getCa
                       height: '24px',
                       cursor: 'pointer',
                       fontSize: '12px',
+                      color: goal.completed ? '#fff' : '#4f46e5',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center'
@@ -129,27 +147,30 @@ const TargetSetterPanel = ({ goals, onAddGoal, onToggleGoal, onDeleteGoal, getCa
                     whileTap={{ scale: 0.9 }}
                     title={goal.completed ? 'Mark as incomplete' : 'Mark as complete'}
                   >
-                    {goal.completed ? '✓' : '○'}
+                    {goal.completed ? <FiCheck size={12} /> : <FiCircle size={12} />}
                   </motion.button>
                   <motion.button
                     onClick={() => onDeleteGoal(goal.id)}
                     style={{
-                      background: 'rgba(239, 68, 68, 0.3)',
-                      border: 'none',
-                      borderRadius: '50%',
-                      width: '20px',
-                      height: '20px',
+                      background: 'rgba(239, 68, 68, 0.2)',
+                      border: '1px solid rgba(239, 68, 68, 0.3)',
+                      borderRadius: '12px',
+                      width: 'auto',
+                      height: '24px',
+                      padding: '0 10px',
                       cursor: 'pointer',
-                      fontSize: '10px',
+                      fontSize: '11px',
+                      fontWeight: '600',
+                      color: '#ef4444',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center'
                     }}
-                    whileHover={{ scale: 1.1 }}
+                    whileHover={{ scale: 1.1, background: 'rgba(239, 68, 68, 0.3)' }}
                     whileTap={{ scale: 0.9 }}
                     title="Delete goal"
                   >
-                    ×
+                    clear
                   </motion.button>
                 </div>
               </div>
@@ -160,7 +181,7 @@ const TargetSetterPanel = ({ goals, onAddGoal, onToggleGoal, onDeleteGoal, getCa
               whileHover={{ scale: 1.03 }}
               whileTap={{ scale: 0.98 }}
             >
-              ➕ Add New Goal
+              <FiPlus size={16} style={{ marginRight: '6px' }} /> Add New Goal
             </motion.button>
           </>
         )}
@@ -169,31 +190,14 @@ const TargetSetterPanel = ({ goals, onAddGoal, onToggleGoal, onDeleteGoal, getCa
   );
 };
 
-// Guidance panel with expandable tips
+// Guidance panel (Unchanged)
 const GuidancePanel = () => {
   const [expanded, setExpanded] = useState(null);
-
   const tips = [
-    {
-      icon: '🏋️‍♂️',
-      title: 'Gym Workout Tips',
-      content: '• Focus on compound lifts like squats, deadlifts, and bench press.\n• Ensure proper form to prevent injury.\n• Aim for progressive overload—gradually increase weight or reps.'
-    },
-    {
-      icon: '🧘',
-      title: 'Yoga & Flexibility',
-      content: '• Start with a 5-10 minute warm-up.\n• Listen to your body and don\'t push past pain.\n• Hold stretches for 15-30 seconds. Consistency is key!'
-    },
-    {
-      icon: '🏃',
-      title: 'Running & Cardio',
-      content: '• Mix steady-state cardio with high-intensity interval training (HIIT).\n• Invest in good running shoes to protect your joints.\n• Remember to hydrate before, during, and after your run.'
-    },
-    {
-      icon: '🍎',
-      title: 'Food & Nutrition',
-      content: '• Prioritize protein for muscle repair and satiety.\n• Eat a variety of colorful fruits and vegetables.\n• A balanced meal includes protein, carbs, and healthy fats.'
-    }
+    { icon: <FiActivity />, title: 'Gym Workout Tips', content: '• Focus on compound lifts...\n• Ensure proper form...\n• Aim for progressive overload...' },
+    { icon: <FiSunrise />, title: 'Yoga & Flexibility', content: '• Start with a 5-10 minute warm-up...\n• Listen to your body...\n• Hold stretches for 15-30 seconds.' },
+    { icon: <FiWind />, title: 'Running & Cardio', content: '• Mix steady-state cardio with HIIT...\n• Invest in good running shoes...\n• Remember to hydrate.' },
+    { icon: <FiHeart />, title: 'Food & Nutrition', content: '• Prioritize protein...\n• Eat a variety of colorful fruits...\n• A balanced meal includes protein, carbs, and healthy fats.' }
   ];
 
   return (
@@ -204,7 +208,7 @@ const GuidancePanel = () => {
       style={styles.panel}
     >
       <div style={styles.panelHeader}>
-        <span style={styles.panelIcon}>💡</span>
+        <span style={styles.panelIcon}><FiHelpCircle /></span>
         <h2 style={styles.panelTitle}>Expert Guidance</h2>
       </div>
       <div style={styles.panelContent}>
@@ -213,10 +217,10 @@ const GuidancePanel = () => {
             <motion.header
               style={styles.accordionHeader}
               onClick={() => setExpanded(expanded === index ? null : index)}
-              whileHover={{ backgroundColor: 'rgba(139, 92, 246, 0.2)' }}
+              whileHover={{ backgroundColor: 'rgba(139, 92, 246, 0.1)' }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <span style={{ fontSize: '1.2rem' }}>{tip.icon}</span>
+                <span style={{ fontSize: '1.2rem', color: '#8b5cf6' }}>{tip.icon}</span>
                 <span>{tip.title}</span>
               </div>
               <AccordionIcon isOpen={expanded === index} />
@@ -241,8 +245,8 @@ const GuidancePanel = () => {
   );
 };
 
-// Main AI Assistant component
-export default function AIAssistant() {
+// --- Main AI Assistant component ---
+export default function AIAssistant({ addXP }) {
   const { theme } = useTheme();
   const currentTheme = theme || {};
   const [prompt, setPrompt] = useState('');
@@ -256,16 +260,20 @@ export default function AIAssistant() {
   const [error, setError] = useState(null);
   const [goals, setGoals] = useState([]);
   const [showGoalModal, setShowGoalModal] = useState(false);
-  const [newGoal, setNewGoal] = useState('');
-  const [goalCategory, setGoalCategory] = useState('health');
+  
+  // --- UPDATED: Default XP is now 30 ---
+  const [newGoal, setNewGoal] = useState({
+    text: '',
+    category: 'health',
+    xpValue: 30 // Default XP bonus
+  });
+  
   const [modalInputRef, setModalInputRef] = useState(null);
-
-  // --- 🧠 NEW: CONVERSATION MEMORY STATE ---
   const [conversationHistory, setConversationHistory] = useState([]);
-
   const chatEndRef = useRef(null);
+  const isInitialMount = useRef(true);
 
-  // Load goals from localStorage on component mount
+  // (All useEffect hooks are unchanged...)
   useEffect(() => {
     const savedGoals = localStorage.getItem('growth-goals');
     if (savedGoals) {
@@ -273,12 +281,10 @@ export default function AIAssistant() {
     }
   }, []);
 
-  // Save goals to localStorage whenever goals change
   useEffect(() => {
     localStorage.setItem('growth-goals', JSON.stringify(goals));
   }, [goals]);
 
-  // Focus textarea when modal opens
   useEffect(() => {
     if (showGoalModal && modalInputRef) {
       modalInputRef.focus();
@@ -286,10 +292,13 @@ export default function AIAssistant() {
   }, [showGoalModal, modalInputRef]);
 
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+    } else {
+      chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
   }, [messages]);
 
-  // --- 🧠 NEW: LOAD & SAVE MEMORY ---
   useEffect(() => {
     const savedHistory = localStorage.getItem('aura-conversation-history');
     if (savedHistory) {
@@ -300,11 +309,9 @@ export default function AIAssistant() {
   useEffect(() => {
     localStorage.setItem('aura-conversation-history', JSON.stringify(conversationHistory.slice(-5)));
   }, [conversationHistory]);
-  // --- END OF NEW MEMORY LOGIC ---
 
-  // =================================================================
-  // === NEW `handleSubmit` (with Memory & Better Filters) ===
-  // =================================================================
+
+  // --- handleSubmit function ---
   const handleSubmit = async (e) => {
     e.preventDefault();
     const trimmedPrompt = prompt.trim();
@@ -315,39 +322,27 @@ export default function AIAssistant() {
       return;
     }
 
-    // ✅ SMART GUARDRAIL v2 — Broader Health & Fitness Understanding
+    // (Guardrails and keyword checks are unchanged)
     const growthKeywords = [
-      // General growth and mindset
       'growth', 'habit', 'motivat', 'discipline', 'focus', 'goal', 'routine',
       'mindset', 'self improve', 'consistency', 'progress', 'success', 'reflection',
       'time management', 'energy', 'mental', 'confidence', 'productiv', 'mindfulness',
       'stress', 'peace', 'relax', 'calm', 'focus', 'study', 'learn better',
-
-      // Health & fitness core
       'health', 'fit', 'fitness', 'gym', 'workout', 'train', 'training', 'exercise',
       'cardio', 'weight', 'muscle', 'strength', 'flexibility', 'stretch', 'recovery',
       'lose', 'loss', 'gain', 'burn', 'reduce', 'tone', 'cut', 'bulk', 'body fat', 'fat',
       'shape', 'physique', 'endurance', 'stamina', 'running', 'jogging', 'walking',
-
-      // Food, nutrition, and diet
       'nutrition', 'food', 'diet', 'meal', 'plan', 'protein', 'calories', 'deficit',
       'carbs', 'fats', 'fiber', 'water', 'hydration', 'sleep', 'rest', 'eating',
       'metabolism', 'healthy', 'cook', 'snack', 'hydrating',
-
-      // Recovery and wellness
       'yoga', 'meditation', 'mindful', 'breathe', 'wellness', 'balance', 'rest day',
-
-      // General
-      'how are you', 'hi', 'hello' // Greetings
+      'how are you', 'hi', 'hello'
     ];
 
     const bannedKeywords = [
-      // Tech
       'python', 'java', 'javascript', 'c++', 'coding', 'programming', 'html', 'css',
       'react', 'node', 'api', 'database', 'project', 'git', 'terminal', 'command',
       'machine learning', 'data science', 'algorithm', 'ai model',
-
-      // Entertainment / others
       'movie', 'film', 'actor', 'actress', 'series', 'music', 'song', 'game', 'gaming',
       'celebrity', 'politics', 'history', 'war', 'country', 'sports', 'team',
       'math', 'physics', 'chemistry', 'exam', 'formula'
@@ -355,15 +350,11 @@ export default function AIAssistant() {
 
     const promptLower = trimmedPrompt.toLowerCase();
     
-    // ✅ New pattern-based matching for natural language
     const isActionBasedFitnessQuery = /(lose|reduce|burn|gain|tone|build|cut|drop|increase|improve|boost|develop)\s?(fat|weight|muscle|stamina|strength|fitness|focus|discipline|productivity)/i.test(promptLower);
-
-    // Check if it's a greeting first
     const isGreeting = ['how are you', 'hi', 'hello'].some(keyword => promptLower.includes(keyword));
     const isGrowthRelated = growthKeywords.some(keyword => promptLower.includes(keyword)) || isActionBasedFitnessQuery;
     const isBanned = bannedKeywords.some(keyword => promptLower.includes(keyword));
 
-    // Allow greetings, but block banned keywords even if they are mixed with growth keywords
     if (isBanned) {
       setMessages(prev => [
         ...prev,
@@ -374,16 +365,12 @@ export default function AIAssistant() {
       return;
     }
 
-    // If it's not a greeting and not growth-related, check for health/fitness related questions
     if (!isGrowthRelated && !isGreeting) {
-      // Check if it's a health/fitness question that wasn't caught by the keyword filter
       const isHealthQuestion = /(lose weight|weight loss|burn fat|how to slim|how to get fit|healthy diet|exercise routine)/i.test(trimmedPrompt);
       
       if (isHealthQuestion) {
-        // If it's a health question that wasn't caught by keywords, let it through
         console.log('Health-related question detected:', trimmedPrompt);
       } else {
-        // If it's truly unrelated, show the error message
         setMessages(prev => [
           ...prev,
           { role: 'user', content: trimmedPrompt },
@@ -394,7 +381,6 @@ export default function AIAssistant() {
       }
     }
 
-    // --- Passed filters, now proceed ---
     const userMessage = { role: 'user', content: trimmedPrompt };
     setMessages(prev => [...prev, userMessage]);
     setPrompt('');
@@ -408,38 +394,32 @@ export default function AIAssistant() {
       return;
     }
 
-    // --- 🧠 NEW: Build context with MEMORY ---
     const completedGoalsCount = goals.filter(g => g.completed).length;
     const totalGoalsCount = goals.length;
     const pendingGoals = goals.filter(g => !g.completed);
 
-    // Save user message in memory
     setConversationHistory(prev => {
       const updated = [...prev, trimmedPrompt];
-      return updated.slice(-5); // Keep only the last 5
+      return updated.slice(-5);
     });
 
     const memorySummary =
       conversationHistory.length > 0
         ? conversationHistory.map((msg, i) => `(${i + 1}) ${msg}`).join('\n')
         : 'No prior questions yet. This is the start of the journey.';
-    // --- End of memory logic ---
 
-    // --- This is the 429 Error Fix (Goal Summaries) ---
-    const categoryCounts = pendingGoals.reduce((acc, goal) => {
-      acc[goal.category] = (acc[goal.category] || 0) + 1;
-      return acc;
-    }, {});
+    const pendingGoalText = pendingGoals.length > 0
+        ? pendingGoals.map(g => `- "${g.text}" (Category: ${g.category}, Reward: ${g.xpValue} XP)`).join('\n')
+        : 'No pending goals.';
 
     const goalsSummary = totalGoalsCount
       ? `Goals set: ${totalGoalsCount}, Completed: ${completedGoalsCount}, Pending: ${pendingGoals.length}`
       : 'No goals set yet.';
+    
     const categorySummary =
       pendingGoals.length > 0
-        ? `Pending goals by category: ${Object.entries(categoryCounts)
-            .map(([cat, count]) => `${cat} (${count})`)
-            .join(', ')}`
-        : 'No pending goals right now — great job!';
+        ? `Here is the user's current list of pending goals:\n${pendingGoalText}`
+        : 'The user has no pending goals right now — great job!';
 
     const moodPrompt =
       totalGoalsCount === 0
@@ -449,19 +429,23 @@ export default function AIAssistant() {
         : completedGoalsCount / totalGoalsCount < 0.5
         ? 'Be motivating — help them stay consistent.'
         : 'Celebrate progress — inspire continued success.';
-    
-    // --- End of context building ---
 
+    // --- NEW: Get AURA's last message for context ---
+    const lastMessage = messages[messages.length - 1];
+    const auraLastQuestion = (lastMessage.role === 'assistant') 
+      ? lastMessage.content 
+      : 'N/A (User spoke last)';
+    
     const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
 
-    // --- 🧠 NEW: Upgraded Payload with Memory ---
+    // --- 🧠 PAYLOAD (PROMPT) UPDATED ---
     const payload = {
       contents: [
         {
           parts: [
             {
-              text: `You are **AURA**, the user's Personal AI Growth Coach integrated into the Daily Growth Tracker App.  
-Your mission is to guide the user in *fitness, health, nutrition, mindfulness, productivity, and personal growth* — like a wise, friendly mentor and trainer combined.  
+              text: `You are **AURA**, the user's Personal AI Growth Coach integrated into the "Daily Growth Tracker" App.
+Your mission is to guide the user in *fitness, health, nutrition, mindfulness, productivity, and personal growth* — like a wise, friendly mentor and trainer combined.
 
 ---
 
@@ -472,23 +456,37 @@ You are a compassionate, knowledgeable coach who helps the user:
 - Improve focus, motivation, and consistency
 - Design workouts, daily routines, and balanced meals
 - Build sustainable discipline and a positive mindset
-
 You are **NOT** a generic chatbot. You are the user's *long-term growth partner*.
 
 ---
 
 ### ⚙️ RULES & BEHAVIOR
-1. **ONLY** respond to questions about:
-   - Health, fitness, food, habits, mindset, productivity, recovery, motivation, yoga, or mindfulness.
-2. **NEVER** answer unrelated topics (coding, history, politics, movies, AI models, etc.).
-3. Keep advice *realistic and beginner-safe*. Avoid extreme diets or medical recommendations.
-4. Include motivational tone and emojis like 💪🥗🔥🧘🌿.
-5. Structure answers clearly — use bullet points, sections, or 7-day/3-day templates if needed.
-6. Personalize responses using the user's goals, progress, and memory.
-7. If the user mentions *weight loss, muscle gain, or routine building*, generate detailed structured plans (like meal plans, workouts, or checklists).
-8. Encourage tracking progress inside the Daily Growth Tracker app.
-9. NEVER start every reply the same way — vary your tone naturally.
-10. If unsure, gently ask clarifying questions like a real coach would.
+1. **YOU ARE INTEGRATED (CRITICAL):** The user is inside the app. The \`CONTEXT DATA\` is **real-time data** from that app. Your primary job is to use this data to provide hyper-personalized advice. **NEVER** ask for information that is already provided in the context (like "What goal did you set?" when the goal list is available).
+
+2. **ONLY** respond to questions about:
+  - Health, fitness, food, habits, mindset, productivity, recovery, motivation, yoga, or mindfulness.
+
+3. **NEVER** answer unrelated topics (coding, history, politics, movies, AI models, etc.). If asked, politely decline and remind them of your purpose (Rule #2).
+
+4. **PROACTIVE ACKNOWLEDGEMENT (CRITICAL):** If the user's message is a statement *about* their goals (e.g., "I just set a goal," "I finished my homework goal"), **DO NOT ask what the goal was.** Look at the \`CONTEXT DATA\` and *state the goal back to them*.
+    - *User says:* "i have set a goal"
+    - *YOU respond (using context):* "Awesome! I see you've set a new goal to '[Goal Text]' for [XP Value] XP. I'm here to help you break that down. What's your first step, or would you like me to create a plan for you?"
+
+5. **HANDLE "YES/NO" REPLIES (CRITICAL):** If the user's message is just "yes," "yep," "no," "do it," or "tell me more," look at \`AURA'S PREVIOUS MESSAGE\`. This is almost certainly an answer to a question you just asked.
+    - *Example (AURA):* "...would you like me to create a plan for you?"
+    - *User says:* "yes"
+    - *YOU respond:* "Great! Here is a 3-step plan for '[Goal Text]': [Provide a brief, actionable 3-step plan based on their newest goal]."
+    - *Example (AURA):* "...Could you rephrase your question?"
+    - *User says:* "reduce weight"
+    - *YOU respond:* "Perfect, thank you! To 'reduce weight', I recommend... [Provide the plan]."
+
+6. Keep advice *realistic and beginner-safe*. Avoid extreme diets or medical recommendations.
+7. Include motivational tone and emojis like 💪🥗🔥🧘🌿.
+8. Structure answers clearly — use bullet points, sections, or 7-day/3-day templates if needed.
+9. Personalize responses using the user's goals, progress, and memory.
+10. If the user mentions *weight loss, muscle gain, or routine building*, generate detailed structured plans (like meal plans, workouts, or checklists).
+11. Encourage tracking progress inside the Daily Growth Tracker app.
+12. NEVER start every reply the same way — vary your tone naturally.
 
 ---
 
@@ -503,6 +501,9 @@ ${memorySummary}
 Mood context:
 ${moodPrompt}
 
+AURA'S PREVIOUS MESSAGE (to see if user is replying to you):
+"${auraLastQuestion}"
+
 ---
 
 ### 🧭 RESPONSE EXAMPLES:
@@ -510,22 +511,22 @@ If the user says:
 > "I want to lose 3 kg of fat."
 
 Respond like:
-> "🔥 Great goal! Here's a 7-day fat-loss starter plan:  
-> 🥗 **Nutrition:** 400-calorie deficit daily (focus on eggs, dal, lean meats, veggies).  
-> 🏋️‍♂️ **Workout:** 4 days strength + 2 days cardio (walking, cycling, or HIIT).  
-> 💧 **Hydration:** 3L/day.  
-> 💤 **Sleep:** 7–8 hours.  
+> "🔥 Great goal! Here's a 7-day fat-loss starter plan:  
+> 🥗 **Nutrition:** 400-calorie deficit daily (focus on eggs, dal, lean meats, veggies).  
+> 🏋️‍♂️ **Workout:** 4 days strength + 2 days cardio (walking, cycling, or HIIT).  
+> 💧 **Hydration:** 3L/day.  
+> 💤 **Sleep:** 7–8 hours.  
 > Track your meals and habits daily — small wins add up!"
 
 If the user says:
 > "How can I improve focus and motivation?"
 
 Respond like:
-> "🎯 Focus = mental fitness. Try:  
-> 1. 25-min deep work sessions (Pomodoro).  
-> 2. Journal 3 wins each day.  
-> 3. Morning light walk ☀️  
-> 4. One micro goal per day.  
+> "🎯 Focus = mental fitness. Try:  
+> 1. 25-min deep work sessions (Pomodoro).  
+> 2. Journal 3 wins each day.  
+> 3. Morning light walk ☀️  
+> 4. One micro goal per day.  
 > You'll feel momentum build within a week!"
 
 ---
@@ -539,7 +540,7 @@ Respond like:
       generationConfig: { temperature: 0.7, maxOutputTokens: 1000 },
     };
     // --- END OF PAYLOAD ---
-
+    
     try {
       const res = await fetch(apiUrl, {
         method: 'POST',
@@ -549,13 +550,13 @@ Respond like:
 
       if (!res.ok) {
         if (res.status === 429) {
-           setError('⚠️ Too many requests. Try again soon.');
-           setMessages(prev => [...prev, { role: 'assistant', content: 'Sorry! I\'m a bit busy. Please try again later.' }]);
+            setError('⚠️ Too many requests. Try again soon.');
+            setMessages(prev => [...prev, { role: 'assistant', content: 'Sorry! I\'m a bit busy. Please try again later.' }]);
         } else {
           const errorData = await res.json().catch(() => ({}));
           throw new Error(errorData.error?.message || `API Error: ${res.status}`);
         }
-        return; // Stop execution if there was a non-critical error like 429
+        return;
       }
 
       const data = await res.json();
@@ -570,41 +571,54 @@ Respond like:
       setIsLoading(false);
     }
   };
-  // =================================================================
-  // === END OF UPDATED FUNCTION ===
-  // =================================================================
 
 
+  // --- UPDATED `handleAddGoal` ---
   const handleAddGoal = () => {
-    if (newGoal.trim()) {
+    if (newGoal.text.trim()) { // Check newGoal.text
       const goal = {
         id: Date.now(),
-        text: newGoal.trim(),
-        category: goalCategory,
+        text: newGoal.text.trim(),
+        category: newGoal.category, // --- FIX --- Use category from state object
+        xpValue: newGoal.xpValue || 30, // Save the XP value
         completed: false,
         createdAt: new Date().toISOString(),
         completedAt: null
       };
       setGoals(prev => [...prev, goal]);
-      setNewGoal('');
+      // Reset state object
+      setNewGoal({ text: '', category: 'health', xpValue: 30 }); // --- FIX --- Default XP is 30
       setShowGoalModal(false);
-      setGoalCategory('health');
       console.log('Goal added successfully:', goal);
     } else {
       console.log('Cannot add empty goal');
     }
   };
 
-  const handleToggleGoal = (goalId) => {
-    setGoals(prev => prev.map(goal => 
-      goal.id === goalId 
-        ? { 
-            ...goal, 
-            completed: !goal.completed,
-            completedAt: !goal.completed ? new Date().toISOString() : null 
+  // --- UPDATED `handleToggleGoal` ---
+  const handleToggleGoal = (goalId, xpValue) => { // Accept xpValue
+    setGoals(prev => prev.map(goal => {
+      if (goal.id === goalId) {
+        const isCompleting = !goal.completed;
+        if (isCompleting) {
+          // If marking as complete, call addXP
+          if (addXP) {
+            console.log(`Adding ${xpValue} XP for completing goal!`);
+            // We use a unique ID like "goal-12345" for the addXP function
+            addXP(`goal-${goal.id}`, xpValue); 
+          } else {
+            console.warn('addXP function is not connected to AI Assistant');
           }
-        : goal
-    ));
+        }
+        // Return updated goal
+        return { 
+          ...goal, 
+          completed: isCompleting,
+          completedAt: isCompleting ? new Date().toISOString() : null 
+        };
+      }
+      return goal;
+    }));
   };
 
   const handleDeleteGoal = (goalId) => {
@@ -618,10 +632,11 @@ Respond like:
     }
   };
 
+  // --- UPDATED `handleModalKeyPress` ---
   const handleModalKeyPress = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      if (newGoal.trim()) {
+      if (newGoal.text.trim()) { // Check newGoal.text
         handleAddGoal();
       }
     } else if (e.key === 'Escape') {
@@ -629,40 +644,36 @@ Respond like:
     }
   };
 
+  // --- `getCategoryIcon` returns icons ---
   const getCategoryIcon = (category) => {
     switch (category) {
-      case 'health': return '💪';
-      case 'productivity': return '⚡';
-      case 'learning': return '📚';
-      case 'mindfulness': return '🧘';
-      case 'social': return '👥';
-      default: return '🎯';
+      case 'health': return <FiHeart />;
+      case 'productivity': return <FiZap />;
+      case 'learning': return <FiBookOpen />;
+      case 'mindfulness': return <FiSunrise />;
+      case 'social': return <FiUsers />;
+      default: return <FiTarget />;
     }
   };
 
   const getCategoryColor = (category) => {
     switch (category) {
-      case 'health': return '#10b981';
-      case 'productivity': return '#f59e0b';
-      case 'learning': return '#3b82f6';
-      case 'mindfulness': return '#8b5cf6';
-      case 'social': return '#ef4444';
-      default: return '#6ee7b7';
+      case 'health': return '#10B981';
+      case 'productivity': return '#F59E0B';
+      case 'learning': return '#3B82F6';
+      case 'mindfulness': return '#8B5CF6';
+      case 'social': return '#EC4899';
+      default: return '#6B7280';
     }
   };
 
-  const containerStyle = {
-    ...styles.container,
-    background: currentTheme.background || styles.container.background,
-    color: currentTheme.textPrimary || styles.container.color,
-  };
-
   return (
-    <div style={containerStyle}>
-      <div style={styles.backgroundEffect}></div>
-      <div style={styles.floatingOrb1}></div>
-      <div style={styles.floatingOrb2}></div>
-
+    <div style={styles.container}>
+      <div style={styles.backgroundEffect}>
+        <div style={styles.floatingOrb1} />
+        <div style={styles.floatingOrb2} />
+      </div>
+      
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -676,7 +687,7 @@ Respond like:
           style={styles.header}
         >
           <h1 style={styles.title}>
-            <span style={styles.icon}>🤖</span>
+            <span style={styles.icon}><FiCpu /></span>
             AI Growth Assistant
           </h1>
           <p style={styles.subtitle}>
@@ -697,7 +708,7 @@ Respond like:
                     style={msg.role === 'user' ? styles.userMessage : styles.assistantMessage}
                   >
                     <div style={styles.messageIcon}>
-                      {msg.role === 'user' ? '👤' : '🤖'}
+                      {msg.role === 'user' ? <FiUser size={20} /> : <FiCpu size={20} />}
                     </div>
                     <div style={styles.messageContent}>
                       <div style={styles.messageRole}>
@@ -776,7 +787,7 @@ Respond like:
                     </>
                   ) : (
                     <>
-                      <span>✨</span>
+                      <span style={styles.buttonIcon}><FiSend /></span>
                       Ask AURA
                     </>
                   )}
@@ -784,7 +795,6 @@ Respond like:
               </div>
             </motion.form>
             
-            {/* --- 🧠 NEW: CLEAR MEMORY BUTTON --- */}
             <button
               onClick={() => {
                 localStorage.removeItem('aura-conversation-history');
@@ -796,9 +806,8 @@ Respond like:
               }}
               style={styles.clearButton}
             >
-              🧹 Clear Memory
+              <FiTrash2 size={12} style={{ marginRight: '6px' }} /> Clear Memory
             </button>
-            {/* --- END: NEW --- */}
 
 
             <motion.div
@@ -807,7 +816,10 @@ Respond like:
               transition={{ delay: 0.6 }}
               style={styles.suggestions}
             >
-              <p style={styles.suggestionsTitle}>💡 Try asking:</p>
+              <p style={styles.suggestionsTitle}>
+                <FiHelpCircle size={14} style={{ marginRight: '6px', display: 'inline-block', verticalAlign: 'middle' }} />
+                Try asking:
+              </p>
               <div style={styles.suggestionButtons}>
                 {[
                   "How can I build a morning routine?",
@@ -819,7 +831,7 @@ Respond like:
                     key={index}
                     onClick={() => setPrompt(suggestion)}
                     style={styles.suggestionButton}
-                    whileHover={{ scale: 1.05, backgroundColor: 'rgba(139, 92, 246, 0.3)' }}
+                    whileHover={{ scale: 1.05, backgroundColor: 'rgba(139, 92, 246, 0.2)' }}
                     whileTap={{ scale: 0.95 }}
                   >
                     {suggestion}
@@ -843,7 +855,7 @@ Respond like:
         </div>
       </motion.div>
 
-      {/* Goal Modal */}
+      {/* --- Goal Modal (UPDATED with XP Field and FIXED Refs) --- */}
       <AnimatePresence>
         {showGoalModal && (
           <motion.div
@@ -862,14 +874,17 @@ Respond like:
               onClick={(e) => e.stopPropagation()}
             >
               <div style={styles.modalHeader}>
-                <h3 style={styles.modalTitle}>🎯 Set New Goal</h3>
+                <h3 style={styles.modalTitle}>
+                  <FiTarget style={{ marginRight: '10px', verticalAlign: 'middle' }} />
+                  Set New Goal
+                </h3>
                 <motion.button
                   onClick={() => setShowGoalModal(false)}
                   style={styles.modalCloseButton}
                   whileHover={{ scale: 1.1 }}
                   whileTap={{ scale: 0.9 }}
                 >
-                  ×
+                  <FiX size={18} />
                 </motion.button>
               </div>
               <div style={styles.modalContent}>
@@ -877,26 +892,39 @@ Respond like:
                   <label style={styles.label}>Goal Description</label>
                   <textarea
                     ref={setModalInputRef}
-                    value={newGoal}
-                    onChange={(e) => setNewGoal(e.target.value)}
+                    value={newGoal.text} // UPDATED
+                    onChange={(e) => setNewGoal(prev => ({ ...prev, text: e.target.value }))} // UPDATED
                     onKeyPress={handleModalKeyPress}
                     style={styles.modalInput}
                     placeholder="What do you want to achieve?"
                     rows={3}
                   />
                 </div>
+                
+                {/* --- NEW XP INPUT FIELD --- */}
+                <div style={styles.inputGroup}>
+                  <label style={styles.label}>XP Bonus</label>
+                  <input
+                    type="number"
+                    value={newGoal.xpValue} // UPDATED
+                    onChange={(e) => setNewGoal(prev => ({ ...prev, xpValue: parseInt(e.target.value) || 0 }))} // UPDATED
+                    style={styles.modalInput}
+                    placeholder="e.g., 30"
+                  />
+                </div>
+
                 <div style={styles.inputGroup}>
                   <label style={styles.label}>Category</label>
                   <select
-                    value={goalCategory}
-                    onChange={(e) => setGoalCategory(e.target.value)}
+                    value={newGoal.category} // --- FIX ---
+                    onChange={(e) => setNewGoal(prev => ({ ...prev, category: e.target.value }))} // --- FIX ---
                     style={styles.modalSelect}
                   >
-                    <option value="health">💪 Health & Fitness</option>
-                    <option value="productivity">⚡ Productivity</option>
-                    <option value="learning">📚 Learning</option>
-                    <option value="mindfulness">🧘 Mindfulness</option>
-                    <option value="social">👥 Social</option>
+                    <option value="health">Health & Fitness</option>
+                    <option value="productivity">Productivity</option>
+                    <option value="learning">Learning</option>
+                    <option value="mindfulness">Mindfulness</option>
+                    <option value="social">Social</option>
                   </select>
                 </div>
                 <div style={styles.modalActions}>
@@ -910,14 +938,14 @@ Respond like:
                   </motion.button>
                   <motion.button
                     onClick={handleAddGoal}
-                    disabled={!newGoal.trim()}
+                    disabled={!newGoal.text.trim()} // UPDATED
                     style={{
                       ...styles.modalSaveButton,
-                      opacity: newGoal.trim() ? 1 : 0.5,
-                      cursor: newGoal.trim() ? 'pointer' : 'not-allowed'
+                      opacity: newGoal.text.trim() ? 1 : 0.5, // UPDATED
+                      cursor: newGoal.text.trim() ? 'pointer' : 'not-allowed' // UPDATED
                     }}
-                    whileHover={newGoal.trim() ? { scale: 1.05 } : {}}
-                    whileTap={newGoal.trim() ? { scale: 0.95 } : {}}
+                    whileHover={newGoal.text.trim() ? { scale: 1.05 } : {}}
+                    whileTap={newGoal.text.trim() ? { scale: 0.95 } : {}}
                   >
                     Save Goal
                   </motion.button>
@@ -931,264 +959,351 @@ Respond like:
   );
 }
 
-// Styles object
+// =================================================================
+// === STYLES OBJECT (Unchanged from last time) ===
+// =================================================================
 const styles = {
-  // Unified white page container
+  // Main container with NEW lavender gradient background
   container: {
-    background: designTheme.background,
+    background: 'linear-gradient(135deg, #f7f3ff 0%, #e9dfff 100%)', // Light lavender gradient
     minHeight: '100vh',
-    padding: '48px 32px',
+    padding: '32px',
     fontFamily: "'Inter', 'Segoe UI', sans-serif",
     position: 'relative',
     overflow: 'hidden',
+    color: '#1e0a40', // NEW: Dark text for readability
   },
-  // Decorative effects removed for pure white aesthetic
-  backgroundEffect: { display: 'none' },
-  floatingOrb1: { display: 'none' },
-  floatingOrb2: { display: 'none' },
+  
+  // Decorative background effects (Updated to be softer)
+  backgroundEffect: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 0,
+    overflow: 'hidden',
+  },
+  floatingOrb1: {
+    position: 'absolute',
+    top: '-100px',
+    right: '-100px',
+    width: '400px',
+    height: '400px',
+    borderRadius: '50%',
+    background: 'radial-gradient(circle, rgba(138, 43, 226, 0.08) 0%, rgba(138, 43, 226, 0) 70%)', // NEW: Softer purple
+    animation: 'pulse 8s ease-in-out infinite alternate',
+  },
+  floatingOrb2: {
+    position: 'absolute',
+    bottom: '-150px',
+    left: '-100px',
+    width: '500px',
+    height: '500px',
+    borderRadius: '50%',
+    background: 'radial-gradient(circle, rgba(168, 85, 247, 0.05) 0%, rgba(168, 85, 247, 0) 70%)', // NEW: Softer purple
+    animation: 'pulse 10s ease-in-out infinite alternate-reverse',
+  },
+  
+  // Content container
   innerContainer: {
-    maxWidth: '1400px',
-    margin: '0 auto',
     position: 'relative',
-    zIndex: 10,
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '24px',
+    zIndex: 1,
+    maxWidth: '1200px',
+    margin: '0 auto',
+    padding: '20px',
   },
+  
+  // Header styles (Updated text color)
   header: {
     textAlign: 'center',
-    marginBottom: '0px',
+    marginBottom: '32px',
   },
   title: {
-    fontSize: '2.8rem',
+    fontSize: '2.5rem',
     fontWeight: '800',
-    color: designTheme.textPrimary,
-    marginBottom: '12px',
+    background: 'linear-gradient(90deg, #6d28d9 0%, #4c1d95 100%)', // NEW: Dark purple text
+    WebkitBackgroundClip: 'text',
+    WebkitTextFillColor: 'transparent',
+    backgroundClip: 'text',
+    marginBottom: '8px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     gap: '16px',
+    textShadow: 'none', // NEW: Removed shadow
   },
   icon: {
-    fontSize: '2.8rem',
-    filter: 'drop-shadow(0 0 16px rgba(168, 85, 247, 0.5))',
+    fontSize: '2.2rem', // Icon size is controlled by font-size
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   subtitle: {
     fontSize: '1.1rem',
-    color: '#718096',
+    color: '#5b21b6', // NEW: Darker lavender text
     fontWeight: '500',
+    textAlign: 'center',
+    maxWidth: '700px',
+    margin: '0 auto',
+    lineHeight: '1.6',
   },
+  
+  // Main layout
   mainLayout: {
     display: 'grid',
-    gridTemplateColumns: typeof window !== 'undefined' && window.innerWidth <= 1024 ? '1fr' : '1.4fr 1fr',
-    gap: '32px',
-    alignItems: 'flex-start',
-    maxWidth: '1400px',
-    margin: '0 auto'
+    gridTemplateColumns: '1fr 350px',
+    gap: '24px',
+    marginTop: '24px',
+    '@media (max-width: 1024px)': {
+      gridTemplateColumns: '1fr',
+    },
   },
   leftColumn: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '28px',
+    gap: '24px',
   },
   rightColumn: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '28px',
+    gap: '24px',
     position: 'sticky',
-    top: '20px',
+    top: '32px',
+    alignSelf: 'flex-start',
+    '@media (max-width: 1024px)': {
+      position: 'static',
+    },
   },
+  
+  // Chat container (NEW: White Glassmorphic)
   chatContainer: {
-    background: 'rgba(255, 255, 255, 0.98)',
-    backdropFilter: 'blur(12px)',
-    borderRadius: '24px',
-    padding: '32px',
-    minHeight: '450px',
-    maxHeight: '550px',
+    background: 'rgba(255, 255, 255, 0.7)', // NEW: White glass
+    backdropFilter: 'blur(16px)',
+    borderRadius: '20px',
+    padding: '28px',
+    minHeight: '500px',
+    maxHeight: '600px',
     overflowY: 'auto',
-    border: '2px solid rgba(139, 127, 199, 0.2)',
-    boxShadow: '0 12px 40px rgba(139, 127, 199, 0.15)',
+    border: '1px solid rgba(255, 255, 255, 0.5)', // NEW: Lighter border
+    boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.1)', // NEW: Softer shadow
     display: 'flex',
     flexDirection: 'column',
     gap: '24px',
+  },
+  
+  // Message styles (Updated for light theme)
+  messageContainer: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '16px',
   },
   userMessage: {
     display: 'flex',
     gap: '12px',
     alignSelf: 'flex-end',
     maxWidth: '75%',
-    background: 'rgba(255,255,255,0.95)',
-    padding: '18px',
-    borderRadius: '18px 18px 4px 18px',
-    border: `2px solid ${designTheme.borderColor}`,
-    boxShadow: designTheme.shadow,
+    background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)', // NEW: Solid accent color
+    padding: '16px 20px',
+    borderRadius: '16px 16px 4px 16px',
+    border: '1px solid rgba(99, 102, 241, 0.3)',
+    boxShadow: '0 4px 15px rgba(99, 102, 241, 0.2)', // NEW: Softer shadow
+    color: '#ffffff', // NEW: White text on dark button
   },
   assistantMessage: {
     display: 'flex',
     gap: '12px',
     alignSelf: 'flex-start',
     maxWidth: '75%',
-    background: 'rgba(255,255,255,0.9)',
-    padding: '18px',
-    borderRadius: '18px 18px 18px 4px',
-    border: '2px solid rgba(139, 127, 199, 0.2)',
+    background: '#ffffff', // NEW: Solid white
+    padding: '16px 20px',
+    borderRadius: '16px 16px 16px 4px',
+    border: '1px solid rgba(0, 0, 0, 0.05)',
+    boxShadow: '0 4px 10px rgba(0, 0, 0, 0.05)',
   },
   messageIcon: {
-    fontSize: '1.5rem',
+    marginTop: '2px', // Aligns icon with text
     flexShrink: 0,
+    color: '#8b5cf6', // Default color for assistant icon
   },
   messageContent: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '6px',
+    gap: '4px',
   },
   messageRole: {
-    fontSize: '0.75rem',
-    fontWeight: '700',
+    fontSize: '0.8rem',
+    fontWeight: '600',
+    color: '#8b5cf6', // NEW: Accent color
     textTransform: 'uppercase',
-    color: '#9ca3af',
-    letterSpacing: '1px',
+    letterSpacing: '0.05em',
   },
   messageText: {
-    fontSize: '1rem',
+    fontSize: '0.95rem',
     lineHeight: '1.6',
-    color: '#2D3748',
-    whiteSpace: 'pre-wrap',
+    color: '#374151', // NEW: Dark gray text
+    whiteSpace: 'pre-wrap', // Ensures formatting is kept
   },
+  
+  // Loading state (Updated for light theme)
   loadingContainer: {
     display: 'flex',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: '12px',
     padding: '16px',
-    background: 'rgba(31, 41, 55, 0.6)',
     borderRadius: '12px',
-    alignSelf: 'flex-start',
+    background: 'rgba(255, 255, 255, 0.5)', // NEW: Light background
+    margin: '12px 0',
   },
   loadingDots: {
     display: 'flex',
     gap: '6px',
   },
   dot: {
-    fontSize: '1.5rem',
-    color: '#8b5cf6',
+    fontSize: '1.2rem',
+    color: '#818cf8',
     animation: 'bounce 1.4s infinite ease-in-out',
   },
   loadingText: {
-    color: '#9ca3af',
+    color: '#4338ca', // NEW: Darker text
     fontSize: '0.9rem',
+    fontWeight: '500',
   },
+  
+  // Error banner
   errorBanner: {
-    background: designTheme.danger,
-    padding: '16px 24px',
+    background: 'rgba(239, 68, 68, 0.1)',
+    color: '#ef4444', // NEW: Darker red text
+    padding: '12px 16px',
     borderRadius: '12px',
-    color: '#fff',
-    fontWeight: '600',
-    textAlign: 'center',
-    boxShadow: '0 4px 20px rgba(239, 68, 68, 0.4)',
+    border: '1px solid rgba(239, 68, 68, 0.2)',
+    margin: '12px 0',
+    fontSize: '0.9rem',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
   },
+  
+  // Input form (Updated for light theme)
   form: {
-    width: '100%',
+    marginTop: 'auto',
   },
   inputWrapper: {
+    position: 'relative',
     display: 'flex',
-    gap: '14px',
+    gap: '12px',
     alignItems: 'flex-end',
   },
   input: {
     flex: 1,
-    background: 'rgba(255, 255, 255, 0.9)',
-    border: '2px solid rgba(139, 127, 199, 0.3)',
-    borderRadius: '16px',
-    padding: '18px 22px',
-    color: '#2D3748',
+    background: '#ffffff', // NEW: Solid white
+    border: '1px solid rgba(138, 43, 226, 0.3)', // NEW: Lavender border
+    borderRadius: '14px',
+    padding: '16px 20px',
+    color: '#1e0a40', // NEW: Dark text
     fontSize: '1rem',
     fontFamily: 'inherit',
     resize: 'none',
     minHeight: '60px',
     maxHeight: '150px',
     transition: 'all 0.3s ease',
-    backdropFilter: 'blur(10px)',
+    '&:focus': {
+      outline: 'none',
+      borderColor: '#8b5cf6',
+      boxShadow: '0 0 0 2px rgba(138, 43, 226, 0.2)',
+    },
+    '&::placeholder': {
+      color: '#9ca3b8',
+    },
   },
   button: {
-    background: designTheme.accent,
+    background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
     color: '#fff',
     border: 'none',
-    borderRadius: '16px',
-    padding: '18px 36px',
-    fontSize: '1rem',
-    fontWeight: '700',
+    borderRadius: '14px',
+    padding: '16px 28px',
+    fontSize: '0.95rem',
+    fontWeight: '600',
     display: 'flex',
     alignItems: 'center',
     gap: '10px',
-    boxShadow: '0 8px 24px rgba(139, 92, 246, 0.3)',
+    boxShadow: '0 4px 20px rgba(99, 102, 241, 0.3)',
     transition: 'all 0.3s ease',
     cursor: 'pointer',
+    '&:hover': {
+      transform: 'translateY(-2px)',
+      boxShadow: '0 6px 24px rgba(99, 102, 241, 0.4)',
+    },
+    '&:active': {
+      transform: 'translateY(0)',
+    },
+    '&:disabled': {
+      opacity: 0.7,
+      cursor: 'not-allowed',
+      transform: 'none',
+    },
   },
-  spinner: {
-    width: '16px',
-    height: '16px',
-    border: '2px solid rgba(255,255,255,0.3)',
-    borderTop: '2px solid #fff',
-    borderRadius: '50%',
-    animation: 'spin 0.8s linear infinite',
+  buttonIcon: {
+    fontSize: '1.2rem', // Controls icon size in button
   },
-  suggestions: {
-    textAlign: 'center',
-  },
-  suggestionsTitle: {
-    color: '#9ca3af',
-    fontSize: '0.9rem',
-    marginBottom: '12px',
-    fontWeight: '600',
-  },
-  suggestionButtons: {
-    display: 'flex',
-    flexWrap: 'wrap',
-    gap: '10px',
-    justifyContent: 'center',
-  },
-  suggestionButton: {
-    background: 'rgba(139, 92, 246, 0.2)',
-    border: '1px solid rgba(139, 92, 246, 0.4)',
-    borderRadius: '20px',
-    padding: '8px 16px',
-    color: '#fff',
-    fontSize: '0.85rem',
-    cursor: 'pointer',
-    transition: 'all 0.3s ease',
-  },
+  
+  // Panel styles (NEW: White Glassmorphic - reflects your screenshot)
   panel: {
-    background: 'rgba(255, 255, 255, 0.95)',
-    backdropFilter: 'blur(20px)',
-    borderRadius: '24px',
-    border: '2px solid rgba(139, 127, 199, 0.2)',
-    boxShadow: '0 12px 40px rgba(139, 127, 199, 0.15), 0 4px 16px rgba(0, 0, 0, 0.08)',
-    color: '#2D3748',
+    background: 'rgba(255, 255, 255, 0.7)', // NEW: White glass
+    backdropFilter: 'blur(16px)',
+    borderRadius: '20px',
+    border: '1px solid rgba(255, 255, 255, 0.5)', // NEW: Lighter border
+    boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.1)', // NEW: Softer shadow
     overflow: 'hidden',
   },
   panelHeader: {
+    padding: '20px 24px',
+    borderBottom: '1px solid rgba(0, 0, 0, 0.05)', // NEW: Light border
     display: 'flex',
     alignItems: 'center',
     gap: '12px',
-    padding: '24px',
-    background: designTheme.cardBg,
-    borderBottom: `2px solid ${designTheme.borderColor}`,
   },
   panelIcon: {
-    fontSize: '1.6rem',
+    fontSize: '1.5rem', // Controls icon size
+    color: '#818cf8',
+    display: 'flex', // Added for centering
+    alignItems: 'center', // Added for centering
   },
   panelTitle: {
-    fontSize: '1.3rem',
-    fontWeight: '700',
+    fontSize: '1.1rem',
+    fontWeight: '600',
+    color: '#1e0a40', // NEW: Dark text
     margin: 0,
-    color: '#2D3748',
   },
   panelContent: {
-    padding: '24px',
+    padding: '20px 24px',
     display: 'flex',
     flexDirection: 'column',
     gap: '18px',
   },
+  panelButton: {
+    width: '100%',
+    background: 'rgba(99, 102, 241, 0.1)',
+    color: '#4f46e5', // NEW: Darker text
+    border: '1px dashed rgba(99, 102, 241, 0.3)',
+    borderRadius: '12px',
+    padding: '12px 16px',
+    fontSize: '0.95rem',
+    fontWeight: '500',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '8px',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+    '&:hover': {
+      background: 'rgba(99, 102, 241, 0.2)',
+      borderColor: 'rgba(99, 102, 241, 0.5)',
+    },
+  },
+
+  // Accordion and Target Item styles (Updated for light theme)
   targetItem: {
     display: 'flex',
     justifyContent: 'space-between',
@@ -1196,28 +1311,12 @@ const styles = {
     background: 'rgba(255, 255, 255, 0.7)',
     padding: '14px 18px',
     borderRadius: '14px',
-    color: '#2D3748',
+    color: '#374151', // NEW: Dark text
     fontSize: '0.95rem',
     boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)',
   },
-  targetProgress: {
-    color: '#6ee7b7',
-    fontWeight: '600',
-  },
-  panelButton: {
-    background: designTheme.accent,
-    color: '#fff',
-    border: 'none',
-    borderRadius: '12px',
-    padding: '12px 20px',
-    fontSize: '0.9rem',
-    fontWeight: '600',
-    cursor: 'pointer',
-    marginTop: '10px',
-    transition: 'all 0.3s ease',
-  },
   accordionItem: {
-    border: '2px solid rgba(139, 127, 199, 0.2)',
+    border: '1px solid rgba(138, 43, 226, 0.1)', // NEW: Lighter border
     borderRadius: '14px',
     overflow: 'hidden',
     background: 'rgba(255, 255, 255, 0.6)',
@@ -1231,23 +1330,23 @@ const styles = {
     cursor: 'pointer',
     fontWeight: '600',
     transition: 'background-color 0.3s ease',
-    color: '#2D3748',
+    color: '#374151', // NEW: Dark text
   },
   accordionContent: {
     padding: '0 18px 18px 18px',
     fontSize: '0.95rem',
-    color: '#4A5568',
+    color: '#4A5568', // NEW: Dark text
     lineHeight: '1.7',
     whiteSpace: 'pre-wrap',
   },
-  // Modal styles
+  // Modal styles (Updated for light theme)
   modalOverlay: {
     position: 'fixed',
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)', // Dark overlay is fine
     backdropFilter: 'blur(10px)',
     display: 'flex',
     alignItems: 'center',
@@ -1256,10 +1355,10 @@ const styles = {
     padding: '20px',
   },
   modal: {
-    background: designTheme.cardBg,
+    background: '#ffffff', // NEW: Solid white
     borderRadius: '20px',
-    border: `2px solid ${designTheme.borderColor}`,
-    boxShadow: designTheme.shadow,
+    border: '1px solid rgba(0, 0, 0, 0.1)',
+    boxShadow: '0 10px 30px rgba(0, 0, 0, 0.1)',
     width: '100%',
     maxWidth: '500px',
     maxHeight: '90vh',
@@ -1270,14 +1369,16 @@ const styles = {
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: '24px',
-    borderBottom: `1px solid ${designTheme.borderColor}`,
-    background: designTheme.cardBg,
+    borderBottom: '1px solid #e5e7eb', // NEW: Light border
+    background: '#f9fafb', // NEW: Light header
   },
   modalTitle: {
     margin: 0,
-    color: designTheme.textPrimary,
+    color: '#111827', // NEW: Dark text
     fontSize: '1.5rem',
     fontWeight: '700',
+    display: 'flex', // Added for icon alignment
+    alignItems: 'center', // Added for icon alignment
   },
   modalCloseButton: {
     background: 'rgba(239, 68, 68, 0.12)',
@@ -1297,6 +1398,7 @@ const styles = {
     display: 'flex',
     flexDirection: 'column',
     gap: '20px',
+    background: '#ffffff', // NEW: White
   },
   inputGroup: {
     display: 'flex',
@@ -1304,16 +1406,16 @@ const styles = {
     gap: '8px',
   },
   label: {
-    color: '#9ca3af',
+    color: '#6b7280', // NEW: Gray text
     fontSize: '0.9rem',
     fontWeight: '600',
   },
   modalInput: {
     background: '#ffffff',
-    border: `2px solid ${designTheme.borderColor}`,
+    border: '1px solid #d1d5db', // NEW: Standard border
     borderRadius: '12px',
     padding: '16px',
-    color: designTheme.textPrimary,
+    color: '#111827', // NEW: Dark text
     fontSize: '1rem',
     fontFamily: 'inherit',
     resize: 'vertical',
@@ -1321,10 +1423,10 @@ const styles = {
   },
   modalSelect: {
     background: '#ffffff',
-    border: `2px solid ${designTheme.borderColor}`,
+    border: '1px solid #d1d5db', // NEW: Standard border
     borderRadius: '12px',
     padding: '16px',
-    color: designTheme.textPrimary,
+    color: '#111827', // NEW: Dark text
     fontSize: '1rem',
     fontFamily: 'inherit',
     transition: 'all 0.3s ease',
@@ -1336,8 +1438,8 @@ const styles = {
     marginTop: '10px',
   },
   modalCancelButton: {
-    background: 'rgba(107, 114, 128, 0.8)',
-    color: '#fff',
+    background: '#e5e7eb', // NEW: Light gray
+    color: '#374151', // NEW: Dark text
     border: 'none',
     borderRadius: '12px',
     padding: '12px 24px',
@@ -1347,7 +1449,7 @@ const styles = {
     transition: 'all 0.3s ease',
   },
   modalSaveButton: {
-    background: designTheme.accent,
+    background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)', // Accent color
     color: '#fff',
     border: 'none',
     borderRadius: '12px',
@@ -1357,7 +1459,7 @@ const styles = {
     transition: 'all 0.3s ease',
   },
   
-  // --- 🧠 NEW: STYLE FOR CLEAR BUTTON ---
+  // --- CLEAR MEMORY BUTTON (Updated for light theme) ---
   clearButton: {
     background: 'rgba(239, 68, 68, 0.08)',
     color: '#ef4444',
@@ -1366,12 +1468,50 @@ const styles = {
     padding: '8px 14px',
     cursor: 'pointer',
     fontSize: '0.8rem',
-    marginTop: '0px', // Adjusted margin
-    marginBottom: '15px', // Adjusted margin
+    marginTop: '0px',
+    marginBottom: '15px',
     width: 'fit-content',
     alignSelf: 'center', 
     transition: 'all 0.3s ease',
-  }
+    display: 'flex', // Added for icon alignment
+    alignItems: 'center', // Added for icon alignment
+  },
+  spinner: {
+    width: '16px',
+    height: '16px',
+    border: '2px solid rgba(255,255,255,0.3)',
+    borderTop: '2px solid #fff',
+    borderRadius: '50%',
+    animation: 'spin 0.8s linear infinite',
+  },
+  suggestions: {
+    textAlign: 'center',
+  },
+  suggestionsTitle: {
+    color: '#6b7280', // NEW: Gray text
+    fontSize: '0.9rem',
+    marginBottom: '12px',
+    fontWeight: '600',
+    display: 'flex', // Added for icon alignment
+    alignItems: 'center', // Added for icon alignment
+    justifyContent: 'center', // Added for icon alignment
+  },
+  suggestionButtons: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: '10px',
+    justifyContent: 'center',
+  },
+  suggestionButton: {
+    background: 'rgba(139, 92, 246, 0.1)', // NEW: Lighter
+    border: '1px solid rgba(139, 92, 246, 0.2)', // NEW: Lighter
+    borderRadius: '20px',
+    padding: '8px 16px',
+    color: '#4f46e5', // NEW: Darker text
+    fontSize: '0.85rem',
+    cursor: 'pointer',
+    transition: 'all 0.3s ease',
+  },
 };
 
 // CSS animations

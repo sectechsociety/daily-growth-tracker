@@ -1,6 +1,8 @@
 /* eslint-disable no-unused-vars */
 import React, { useState, useEffect, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
+import axios from "axios";
 import { useTheme } from "./ThemeContext";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "./firebase";
@@ -1258,7 +1260,7 @@ function Dashboard({ user, setUser, token }) {
 
   // --- MODERN PASTEL THEME WITH 3 COLORS ---
   const pastelTheme = {
-    primary: '#E8D5F2',    // Soft Lavender
+    primary: '#E8D5F2',   // Soft Lavender
     secondary: '#D4F1F4',  // Light Cyan
     tertiary: '#FFE5E5',   // Soft Pink
     // Unified background (removed gradient per "same background color" requirement)
@@ -1405,7 +1407,7 @@ function Dashboard({ user, setUser, token }) {
                   border: "2px solid rgba(0, 0, 0, 0.08)",
                   boxShadow: "0 4px 12px rgba(232, 213, 242, 0.3), 0 2px 4px rgba(0, 0, 0, 0.04)",
                   transition: "all 0.3s ease",
-              }}>
+                }}>
                 <div style={{ fontSize: "0.7rem", color: pastelTheme.textSecondary, marginBottom: "4px", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.5px" }}>Level</div>
                 <div style={{ fontSize: "1.6rem", fontWeight: "800", color: "#8B7FC7" }}>{userStats.level}</div>
               </motion.div>
@@ -1418,7 +1420,7 @@ function Dashboard({ user, setUser, token }) {
                   border: "2px solid rgba(0, 0, 0, 0.08)",
                   boxShadow: "0 4px 12px rgba(212, 241, 244, 0.3), 0 2px 4px rgba(0, 0, 0, 0.04)",
                   transition: "all 0.3s ease",
-              }}>
+                }}>
                 <div style={{ fontSize: "0.7rem", color: pastelTheme.textSecondary, marginBottom: "4px", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.5px" }}>Total XP</div>
                 <div style={{ fontSize: "1.6rem", fontWeight: "800", color: "#8B7FC7" }}>{userStats.xp}</div>
               </motion.div>
@@ -1650,8 +1652,11 @@ function Dashboard({ user, setUser, token }) {
                 )}
                 {/* Other Sections (Unchanged) */}
                 {activeSection === 1 && (<motion.div key={1} {...sectionAnimation}> <LevelRoadmap level={userStats.level} xp={userStats.xp} triggerAnimation={roadmapAnimation} /> </motion.div>)}
-                {activeSection === 2 && (<motion.div key={2} {...sectionAnimation}><AIAssistant /></motion.div>)}
-                {activeSection === 3 && (<motion.div key={3} {...sectionAnimation}><Expenses /></motion.div>)}
+                
+                {/* --- THIS IS THE UPDATED LINE --- */}
+                {activeSection === 2 && (<motion.div key={2} {...sectionAnimation}><AIAssistant addXP={addXP} /></motion.div>)}
+                
+                {activeSection === 3 && (<motion.div key={3} {...sectionAnimation}><Expenses addXP={addXP} /></motion.div>)}
                 {activeSection === 4 && (<motion.div key={4} {...sectionAnimation}> <Leaderboard user={user} /> </motion.div>)}
                 {activeSection === 5 && (<motion.div key={5} {...sectionAnimation}><CalorieTracker user={user} addXP={addXP} userStats={userStats} setUserStats={setUserStats} /></motion.div>)}
                 {activeSection === 6 && (<motion.div key={6} {...sectionAnimation}><UserProfile user={user} setUser={setUser} /></motion.div>)}
