@@ -5,12 +5,14 @@ import { useTheme } from "./ThemeContext";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "./firebase";
 import Game from "./Game";
+import Expenses from "./Expenses";
 import LevelRoadmap from "./LevelRoadmap";
 import Leaderboard from "./Leaderboard";
 import CalorieTracker from "./CalorieTracker";
 import UserProfile from "./UserProfile";
 import AIAssistant from "./AIAssistant";
 import Icon from "./components/ui/Icon";
+import CalendarSection from "./CalendarSection";
 
 // --- Utility Components ---
 
@@ -729,7 +731,7 @@ const navItems = [
   { title: 'Daily Tasks', icon: 'list' },
   { title: 'Levels', icon: 'trophy' },
   { title: 'AI Assistant', icon: 'ai' },
-  { title: 'Challenges', icon: 'target' },
+  { title: 'Expenses', icon: 'dollar-sign' },
   { title: 'Leaderboard', icon: 'leaderboard' },
   { title: 'Calories', icon: 'flame' },
   { title: 'Profile', icon: 'user' }
@@ -1434,119 +1436,15 @@ function Dashboard({ user, setUser, token }) {
                   <motion.div key={0} {...sectionAnimation}>
                     <div style={{ display: "flex", flexDirection: "column", gap: "30px", width: '100%', maxWidth: '1200px', margin: '0 auto' }}>
                       
-                      {/* Progress Overview Section (Condensed) */}
-                      <motion.div 
-                        initial={{ opacity: 0, y: -20 }} 
-                        animate={{ opacity: 1, y: 0 }} 
-                        transition={{ duration: 0.6 }} 
-                        className="progress-overview"
-                        style={{ 
-                          ...glassmorphicStyle,
-                          borderRadius: "20px", 
-                          padding: "20px",
-                          display: "grid",
-                          gridTemplateColumns: window.innerWidth <= 768 ? "1fr" : "1fr auto auto auto",
-                          gap: "20px",
-                          alignItems: "center",
-                          width: "100%",
-                          boxSizing: "border-box"
-                        }}
-                      >
-                        {/* Daily Progress Ring - Enhanced */}
-                        <div style={{ 
-                          display: 'flex', 
-                          alignItems: 'center', 
-                          gap: '24px',
-                          padding: '20px',
-                          borderRadius: '20px',
-                          background: 'rgba(255,255,255,0.98)',
-                          border: '2px solid rgba(139,127,199,0.2)',
-                          boxShadow: '0 12px 40px rgba(139,127,199,0.15)'
-                        }}>
-                          <CircularProgress 
-                            percentage={Math.round((dailyProgress / tasks.length) * 100)} 
-                            size={120}
-                            strokeWidth={10}
-                            color="#8B7FC7"
-                          >
-                            <div style={{ fontSize: '1.8rem', fontWeight: '800', color: '#8B7FC7' }}>
-                              {Math.round((dailyProgress / tasks.length) * 100)}%
-                            </div>
-                            <div style={{ fontSize: '0.7rem', color: pastelTheme.textSecondary, marginTop: '4px', fontWeight: '600' }}>
-                              Complete
-                            </div>
-                          </CircularProgress>
-                          <div style={{ textAlign: 'left', flex: 1 }}>
-                            <div style={{ fontSize: '1.2rem', fontWeight: '700', color: pastelTheme.textPrimary, marginBottom: '8px' }}>
-                              Daily Progress
-                            </div>
-                            <div style={{ 
-                              fontSize: '0.9rem', 
-                              color: pastelTheme.textSecondary, 
-                              background: 'rgba(139, 127, 199, 0.08)',
-                              padding: '8px 12px',
-                              borderRadius: '8px',
-                              display: 'inline-block'
-                            }}>
-                              {dailyProgress} of {tasks.length} tasks completed
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Enhanced Stats Cards with Pastel Theme */}
-                        <motion.div 
-                          whileHover={{ scale: 1.03 }}
-                          style={{ 
-                            padding: '20px 24px', 
-                            borderRadius: '20px', 
-                            background: 'rgba(255,255,255,0.98)', 
-                            border: '2px solid rgba(139,127,199,0.2)', 
-                            boxShadow: '0 12px 40px rgba(139,127,199,0.15)',
-                            transition: 'all 0.3s ease'
-                          }}>
-                          <div style={{ fontSize: '0.7rem', color: pastelTheme.textSecondary, fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px' }}>XP Today</div>
-                          <div style={{ fontSize: '1.5rem', fontWeight: '800', color: '#8B7FC7', marginTop: '4px' }}>
-                            {Object.entries(taskXP).reduce((sum, [taskId, count]) => {
-                              const task = tasks.find(t => t.id === taskId);
-                              return sum + (count * (task?.xp || 0));
-                            }, 0)}
-                          </div>
-                        </motion.div>
-                        <motion.div 
-                          whileHover={{ scale: 1.03 }}
-                          style={{ 
-                            padding: '20px 24px', 
-                            borderRadius: '20px', 
-                            background: 'rgba(255,255,255,0.98)', 
-                            border: '2px solid rgba(139,127,199,0.2)', 
-                            boxShadow: '0 12px 40px rgba(139,127,199,0.15)',
-                            transition: 'all 0.3s ease'
-                          }}>
-                          <div style={{ fontSize: '0.7rem', color: pastelTheme.textSecondary, fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Streak</div>
-                          <div style={{ fontSize: '1.5rem', fontWeight: '800', color: '#8B7FC7', marginTop: '4px' }}>{userStats.streak || 0}d</div>
-                        </motion.div>
-                        <motion.button 
-                          whileHover={{ scale: 1.05 }}
-                          whileTap={{ scale: 0.95 }}
-                          onClick={() => setShowResetModal(true)}
-                          style={{
-                            padding: "10px 14px",
-                            borderRadius: "12px",
-                            border: "1px solid rgba(239, 68, 68, 0.3)",
-                            background: "rgba(239, 68, 68, 0.1)",
-                            color: "#ef4444",
-                            fontWeight: "600",
-                            cursor: "pointer",
-                            fontSize: "0.85rem",
-                            whiteSpace: 'nowrap'
-                          }}
-                        >
-                          Reset Daily
-                        </motion.button>
-                      </motion.div>
-
-                      {/* Calendar Card - Full Width Separate */}
-                      <CalendarCard glassmorphicStyle={glassmorphicStyle} theme={pastelTheme} />
+                      {/* New Calendar Section with Modern Design */}
+                      <CalendarSection 
+                        user={user}
+                        userStats={userStats} 
+                        tasks={tasks} 
+                        dailyProgress={dailyProgress}
+                        taskXP={taskXP}
+                        onResetDaily={() => setShowResetModal(true)}
+                      />
 
                       {/* To-Do List Card - Full Width Separate */}
                       <TodoListCard glassmorphicStyle={glassmorphicStyle} theme={pastelTheme} />
@@ -1753,7 +1651,7 @@ function Dashboard({ user, setUser, token }) {
                 {/* Other Sections (Unchanged) */}
                 {activeSection === 1 && (<motion.div key={1} {...sectionAnimation}> <LevelRoadmap level={userStats.level} xp={userStats.xp} triggerAnimation={roadmapAnimation} /> </motion.div>)}
                 {activeSection === 2 && (<motion.div key={2} {...sectionAnimation}><AIAssistant /></motion.div>)}
-                {activeSection === 3 && (<motion.div key={3} {...sectionAnimation}><Game /></motion.div>)}
+                {activeSection === 3 && (<motion.div key={3} {...sectionAnimation}><Expenses /></motion.div>)}
                 {activeSection === 4 && (<motion.div key={4} {...sectionAnimation}> <Leaderboard user={user} /> </motion.div>)}
                 {activeSection === 5 && (<motion.div key={5} {...sectionAnimation}><CalorieTracker user={user} addXP={addXP} userStats={userStats} setUserStats={setUserStats} /></motion.div>)}
                 {activeSection === 6 && (<motion.div key={6} {...sectionAnimation}><UserProfile user={user} setUser={setUser} /></motion.div>)}
