@@ -1,6 +1,8 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
 import { FcGoogle } from "react-icons/fc";
+// --- NEW --- Import react-icons
+import { FaSeedling, FaHandPeace, FaMagic } from "react-icons/fa";
 import { signInWithEmail, signUpWithEmail, signInWithGoogle } from "./firebase";
 import { useNavigate } from "react-router-dom";
 
@@ -29,8 +31,6 @@ export default function LoginPage({ setUser, setToken }) {
         setError(result.error);
         return;
       }
-
-      // Success - redirect to dashboard
       console.log("Login successful, navigating to /dashboard");
       navigate("/dashboard");
     } catch (err) {
@@ -46,13 +46,10 @@ export default function LoginPage({ setUser, setToken }) {
 
     try {
       const result = await signInWithGoogle();
-
       if (result.error) {
         setError(result.error);
         return;
       }
-
-      // Success - redirect to dashboard
       console.log("Google login successful, navigating to /dashboard");
       navigate("/dashboard");
     } catch (err) {
@@ -69,8 +66,8 @@ export default function LoginPage({ setUser, setToken }) {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        background: "linear-gradient(135deg, #89f7fe 0%, #66a6ff 100%)",
-        fontFamily: "'Poppins', sans-serif",
+        background: "linear-gradient(135deg, #f0e6ff 0%, #e0d9ff 100%)",
+        fontFamily: "'Inter', 'Segoe UI', sans-serif",
       }}
     >
       <motion.div
@@ -78,12 +75,13 @@ export default function LoginPage({ setUser, setToken }) {
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: 0.6, ease: "easeOut" }}
         style={{
-          background: "white",
+          background: "rgba(255, 255, 255, 0.5)",
+          border: '2px solid rgba(255, 255, 255, 0.8)',
           borderRadius: "20px",
           padding: "3rem 2.5rem",
           width: "90%",
           maxWidth: "420px",
-          boxShadow: "0 8px 30px rgba(0,0,0,0.15)",
+          boxShadow: "0 8px 30px rgba(100, 100, 150, 0.2)",
           textAlign: "center",
         }}
       >
@@ -95,12 +93,22 @@ export default function LoginPage({ setUser, setToken }) {
             marginBottom: "0.5rem",
             fontWeight: "700",
             fontSize: "1.8rem",
-            color: "#333",
+            color: "#1e0a40",
+            // --- NEW --- Added flex to align icon
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '10px'
           }}
         >
-          {isSignUp ? "Create Account 🌱" : "Welcome Back 👋"}
+          {/* --- CHANGED --- Icon component instead of emoji */}
+          {isSignUp ? "Create Account" : "Welcome Back"}
+          {isSignUp ? <FaSeedling /> : <FaHandPeace />}
         </motion.h2>
-        <p style={{ color: "#666", marginBottom: "1.5rem" }}>
+        <p style={{ 
+            color: "#4F46E5", 
+            marginBottom: "1.5rem" 
+        }}>
           Track your daily growth, earn XP, and level up!
         </p>
 
@@ -160,19 +168,19 @@ export default function LoginPage({ setUser, setToken }) {
               padding: "0.8rem",
               borderRadius: "12px",
               border: "none",
-              background: loading ? "#ccc" : "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+              background: loading ? "#ccc" : "linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)",
               color: "#fff",
               fontSize: "1rem",
               fontWeight: "600",
               cursor: loading ? "not-allowed" : "pointer",
-              boxShadow: "0 4px 12px rgba(102, 126, 234, 0.4)",
+              boxShadow: "0 4px 20px rgba(99, 102, 241, 0.3)",
             }}
           >
             {loading ? "Loading..." : (isSignUp ? "Sign Up" : "Login")}
           </motion.button>
         </form>
 
-        <div style={{ margin: "1rem 0", color: "#999", fontSize: "0.9rem" }}>or</div>
+        <div style={{ margin: "1rem 0", color: "#6B7280", fontSize: "0.9rem" }}>or</div>
 
         <motion.button
           onClick={handleGoogleLogin}
@@ -199,14 +207,14 @@ export default function LoginPage({ setUser, setToken }) {
           <FcGoogle size={24} /> Continue with Google
         </motion.button>
 
-        <div style={{ marginTop: "1.5rem", fontSize: "0.9rem", color: "#666" }}>
+        <div style={{ marginTop: "1.5rem", fontSize: "0.9rem", color: "#6B7280" }}>
           {isSignUp ? "Already have an account? " : "Don't have an account? "}
           <button
             onClick={() => setIsSignUp(!isSignUp)}
             style={{
               background: "none",
               border: "none",
-              color: "#667eea",
+              color: "#4F46E5",
               fontWeight: "600",
               cursor: "pointer",
               textDecoration: "underline"
@@ -220,10 +228,18 @@ export default function LoginPage({ setUser, setToken }) {
           style={{
             marginTop: "1rem",
             fontSize: "0.85rem",
-            color: "#999",
+            color: "#6B7280",
           }}
         >
-          <p>✨ Stay consistent. Grow every day.</p>
+          {/* --- CHANGED --- Icon component instead of emoji */}
+          <p style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center', 
+            gap: '8px' 
+          }}>
+            <FaMagic size={14} /> Stay consistent. Grow every day.
+          </p>
         </div>
       </motion.div>
     </div>
