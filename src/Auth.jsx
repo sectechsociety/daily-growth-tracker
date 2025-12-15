@@ -1,9 +1,8 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import axios from "axios";
+import { signInWithEmail, signUpWithEmail, resetPassword, onAuthStateChange } from './firebase';
 import { useTheme } from "./ThemeContext";
-import { resetPassword } from "./firebase";
 
 function Auth({ setUser, setToken }) {
   const [email, setEmail] = useState("");
@@ -19,154 +18,77 @@ function Auth({ setUser, setToken }) {
   const navigate = useNavigate();
   const { theme } = useTheme();
 
-  const API_URL = 'http://localhost:5000/api/auth';
-
-  // Check for existing token on component load
+  // Listen for Firebase auth state changes
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      // Verify token with backend
-      axios.get(`${API_URL}/verify`, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
-      .then(response => {
-        setUser(response.data.user);
-        setToken(token);
-        navigate("/");
-      })
-      .catch(() => {
+    const unsubscribe = onAuthStateChange((user) => {
+      if (user) {
+        // User is signed in
+        setUser(user);
+        user.getIdToken().then(token => {
+          setToken(token);
+          localStorage.setItem('token', token);
+          localStorage.setItem('user', JSON.stringify(user));
+        });
+      } else {
+        // User is signed out
+        setUser(null);
+        setToken(null);
         localStorage.removeItem('token');
-      });
-    }
-  }, []);
+        localStorage.removeItem('user');
+      }
+    });
+
+    return () => unsubscribe();
+  }, [setUser, setToken]);
+
+  const [authStatus, setAuthStatus] = useState('idle'); // idle, loading, success, error
 
   const handleAuth = async () => {
     setIsLoading(true);
     setMessage("");
+    setAuthStatus('loading');
 
     try {
+      let result;
       if (isLogin) {
-        // Login - Try backend first, fallback to localStorage
-        try {
-          const response = await axios.post(`${API_URL}/login`, { email, password });
-          const { user, token } = response.data;
-          setUser(user);
-          setToken(token);
-          localStorage.setItem('token', token);
-          localStorage.setItem('user', JSON.stringify(user));
-          navigate("/");
-        } catch (backendError) {
-          // Backend unavailable - use localStorage fallback
-          console.log('Backend unavailable, using localStorage authentication');
-          const storedUsers = JSON.parse(localStorage.getItem('offline_users') || '[]');
-          const foundUser = storedUsers.find(u => u.email === email && u.password === password);
-          
-          if (foundUser) {
-            const mockToken = 'offline_' + Date.now();
-            const userData = {
-              _id: foundUser.id,
-              email: foundUser.email,
-              name: foundUser.name,
-              level: foundUser.level || 1,
-              xp: foundUser.xp || 0,
-              streak: foundUser.streak || 0,
-              tasksCompleted: foundUser.tasksCompleted || 0
-            };
-            setUser(userData);
-            setToken(mockToken);
-            localStorage.setItem('token', mockToken);
-            localStorage.setItem('user', JSON.stringify(userData));
-            navigate("/");
-          } else {
-            setMessage("Invalid email or password. Please try again or create an account.");
-          }
-        }
+        result = await signInWithEmail(email, password);
       } else {
         // Register
         if (password.length < 6) {
-          setMessage("Password must be at least 6 characters");
+          setMessage("❌ Password must be at least 6 characters");
+          setAuthStatus('error');
           setIsLoading(false);
           return;
         }
 
         if (!name.trim()) {
-          setMessage("Name is required");
+          setMessage("❌ Name is required");
+          setAuthStatus('error');
           setIsLoading(false);
           return;
         }
 
-        // Try backend first, fallback to localStorage
-        try {
-          const response = await axios.post(`${API_URL}/register`, { 
-            email, 
-            password, 
-            name: name.trim() 
-          });
-          const { user, token } = response.data;
-          setUser(user);
-          setToken(token);
-          localStorage.setItem('token', token);
-          localStorage.setItem('user', JSON.stringify(user));
-          navigate("/");
-        } catch (backendError) {
-          // Backend unavailable - use localStorage fallback
-          console.log('Backend unavailable, creating offline account');
-          const storedUsers = JSON.parse(localStorage.getItem('offline_users') || '[]');
-          
-          // Check if email already exists
-          if (storedUsers.find(u => u.email === email)) {
-            setMessage("Email already registered. Please sign in.");
-            setIsLoading(false);
-            return;
-          }
+        result = await signUpWithEmail(email, password, name.trim());
+      }
 
-          const newUser = {
-            id: 'offline_' + Date.now(),
-            email,
-            password, // In production, this should be hashed
-            name: name.trim(),
-            level: 1,
-            xp: 0,
-            streak: 0,
-            tasksCompleted: 0,
-            createdAt: new Date().toISOString()
-          };
+      if (result.error) {
+        setMessage(result.error);
+        setAuthStatus('error');
+      } else {
+        setAuthStatus('success');
+        setMessage(isLogin ? "✅ Welcome back! Redirecting..." : "✅ Account created successfully! Redirecting...");
 
-          storedUsers.push(newUser);
-          localStorage.setItem('offline_users', JSON.stringify(storedUsers));
-
-          const mockToken = 'offline_' + Date.now();
-          const userData = {
-            _id: newUser.id,
-            email: newUser.email,
-            name: newUser.name,
-            level: 1,
-            xp: 0,
-            streak: 0,
-            tasksCompleted: 0
-          };
-          
-          setUser(userData);
-          setToken(mockToken);
-          localStorage.setItem('token', mockToken);
-          localStorage.setItem('user', JSON.stringify(userData));
-          navigate("/");
-        }
+        setTimeout(() => {
+          navigate("/dashboard");
+        }, 1000);
       }
     } catch (err) {
-      const errorMessage = err.response?.data?.error || 'Authentication failed. Please try again.';
-      setMessage(errorMessage);
+      setMessage('❌ Authentication failed. Please check your connection and try again.');
+      setAuthStatus('error');
       console.error('Auth error:', err);
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    setUser(null);
-    setToken(null);
-    navigate("/auth");
   };
 
   const handleForgotPassword = async () => {
@@ -175,69 +97,23 @@ function Auth({ setUser, setToken }) {
       return;
     }
 
-    if (!newPassword || !confirmPassword) {
-      setMessage("Please enter and confirm your new password");
-      return;
-    }
-
-    if (newPassword.length < 6) {
-      setMessage("Password must be at least 6 characters");
-      return;
-    }
-
-    if (newPassword !== confirmPassword) {
-      setMessage("Passwords do not match");
-      return;
-    }
-
     setIsLoading(true);
     setMessage("");
 
     try {
-      // Try backend first
-      try {
-        const response = await axios.post(`${API_URL}/reset-password`, {
-          email: resetEmail,
-          newPassword: newPassword
-        });
-        
-        if (response.data.success) {
-          setMessage("Password reset successful! You can now sign in with your new password.");
-          setTimeout(() => {
-            setShowForgotPassword(false);
-            setResetEmail("");
-            setNewPassword("");
-            setConfirmPassword("");
-            setMessage("");
-          }, 3000);
-        }
-      } catch (backendError) {
-        // Backend unavailable - use localStorage fallback
-        console.log('Backend unavailable, using localStorage for password reset');
-        const storedUsers = JSON.parse(localStorage.getItem('offline_users') || '[]');
-        const userIndex = storedUsers.findIndex(u => u.email === resetEmail);
-        
-        if (userIndex === -1) {
-          setMessage("No account found with this email address.");
-          setIsLoading(false);
-          return;
-        }
-
-        // Update password in localStorage
-        storedUsers[userIndex].password = newPassword;
-        localStorage.setItem('offline_users', JSON.stringify(storedUsers));
-        
-        setMessage("Password reset successful! You can now sign in with your new password.");
+      const result = await resetPassword(resetEmail);
+      if (result.error) {
+        setMessage(result.error);
+      } else {
+        setMessage("✅ Password reset email sent! Check your inbox.");
         setTimeout(() => {
           setShowForgotPassword(false);
           setResetEmail("");
-          setNewPassword("");
-          setConfirmPassword("");
           setMessage("");
         }, 3000);
       }
     } catch (error) {
-      setMessage("Failed to reset password. Please try again.");
+      setMessage("❌ Failed to send reset email. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -253,18 +129,43 @@ function Auth({ setUser, setToken }) {
         background: theme.background,
         position: "relative",
         overflow: "hidden",
+        fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
       }}
     >
-      {/* Animated Background Elements */}
+      {/* Enhanced Animated Background Elements */}
       <div style={{
-        position: "absolute", top: "15%", left: "10%", width: "250px", height: "250px",
-        background: `radial-gradient(circle, ${theme.accent}15 0%, transparent 70%)`,
-        borderRadius: "50%", animation: "float 18s ease-in-out infinite",
+        position: "absolute",
+        top: "10%",
+        left: "5%",
+        width: "300px",
+        height: "300px",
+        background: `radial-gradient(circle at 30% 20%, ${theme.accent}25 0%, ${theme.accentSecondary}15 40%, transparent 70%)`,
+        borderRadius: "50%",
+        animation: "float 40s ease-in-out infinite",
+        filter: "blur(120px)",
       }} />
       <div style={{
-        position: "absolute", bottom: "15%", right: "10%", width: "200px", height: "200px",
-        background: `radial-gradient(circle, ${theme.accentSecondary}15 0%, transparent 70%)`,
-        borderRadius: "50%", animation: "float 22s ease-in-out infinite reverse",
+        position: "absolute",
+        bottom: "10%",
+        right: "5%",
+        width: "250px",
+        height: "250px",
+        background: `radial-gradient(circle at 70% 80%, ${theme.accentSecondary}25 0%, ${theme.accent}15 40%, transparent 70%)`,
+        borderRadius: "50%",
+        animation: "float 45s ease-in-out infinite reverse",
+        filter: "blur(120px)",
+      }} />
+      <div style={{
+        position: "absolute",
+        top: "50%",
+        left: "50%",
+        transform: "translate(-50%, -50%)",
+        width: "400px",
+        height: "400px",
+        background: `conic-gradient(from 0deg, ${theme.accent}10, ${theme.accentSecondary}10, transparent, ${theme.accent}10)`,
+        borderRadius: "50%",
+        animation: "rotate 60s linear infinite",
+        filter: "blur(120px)",
       }} />
 
       <motion.div
@@ -272,13 +173,14 @@ function Auth({ setUser, setToken }) {
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ duration: 0.6, ease: "easeOut" }}
         style={{
-          background: theme.cardBg,
-          backdropFilter: "blur(20px)",
-          padding: "50px 40px",
-          borderRadius: "25px",
-          width: "400px",
+          background: theme.background === '#121212' ? 'rgba(30, 30, 30, 0.25)' : 'rgba(250, 250, 250, 0.3)',
+          backdropFilter: "blur(40px) saturate(150%)",
+          WebkitBackdropFilter: "blur(40px) saturate(150%)",
+          padding: "50px 45px",
+          borderRadius: "28px",
+          width: "420px",
           textAlign: "center",
-          boxShadow: `0 20px 60px ${theme.shadow}`,
+          boxShadow: '0 16px 60px rgba(0, 0, 0, 0.1)',
           border: `1px solid ${theme.border}`,
           position: "relative",
           zIndex: 1,
@@ -298,28 +200,31 @@ function Auth({ setUser, setToken }) {
         </motion.div>
         <h2
           style={{
-            fontSize: "2rem",
-            background: `linear-gradient(135deg, ${theme.accent}, ${theme.accentSecondary})`,
-            WebkitBackgroundClip: "text",
-            WebkitTextFillColor: "transparent",
-            backgroundClip: "text",
+            fontSize: "2.25rem",
+            background: 'none',
+            WebkitBackgroundClip: 'unset',
+            WebkitTextFillColor: 'unset',
+            backgroundClip: 'unset',
+            color: theme.textPrimary,
             fontWeight: "700",
             marginBottom: "10px",
             letterSpacing: "-0.5px",
           }}
         >
-          {showForgotPassword ? "Reset Your Password" : isLogin ? "Welcome Back" : "Create Account"}
+          {showForgotPassword ? "Reset Password" : isLogin ? "Welcome Back" : "Create Account"}
         </h2>
         <p style={{
-          fontSize: "0.95rem",
+          fontSize: "1rem",
           color: theme.textSecondary,
-          marginBottom: "30px",
-          fontWeight: "500",
+          marginBottom: "35px",
+          fontWeight: "400",
+          maxWidth: '300px',
+          margin: '0 auto 35px auto'
         }}>
-          {showForgotPassword 
-            ? "Enter your email and choose a new password" 
-            : isLogin 
-            ? "Sign in to continue your growth journey" 
+          {showForgotPassword
+            ? "Enter your email and we'll send you a reset link"
+            : isLogin
+            ? "Sign in to continue your growth journey"
             : "Start your journey to daily growth"}
         </p>
 
@@ -337,14 +242,14 @@ function Auth({ setUser, setToken }) {
                 onChange={(e) => setName(e.target.value)}
                 style={{
                   width: "100%",
-                  padding: "14px 16px",
+                  padding: "16px",
                   marginBottom: "16px",
-                  borderRadius: "12px",
-                  fontSize: "0.95rem",
+                  borderRadius: "14px",
+                  fontSize: "1rem",
                   outline: "none",
                   transition: "all 0.3s ease",
                   fontWeight: "500",
-                  background: theme.cardBg,
+                  background: theme.background === '#121212' ? 'rgba(0, 0, 0, 0.15)' : 'rgba(0, 0, 0, 0.04)',
                   color: theme.textPrimary,
                   border: `1px solid ${theme.border}`,
                 }}
@@ -359,14 +264,14 @@ function Auth({ setUser, setToken }) {
               onChange={(e) => setEmail(e.target.value)}
               style={{
                 width: "100%",
-                padding: "14px 16px",
+                padding: "16px",
                 marginBottom: "16px",
-                borderRadius: "12px",
-                fontSize: "0.95rem",
+                borderRadius: "14px",
+                fontSize: "1rem",
                 outline: "none",
                 transition: "all 0.3s ease",
                 fontWeight: "500",
-                background: theme.cardBg,
+                background: theme.background === '#121212' ? 'rgba(0, 0, 0, 0.15)' : 'rgba(0, 0, 0, 0.04)',
                 color: theme.textPrimary,
                 border: `1px solid ${theme.border}`,
               }}
@@ -380,14 +285,14 @@ function Auth({ setUser, setToken }) {
               onChange={(e) => setPassword(e.target.value)}
               style={{
                 width: "100%",
-                padding: "14px 16px",
+                padding: "16px",
                 marginBottom: "16px",
-                borderRadius: "12px",
-                fontSize: "0.95rem",
+                borderRadius: "14px",
+                fontSize: "1rem",
                 outline: "none",
                 transition: "all 0.3s ease",
                 fontWeight: "500",
-                background: theme.cardBg,
+                background: theme.background === '#121212' ? 'rgba(0, 0, 0, 0.15)' : 'rgba(0, 0, 0, 0.04)',
                 color: theme.textPrimary,
                 border: `1px solid ${theme.border}`,
               }}
@@ -405,17 +310,17 @@ function Auth({ setUser, setToken }) {
               style={{
                 width: "100%",
                 padding: "16px",
-                borderRadius: "12px",
+                borderRadius: "14px",
                 border: "none",
-                background: `linear-gradient(135deg, ${theme.accent}, ${theme.accentSecondary})`,
+                background: theme.accent,
                 color: "#fff",
-                fontWeight: "700",
-                fontSize: "1.05rem",
+                fontWeight: "600",
+                fontSize: "1rem",
                 cursor: isLoading ? "not-allowed" : "pointer",
                 letterSpacing: "0.5px",
                 transition: "all 0.3s ease",
                 opacity: isLoading ? 0.7 : 1,
-                boxShadow: `0 8px 25px ${theme.accent}30`,
+                boxShadow: `0 5px 20px ${theme.accent}30`,
               }}
             >
               {isLoading ? (
@@ -456,7 +361,7 @@ function Auth({ setUser, setToken }) {
                 marginTop: "20px",
                 cursor: "pointer",
                 color: theme.accent,
-                fontWeight: "600",
+                fontWeight: "500",
                 fontSize: "0.95rem",
                 transition: "all 0.3s ease",
               }}
@@ -478,56 +383,14 @@ function Auth({ setUser, setToken }) {
               onChange={(e) => setResetEmail(e.target.value)}
               style={{
                 width: "100%",
-                padding: "14px 16px",
+                padding: "16px",
                 marginBottom: "16px",
-                borderRadius: "12px",
-                fontSize: "0.95rem",
+                borderRadius: "14px",
+                fontSize: "1rem",
                 outline: "none",
                 transition: "all 0.3s ease",
                 fontWeight: "500",
-                background: theme.cardBg,
-                color: theme.textPrimary,
-                border: `1px solid ${theme.border}`,
-              }}
-            />
-
-            <motion.input
-              whileFocus={{ scale: 1.02, boxShadow: `0 0 0 3px ${theme.accent}30` }}
-              type="password"
-              placeholder="New password"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              style={{
-                width: "100%",
-                padding: "14px 16px",
-                marginBottom: "16px",
-                borderRadius: "12px",
-                fontSize: "0.95rem",
-                outline: "none",
-                transition: "all 0.3s ease",
-                fontWeight: "500",
-                background: theme.cardBg,
-                color: theme.textPrimary,
-                border: `1px solid ${theme.border}`,
-              }}
-            />
-
-            <motion.input
-              whileFocus={{ scale: 1.02, boxShadow: `0 0 0 3px ${theme.accent}30` }}
-              type="password"
-              placeholder="Confirm new password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              style={{
-                width: "100%",
-                padding: "14px 16px",
-                marginBottom: "16px",
-                borderRadius: "12px",
-                fontSize: "0.95rem",
-                outline: "none",
-                transition: "all 0.3s ease",
-                fontWeight: "500",
-                background: theme.cardBg,
+                background: theme.background === '#121212' ? 'rgba(0, 0, 0, 0.15)' : 'rgba(0, 0, 0, 0.04)',
                 color: theme.textPrimary,
                 border: `1px solid ${theme.border}`,
               }}
@@ -541,26 +404,26 @@ function Auth({ setUser, setToken }) {
               style={{
                 width: "100%",
                 padding: "16px",
-                borderRadius: "12px",
+                borderRadius: "14px",
                 border: "none",
-                background: `linear-gradient(135deg, ${theme.accent}, ${theme.accentSecondary})`,
+                background: theme.accent,
                 color: "#fff",
-                fontWeight: "700",
-                fontSize: "1.05rem",
+                fontWeight: "600",
+                fontSize: "1rem",
                 cursor: isLoading ? "not-allowed" : "pointer",
                 letterSpacing: "0.5px",
                 transition: "all 0.3s ease",
                 opacity: isLoading ? 0.7 : 1,
-                boxShadow: `0 8px 25px ${theme.accent}30`,
+                boxShadow: `0 5px 20px ${theme.accent}30`,
               }}
             >
               {isLoading ? (
                 <span style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "10px" }}>
                   <span style={{ animation: "spin 1s linear infinite" }}>⏳</span>
-                  Resetting...
+                  Sending Reset Email...
                 </span>
               ) : (
-                "Reset Password"
+                "Send Reset Email"
               )}
             </motion.button>
 
@@ -570,7 +433,7 @@ function Auth({ setUser, setToken }) {
                 marginTop: "20px",
                 cursor: "pointer",
                 color: theme.accent,
-                fontWeight: "600",
+                fontWeight: "500",
                 fontSize: "0.95rem",
                 transition: "all 0.3s ease",
               }}
@@ -578,8 +441,6 @@ function Auth({ setUser, setToken }) {
                 setShowForgotPassword(false);
                 setMessage("");
                 setResetEmail("");
-                setNewPassword("");
-                setConfirmPassword("");
               }}
             >
               ← Back to Sign In
@@ -594,21 +455,19 @@ function Auth({ setUser, setToken }) {
             style={{
               marginTop: "15px",
               padding: "12px",
-              borderRadius: "10px",
-              background: message.includes("sent") || message.includes("Check") 
-                ? "rgba(34, 197, 94, 0.1)" 
-                : "rgba(239, 68, 68, 0.1)",
-              border: message.includes("sent") || message.includes("Check") 
-                ? "1px solid rgba(34, 197, 94, 0.3)" 
-                : "1px solid rgba(239, 68, 68, 0.3)",
-              fontSize: "0.9rem",
-              color: message.includes("sent") || message.includes("Check") 
-                ? "#22c55e" 
+              borderRadius: "12px",
+              background: message.includes("✅")
+                ? "rgba(34, 197, 94, 0.15)"
+                : "rgba(239, 68, 68, 0.15)",
+              border: "none",
+              fontSize: "0.95rem",
+              color: message.includes("✅")
+                ? "#22c55e"
                 : "#ef4444",
               fontWeight: "500",
             }}
           >
-            {message.includes("sent") || message.includes("Check") ? "✅" : "⚠️"} {message}
+            {message}
           </motion.div>
         )}
       </motion.div>
@@ -626,6 +485,16 @@ function Auth({ setUser, setToken }) {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
           }
+          @keyframes particle {
+            0%, 100% { transform: translateY(0) scale(1); opacity: 0.7; }
+            25% { transform: translateY(-15px) scale(1.1); opacity: 1; }
+            50% { transform: translateY(-5px) scale(0.9); opacity: 0.8; }
+            75% { transform: translateY(-20px) scale(1.05); opacity: 0.9; }
+          }
+          @keyframes rotate {
+            0% { transform: translate(-50%, -50%) rotate(0deg); }
+            100% { transform: translate(-50%, -50%) rotate(360deg); }
+          }
         `}
       </style>
     </div>
@@ -633,3 +502,21 @@ function Auth({ setUser, setToken }) {
 }
 
 export default Auth;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

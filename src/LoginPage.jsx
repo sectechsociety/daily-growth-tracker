@@ -1,8 +1,7 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
 import { FcGoogle } from "react-icons/fc";
-import { signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword } from "firebase/auth";
-import { auth, googleProvider } from "./firebaseConfig";
+import { signInWithEmail, signUpWithEmail, signInWithGoogle } from "./firebase";
 import { useNavigate } from "react-router-dom";
 
 export default function LoginPage({ setUser, setToken }) {
@@ -17,44 +16,49 @@ export default function LoginPage({ setUser, setToken }) {
     e.preventDefault();
     setLoading(true);
     setError("");
-    
+
     try {
       let result;
       if (isSignUp) {
-        result = await createUserWithEmailAndPassword(auth, email, password);
+        result = await signUpWithEmail(email, password, email.split('@')[0]);
       } else {
-        result = await signInWithEmailAndPassword(auth, email, password);
+        result = await signInWithEmail(email, password);
       }
-      
-      const user = result.user;
-      const token = await user.getIdToken();
 
-      localStorage.setItem("token", token);
-      setUser(user);
-      setToken(token);
-      navigate("/");
+      if (result.error) {
+        setError(result.error);
+        return;
+      }
+
+      // Success - redirect to dashboard
+      console.log("Login successful, navigating to /dashboard");
+      navigate("/dashboard");
     } catch (err) {
-      console.error("Login failed", err);
-      setError(err.message || "Login failed. Please try again.");
+      setError("Login failed. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
   const handleGoogleLogin = async () => {
+    setLoading(true);
     setError("");
-    try {
-      const result = await signInWithPopup(auth, googleProvider);
-      const user = result.user;
-      const token = await user.getIdToken();
 
-      localStorage.setItem("token", token);
-      setUser(user);
-      setToken(token);
-      navigate("/");
+    try {
+      const result = await signInWithGoogle();
+
+      if (result.error) {
+        setError(result.error);
+        return;
+      }
+
+      // Success - redirect to dashboard
+      console.log("Google login successful, navigating to /dashboard");
+      navigate("/dashboard");
     } catch (err) {
-      console.error("Google login failed", err);
-      setError(err.message || "Google login failed. Please try again.");
+      setError("Google login failed. Please try again.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -187,7 +191,8 @@ export default function LoginPage({ setUser, setToken }) {
             color: "#333",
             fontSize: "1rem",
             fontWeight: "600",
-            cursor: "pointer",
+            cursor: loading ? "not-allowed" : "pointer",
+            opacity: loading ? 0.6 : 1,
             boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
           }}
         >
