@@ -3,31 +3,29 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  FaTrophy, FaStar, FaCrown, FaFire, FaBolt, FaGem, FaInfoCircle, FaLock, FaCheck, FaMedal,
-  FaSeedling, FaLeaf, FaTree, FaFlask, FaRocket, FaMountain, FaLightbulb, FaDragon,
-  FaUserGraduate, FaHatWizard
-} from 'react-icons/fa';
-import { GiSparkles, GiMuscleUp, GiCrystalBall } from 'react-icons/gi';
-import { IoFlower } from 'react-icons/io5';
+  Trophy, Star, Crown, Flame, Zap, Gem, Info, Lock, Check, Medal,
+  Sprout, Leaf, TreeDeciduous, FlaskConical, Rocket, Mountain, Lightbulb, 
+  GraduationCap, Sparkles, Dumbbell, Flower2, Eye, Swords
+} from 'lucide-react';
 import axios from 'axios'; 
 
 // Level data with React icons - Purple theme
 const LEVELS = [
-  { id: 1, name: "Sprout", xpRequired: 0, icon: FaSeedling, color: "#9d8fd9", description: "Your journey begins! Take your first steps toward growth.", reward: "Basic Profile Badge" },
-  { id: 2, name: "Seedling", xpRequired: 250, icon: FaLeaf, color: "#8B7FC7", description: "Growing stronger each day. Keep up the momentum!", reward: "Daily Streak Multiplier" },
-  { id: 3, name: "Bloom", xpRequired: 500, icon: IoFlower, color: "#a99ee0", description: "Your efforts are starting to show beautiful results.", reward: "Custom Theme Access" },
-  { id: 4, name: "Growth", xpRequired: 1000, icon: FaTree, color: "#8B7FC7", description: "Steady progress and consistent effort lead to substantial growth.", reward: "Bonus XP Tasks" },
-  { id: 5, name: "Flourish", xpRequired: 1500, icon: FaFlask, color: "#9d8fd9", description: "You're flourishing! Your habits are becoming second nature.", reward: "Achievement Showcase" },
-  { id: 6, name: "Thrive", xpRequired: 2000, icon: FaMountain, color: "#7a6eb5", description: "Thriving in your journey, inspiring others around you.", reward: "Weekly Challenge Access" },
-  { id: 7, name: "Excel", xpRequired: 2500, icon: FaStar, color: "#a99ee0", description: "Excellence is not an act but a habit you've mastered.", reward: "Profile Animations" },
-  { id: 8, name: "Master", xpRequired: 3000, icon: FaCrown, color: "#8B7FC7", description: "You've mastered the fundamentals and are ready for greater challenges.", reward: "Exclusive Avatar Frame" },
-  { id: 9, name: "Sage", xpRequired: 3500, icon: FaHatWizard, color: "#9d8fd9", description: "Your wisdom and experience guide not only you but others.", reward: "Mentor Badge" },
-  { id: 10, name: "Legend", xpRequired: 4000, icon: FaTrophy, color: "#7a6eb5", description: "Your dedication has made you legendary among peers.", reward: "Custom Dashboard Layout" },
-  { id: 11, name: "Champion", xpRequired: 4500, icon: FaBolt, color: "#a99ee0", description: "A champion of personal growth, unstoppable and inspiring.", reward: "Double XP Weekends" },
-  { id: 12, name: "Hero", xpRequired: 5000, icon: FaRocket, color: "#8B7FC7", description: "Your heroic journey inspires everyone around you.", reward: "Special Event Access" },
-  { id: 13, name: "Titan", xpRequired: 5500, icon: GiMuscleUp, color: "#9d8fd9", description: "Titan of discipline and consistency, a force to be reckoned with.", reward: "Leaderboard Spotlight" },
-  { id: 14, name: "Oracle", xpRequired: 6000, icon: GiCrystalBall, color: "#7a6eb5", description: "Your insights and foresight guide your perfect decisions.", reward: "Predictive Analytics" },
-  { id: 15, name: "Divine", xpRequired: 6500, icon: GiSparkles, color: "#a99ee0", description: "You've reached the pinnacle of personal excellence.", reward: "Legacy Achievement" },
+  { id: 1, name: "Sprout", xpRequired: 0, icon: Sprout, color: "#d98fc5ff", description: "Your journey begins! Take your first steps toward growth.", reward: "Basic Profile Badge" },
+  { id: 2, name: "Seedling", xpRequired: 250, icon: Leaf, color: "#8B7FC7", description: "Growing stronger each day. Keep up the momentum!", reward: "Daily Streak Multiplier" },
+  { id: 3, name: "Bloom", xpRequired: 500, icon: Flower2, color: "#a99ee0", description: "Your efforts are starting to show beautiful results.", reward: "Custom Theme Access" },
+  { id: 4, name: "Growth", xpRequired: 1000, icon: TreeDeciduous, color: "#292055ff", description: "Steady progress and consistent effort lead to substantial growth.", reward: "Bonus XP Tasks" },
+  { id: 5, name: "Flourish", xpRequired: 1500, icon: FlaskConical, color: "#9d8fd9", description: "You're flourishing! Your habits are becoming second nature.", reward: "Achievement Showcase" },
+  { id: 6, name: "Thrive", xpRequired: 2000, icon: Mountain, color: "#7a6eb5", description: "Thriving in your journey, inspiring others around you.", reward: "Weekly Challenge Access" },
+  { id: 7, name: "Excel", xpRequired: 2500, icon: Star, color: "#a99ee0", description: "Excellence is not an act but a habit you've mastered.", reward: "Profile Animations" },
+  { id: 8, name: "Master", xpRequired: 3000, icon: Crown, color: "#8B7FC7", description: "You've mastered the fundamentals and are ready for greater challenges.", reward: "Exclusive Avatar Frame" },
+  { id: 9, name: "Sage", xpRequired: 3500, icon: GraduationCap, color: "#9d8fd9", description: "Your wisdom and experience guide not only you but others.", reward: "Mentor Badge" },
+  { id: 10, name: "Legend", xpRequired: 4000, icon: Trophy, color: "#7a6eb5", description: "Your dedication has made you legendary among peers.", reward: "Custom Dashboard Layout" },
+  { id: 11, name: "Champion", xpRequired: 4500, icon: Zap, color: "#a99ee0", description: "A champion of personal growth, unstoppable and inspiring.", reward: "Double XP Weekends" },
+  { id: 12, name: "Hero", xpRequired: 5000, icon: Rocket, color: "#8B7FC7", description: "Your heroic journey inspires everyone around you.", reward: "Special Event Access" },
+  { id: 13, name: "Titan", xpRequired: 5500, icon: Dumbbell, color: "#9d8fd9", description: "Titan of discipline and consistency, a force to be reckoned with.", reward: "Leaderboard Spotlight" },
+  { id: 14, name: "Oracle", xpRequired: 6000, icon: Eye, color: "#7a6eb5", description: "Your insights and foresight guide your perfect decisions.", reward: "Predictive Analytics" },
+  { id: 15, name: "Divine", xpRequired: 6500, icon: Sparkles, color: "#a99ee0", description: "You've reached the pinnacle of personal excellence.", reward: "Legacy Achievement" },
 ];function LevelRoadmap({ level, xp }) {
   // UseTheme is no longer the primary style driver
   // const { theme } = useTheme(); 
@@ -235,7 +233,7 @@ const LEVELS = [
                 <div style={styles.modalSection}>
                   <h3 style={styles.modalSectionTitle}>Reward</h3>
                   <div style={styles.rewardBadge}>
-                    <FaMedal color={selectedLevel.color} size={24} style={{ marginRight: '10px' }} />
+                    <Medal color={selectedLevel.color} size={24} style={{ marginRight: '10px' }} />
                     <span>{selectedLevel.reward}</span>
                   </div>
                 </div>
@@ -245,12 +243,12 @@ const LEVELS = [
                   <div style={styles.statusBadge}>
                     {level >= selectedLevel.id ? (
                       <>
-                        <FaCheck color="#8B7FC7" size={18} style={{ marginRight: '10px' }} />
+                        <Check color="#8B7FC7" size={18} style={{ marginRight: '10px' }} />
                         <span>Unlocked</span>
                       </>
                     ) : (
                       <>
-                        <FaLock color="#9ca3af" size={18} style={{ marginRight: '10px' }} />
+                        <Lock color="#9ca3af" size={18} style={{ marginRight: '10px' }} />
                         <span>Locked - Need {selectedLevel.xpRequired - xp} more XP</span>
                       </>
                     )}
@@ -280,11 +278,11 @@ const LEVELS = [
             exit={{ opacity: 0, scale: 0.5, y: -50 }}
             style={styles.levelUpNotification}
           >
-            <FaCrown size={50} color="#8B7FC7" />
+            <Crown size={50} color="#8B7FC7" />
             <h2 style={{ color: '#2D3748', marginTop: '20px', marginBottom: '10px' }}>LEVEL UP!</h2>
             <p style={{ color: '#4A5568' }}>Congratulations! You've reached Level {currentLevel.id}: {currentLevel.name}! Keep growing!</p>
             <div style={styles.rewardUnlocked}>
-              <FaMedal color="#8B7FC7" size={24} style={{ marginRight: '10px' }} />
+              <Medal color="#8B7FC7" size={24} style={{ marginRight: '10px' }} />
               <span>Reward Unlocked: {currentLevel.reward}</span>
             </div>
           </motion.div>
@@ -296,7 +294,7 @@ const LEVELS = [
         style={styles.header}
       >
         <h1 style={styles.title}>
-          <FaTrophy color="#8B7FC7" /> Your Growth Journey
+          <Trophy color="#8B7FC7" /> Your Growth Journey
         </h1>
         <p style={styles.subtitle}>Progress through 15 legendary levels</p>
       </motion.div>      {/* Current Level Card */}
@@ -325,8 +323,8 @@ const LEVELS = [
           <p style={styles.levelDescription}>{currentLevelInfo.description}</p>
         </div>
         <div style={styles.levelBadge}>
-          <FaStar color="#8B7FC7" size={24} />
-          <FaInfoCircle 
+          <Star color="#8B7FC7" size={24} />
+          <Info 
             color="#8B7FC7" 
             size={16} 
             style={{ marginTop: '10px', cursor: 'pointer' }} 
@@ -377,7 +375,7 @@ const LEVELS = [
                 style={styles.achievementItem}
 	whileHover={{ scale: 1.02, background: 'rgba(255,255,255,0.96)' }}
               >
-                <FaMedal color="#8B7FC7" size={18} style={{ marginRight: '10px' }} />
+                <Medal color="#8B7FC7" size={18} style={{ marginRight: '10px' }} />
                 <div style={styles.achievementInfo}>
                   <p style={styles.achievementName}>{achievement.name}</p>
                   <p style={styles.achievementDescription}>{achievement.description}</p>
@@ -392,7 +390,7 @@ const LEVELS = [
               style={styles.achievementItem}
 		  whileHover={{ scale: 1.02, background: 'rgba(255,255,255,0.96)' }}
             >
-              <FaMedal color="#8B7FC7" size={18} style={{ marginRight: '10px' }} />
+              <Medal color="#8B7FC7" size={18} style={{ marginRight: '10px' }} />
               <div style={styles.achievementInfo}>
                 <p style={styles.noAchievements}>Complete tasks to earn achievements!</p>
               </div>
@@ -489,7 +487,7 @@ const LEVELS = [
                   <p style={styles.levelNodeXP}>{levelNode.xpRequired} XP</p>
 									{isUnlocked && (
 										<motion.div>
-											<FaStar color={levelNode.color} size={12} style={styles.unlockedStar} />
+											<Star color={levelNode.color} size={12} style={styles.unlockedStar} />
 										</motion.div>
 									)}
                 </motion.div>
@@ -546,7 +544,7 @@ const styles = {
     zIndex: 1001, // Above confetti
     boxShadow: '0 20px 60px rgba(221, 207, 207, 0.95)',
     border: '1px solid rgba(235, 228, 228, 0.1)',
-    color: '#FFFFFF',
+    color: '#2D3748',
   },
   rewardUnlocked: {
     display: 'flex',
@@ -571,13 +569,13 @@ const styles = {
     alignItems: 'center',
     justifyContent: 'center',
     gap: '15px',
-    // MODIFIED: Explicitly set white
-    color: '#FFFFFF',
+    // MODIFIED: Dark color visible on light background
+    color: '#2D3748',
   },
   subtitle: {
     fontSize: '1.2rem',
-    // MODIFIED: Light lavender color
-    color: '#B0A8D9',
+    // MODIFIED: Darker color for visibility
+    color: '#718096',
     fontWeight: '500',
   },
 	currentLevelCard: {
@@ -781,13 +779,13 @@ const styles = {
     fontSize: '0.9rem',
     fontWeight: '700',
     marginBottom: '5px',
-    // MODIFIED: White text
-    color: '#FFFFFF',
+    // MODIFIED: Dark text visible on light background
+    color: '#2D3748',
   },
   levelNodeXP: {
     fontSize: '0.75rem',
-    // MODIFIED: Light lavender text
-    color: '#B0A8D9',
+    // MODIFIED: Darker purple for visibility
+    color: '#7a6eb5',
   },
   unlockedStar: {
     marginTop: '5px',

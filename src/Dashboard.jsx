@@ -6,6 +6,7 @@ import axios from "axios";
 import { useTheme } from "./ThemeContext";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "./firebase";
+import { Target, CheckCircle2, Circle, Trash2, Plus, Sparkles, Dumbbell, Droplet, Brain, Moon, Calendar, Save, FileText, Star, Zap, Rocket, Lightbulb, Flame, Music, Book, Laptop, Palette, AlertTriangle } from "lucide-react";
 import Game from "./Game";
 import Expenses from "./Expenses";
 import LevelRoadmap from "./LevelRoadmap";
@@ -142,13 +143,29 @@ const HabitIcon = ({ icon, color = '#8b5cf6', size = 'md', className = '' }) => 
   );
 };
 const TodoListCard = ({ glassmorphicStyle, theme }) => {
-  // ... (Code for TodoListCard remains the same)
-  const [todos, setTodos] = useState([
-    { id: 1, text: 'Plan today’s tasks', completed: false },
-    { id: 2, text: 'Review meeting notes', completed: true },
-    { id: 3, text: 'Schedule a call', completed: false },
-  ]);
+  // Load todos from localStorage
+  const [todos, setTodos] = useState(() => {
+    try {
+      const savedTodos = localStorage.getItem('dashboardTodos');
+      return savedTodos ? JSON.parse(savedTodos) : [
+        { id: 1, text: "Plan today's tasks", completed: false },
+        { id: 2, text: "Review meeting notes", completed: true },
+        { id: 3, text: "Schedule a call", completed: false },
+      ];
+    } catch (error) {
+      return [
+        { id: 1, text: "Plan today's tasks", completed: false },
+        { id: 2, text: "Review meeting notes", completed: true },
+        { id: 3, text: "Schedule a call", completed: false },
+      ];
+    }
+  });
   const [newTodo, setNewTodo] = useState('');
+
+  // Save todos to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem('dashboardTodos', JSON.stringify(todos));
+  }, [todos]);
 
   const addTodo = () => {
     if (newTodo.trim() !== '') {
@@ -158,9 +175,38 @@ const TodoListCard = ({ glassmorphicStyle, theme }) => {
   };
 
   const toggleTodo = (id) => {
+    const todo = todos.find(t => t.id === id);
+    const wasCompleted = todo?.completed;
+    
     setTodos(todos.map(todo => 
       todo.id === id ? { ...todo, completed: !todo.completed } : todo
     ));
+    
+    // Award 5 XP when completing a todo (not when uncompleting)
+    if (!wasCompleted && todo) {
+      // Get current user from localStorage
+      const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
+      const currentXP = storedUser.xp || 0;
+      const currentLevel = storedUser.level || 1;
+      const currentTasksCompleted = storedUser.tasksCompleted || 0;
+      
+      const newXP = currentXP + 5;
+      const newLevel = Math.floor(newXP / 100) + 1;
+      
+      const updatedUser = {
+        ...storedUser,
+        xp: newXP,
+        level: newLevel,
+        tasksCompleted: currentTasksCompleted + 1
+      };
+      
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+      
+      // Show toast notification
+      if (window.showToast) {
+        window.showToast({ message: '+5 XP for completing a todo!', type: 'success' });
+      }
+    }
   };
 
   const deleteTodo = (id, e) => {
@@ -196,7 +242,7 @@ const TodoListCard = ({ glassmorphicStyle, theme }) => {
       <div style={{ marginBottom: "24px" }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
           <h3 style={{ fontSize: "1.5rem", fontWeight: "700", color: theme.textPrimary, display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <span style={{ fontSize: '1.8rem' }}>🎯</span> Quick To-Do List
+            <Target size={28} color="#8B7FC7" /> Quick To-Do List
           </h3>
           <motion.div 
             whileHover={{ scale: 1.05 }}
@@ -234,25 +280,28 @@ const TodoListCard = ({ glassmorphicStyle, theme }) => {
       </div>
       
       {/* Input Field with Enhanced Design */}
-      <div style={{ display: 'flex', gap: '12px', marginBottom: '24px' }}>
-        <input
-          type="text"
-          value={newTodo}
-          onChange={(e) => setNewTodo(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && addTodo()}
-          placeholder="✨ Add a new task..."
-          style={{
-            flex: 1,
-            padding: "14px 18px",
-            borderRadius: "16px",
-            border: "2px solid rgba(139, 127, 199, 0.2)",
-            background: "rgba(255, 255, 255, 0.6)",
-            color: theme.textPrimary,
-            fontSize: "1rem",
-            outline: "none",
-            transition: "all 0.3s ease",
-          }}
-        />
+      <div style={{ display: 'flex', gap: '12px', marginBottom: '24px' }}>        <div style={{ position: 'relative', flex: 1 }}>
+          <Sparkles size={18} color="#8B7FC7" style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', zIndex: 1 }} />
+          <input
+            type="text"
+            value={newTodo}
+            onChange={(e) => setNewTodo(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && addTodo()}
+            placeholder="Add a new task..."
+            style={{
+              width: '100%',
+              padding: "14px 18px 14px 46px",
+              borderRadius: "16px",
+              border: "2px solid rgba(139, 127, 199, 0.2)",
+              background: "rgba(255, 255, 255, 0.6)",
+              color: theme.textPrimary,
+              fontSize: "1rem",
+              outline: "none",
+              transition: "all 0.3s ease",
+              boxSizing: 'border-box'
+            }}
+          />
+        </div>
         <motion.button
           whileHover={{ scale: 1.05, boxShadow: '0 8px 20px rgba(139, 127, 199, 0.3)' }}
           whileTap={{ scale: 0.95 }}
@@ -302,18 +351,22 @@ const TodoListCard = ({ glassmorphicStyle, theme }) => {
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', flex: 1 }} onClick={() => toggleTodo(todo.id)}>
-                <motion.span 
+                <motion.div
                   whileHover={{ scale: 1.2, rotate: 10 }}
                   whileTap={{ scale: 0.9 }}
                   style={{ 
-                    fontSize: '1.3rem', 
                     marginRight: '16px', 
-                    color: todo.completed ? '#10b981' : theme.textSecondary,
+                    display: 'flex',
+                    alignItems: 'center',
                     transition: 'all 0.3s ease'
                   }}
                 >
-                  {todo.completed ? '✅' : '⭕'}
-                </motion.span>
+                  {todo.completed ? (
+                    <CheckCircle2 size={24} color="#10b981" fill="#10b981" />
+                  ) : (
+                    <Circle size={24} color="#9ca3af" />
+                  )}
+                </motion.div>
                 <span style={{ 
                   fontSize: '1rem', 
                   color: todo.completed ? theme.textSecondary : theme.textPrimary, 
@@ -334,14 +387,13 @@ const TodoListCard = ({ glassmorphicStyle, theme }) => {
                   borderRadius: '10px',
                   padding: '6px 10px',
                   cursor: 'pointer',
-                  fontSize: '1rem',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   transition: 'all 0.3s ease'
                 }}
               >
-                🗑️
+                <Trash2 size={18} color="#ef4444" />
               </motion.button>
             </motion.div>
           ))}
@@ -355,10 +407,13 @@ const TodoListCard = ({ glassmorphicStyle, theme }) => {
               color: theme.textSecondary, 
               marginTop: '40px',
               fontSize: '1.1rem',
-              fontWeight: '500'
+              fontWeight: '500',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center'
             }}
           >
-            <div style={{ fontSize: '3rem', marginBottom: '12px' }}>🎉</div>
+            <Sparkles size={48} color="#8B7FC7" style={{ marginBottom: '12px' }} />
             All clear! Time for a new challenge.
           </motion.div>
         )}
@@ -510,7 +565,7 @@ const CalendarCard = ({ glassmorphicStyle, theme }) => {
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
           <h3 style={{ fontSize: "1.5rem", fontWeight: "700", color: theme.textPrimary, display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <span style={{ fontSize: '1.8rem' }}>🗓️</span> Calendar & Notes
+            <Calendar size={28} color="#8B7FC7" /> Calendar & Notes
           </h3>
           <div style={{ display: 'flex', gap: '8px' }}>
             <motion.button
@@ -607,7 +662,7 @@ const CalendarCard = ({ glassmorphicStyle, theme }) => {
               }}
             >
               <h3 style={{ fontSize: '1.3rem', fontWeight: '700', marginBottom: '20px', color: theme.textPrimary }}>
-                📝 Add Note & Reminder
+                <FileText size={16} style={{ marginRight: '6px' }} /> Add Note & Reminder
               </h3>
               
               <div style={{ marginBottom: '16px' }}>
@@ -667,7 +722,7 @@ const CalendarCard = ({ glassmorphicStyle, theme }) => {
                     cursor: 'pointer'
                   }}
                 >
-                  🗑️ Delete
+                  <Trash2 size={16} style={{ marginRight: '6px' }} /> Delete
                 </motion.button>
                 <motion.button
                   whileHover={{ scale: 1.05 }}
@@ -700,7 +755,7 @@ const CalendarCard = ({ glassmorphicStyle, theme }) => {
                     boxShadow: '0 4px 12px rgba(139, 127, 199, 0.3)'
                   }}
                 >
-                  💾 Save
+                  <Save size={16} style={{ marginRight: '6px' }} /> Save
                 </motion.button>
               </div>
             </motion.div>
@@ -715,10 +770,10 @@ const CalendarCard = ({ glassmorphicStyle, theme }) => {
 const API_URL = 'http://localhost:5000/api';
 
 const minimalXpTasks = [
-  { id: 'exercise', name: 'Exercise', xp: 25, icon: 'run', color: '#8b5cf6', category: 'Fitness', description: 'Complete your daily workout' },
-  { id: 'hydration', name: 'Drink Water', xp: 15, icon: 'water', color: '#60a5fa', category: 'Health', description: 'Stay hydrated (8 glasses)' },
-  { id: 'learning', name: 'Deep Work', xp: 30, icon: 'learn', color: '#f59e0b', category: 'Growth', description: 'Focus on a key project' },
-  { id: 'sleep', name: 'Prioritize Sleep', xp: 20, icon: 'sleep', color: '#14b8a6', category: 'Wellness', description: 'Go to bed on time' },
+  { id: 'exercise', name: 'Exercise', xp: 20, icon: 'dumbbell', color: '#8b5cf6', category: 'Fitness', description: 'Complete your daily workout' },
+  { id: 'hydration', name: 'Drink Water', xp: 15, icon: 'droplet', color: '#60a5fa', category: 'Health', description: 'Stay hydrated (8 glasses)' },
+  { id: 'learning', name: 'Deep Work', xp: 20, icon: 'brain', color: '#f59e0b', category: 'Growth', description: 'Focus on a key project' },
+  { id: 'sleep', name: 'Prioritize Sleep', xp: 15, icon: 'moon', color: '#14b8a6', category: 'Wellness', description: 'Go to bed on time' },
 ];
 
 const navItems = [
@@ -904,14 +959,35 @@ const TaskModal = ({ isOpen, onClose, title, task, onSave, onTaskChange, isEdit 
               </div>
               <div>
                 <label style={{ display: "block", fontSize: "0.9rem", fontWeight: "600", color: "#4b5563", marginBottom: "8px" }}>Icon</label>
-                <select value={task.icon || '⭐'} onChange={(e) => handleInputChange('icon', e.target.value)} style={{ width: "100%", padding: "12px 16px", borderRadius: "12px", border: "1px solid rgba(0, 0, 0, 0.2)", background: "rgba(255, 255, 255, 0.8)", color: "#1A1A1A", fontSize: "0.9rem", outline: "none" }}>
-                  {['⭐', '🎯', '🚀', '💪', '🧠', '💡', '🔥', '⚡', '🌟', '🎨', '📚', '🏃‍♂️', '💻', '🎵', '🧘‍♀️'].map(icon => <option key={icon} value={icon}>{icon}</option>)}
+                <select value={task.icon || 'star'} onChange={(e) => handleInputChange('icon', e.target.value)} style={{ width: "100%", padding: "12px 16px", borderRadius: "12px", border: "1px solid rgba(0, 0, 0, 0.2)", background: "rgba(255, 255, 255, 0.8)", color: "#1A1A1A", fontSize: "0.9rem", outline: "none" }}>
+                  <option value="star">⭐ Star</option>
+                  <option value="target">🎯 Target</option>
+                  <option value="rocket">🚀 Rocket</option>
+                  <option value="dumbbell">💪 Dumbbell</option>
+                  <option value="brain">🧠 Brain</option>
+                  <option value="lightbulb">💡 Lightbulb</option>
+                  <option value="flame">🔥 Flame</option>
+                  <option value="zap">⚡ Zap</option>
+                  <option value="sparkles">🌟 Sparkles</option>
+                  <option value="palette">🎨 Palette</option>
+                  <option value="book">📚 Book</option>
+                  <option value="dumbbell">🏃‍♂️ Run</option>
+                  <option value="laptop">💻 Laptop</option>
+                  <option value="music">🎵 Music</option>
+                  <option value="moon">🧘‍♀️ Moon</option>
                 </select>
               </div>
               <div>
                 <label style={{ display: "block", fontSize: "0.9rem", fontWeight: "600", color: "#4b5563", marginBottom: "8px" }}>Color Theme</label>
                 <select value={task.color || '#60a5fa'} onChange={(e) => handleInputChange('color', e.target.value)} style={{ width: "100%", padding: "12px 16px", borderRadius: "12px", border: "1px solid rgba(0, 0, 0, 0.2)", background: "rgba(255, 255, 255, 0.8)", color: "#1A1A1A", fontSize: "0.9rem", outline: "none" }}>
-                  <option value="#60a5fa">🔵 Blue</option><option value="#f59e0b">🟡 Yellow</option><option value="#10b981">🟢 Green</option><option value="#ef4444">🔴 Red</option><option value="#8b5cf6">🟣 Purple</option><option value="#f97316">🟠 Orange</option><option value="#ec4899">🩷 Pink</option><option value="#06b6d4">🩵 Cyan</option>
+                  <option value="#60a5fa">Blue</option>
+                  <option value="#f59e0b">Yellow</option>
+                  <option value="#10b981">Green</option>
+                  <option value="#ef4444">Red</option>
+                  <option value="#8b5cf6">Purple</option>
+                  <option value="#f97316">Orange</option>
+                  <option value="#ec4899">Pink</option>
+                  <option value="#06b6d4">Cyan</option>
                 </select>
               </div>
             </div>
@@ -963,10 +1039,26 @@ function Dashboard({ user, setUser, token }) {
   // ... (Code for Dashboard logic remains the same)
   useTheme();
   const [userStats, setUserStats] = useState({ level: 1, xp: 0, streak: 0, tasksCompleted: 0, skillsUnlocked: 0, mindfulMinutes: 0 });
-  const [activeSection, setActiveSection] = useState(0);
+  // Load activeSection from localStorage
+  const [activeSection, setActiveSection] = useState(() => {
+    try {
+      const savedSection = localStorage.getItem('dashboardActiveSection');
+      return savedSection !== null ? parseInt(savedSection, 10) : 0;
+    } catch (error) {
+      return 0;
+    }
+  });
   const [roadmapAnimation, setRoadmapAnimation] = useState(false);
   const [xpAnimations, setXpAnimations] = useState([]);
-  const [tasks, setTasks] = useState(minimalXpTasks);
+  // Load tasks from localStorage or use default
+  const [tasks, setTasks] = useState(() => {
+    try {
+      const savedTasks = localStorage.getItem('dashboardTasks');
+      return savedTasks ? JSON.parse(savedTasks) : minimalXpTasks;
+    } catch (error) {
+      return minimalXpTasks;
+    }
+  });
   const [sidebarVisible, setSidebarVisible] = useState(true);
 
   // Modal States
@@ -985,7 +1077,7 @@ function Dashboard({ user, setUser, token }) {
   // Other States
   const [taskToDelete, setTaskToDelete] = useState(null);
   const [editingTask, setEditingTask] = useState(null);
-  const [newTask, setNewTask] = useState({ name: '', xp: 10, icon: '⭐', color: '#60a5fa' });
+  const [newTask, setNewTask] = useState({ name: '', xp: 10, icon: 'star', color: '#60a5fa' });
   const [toast, setToast] = useState(null);
 
   // Memos
@@ -994,6 +1086,17 @@ function Dashboard({ user, setUser, token }) {
     const rawPercent = (overallStats.totalCompletions / totalAvailableTasks) * 100;
     return Number.isFinite(rawPercent) ? Math.min(rawPercent, 100) : 0;
   }, [overallStats.totalCompletions, totalAvailableTasks]);
+
+  // Make showToast available globally for todo list
+  useEffect(() => {
+    window.showToast = (toastData) => {
+      setToast(toastData);
+      setTimeout(() => setToast(null), 3000);
+    };
+    return () => {
+      delete window.showToast;
+    };
+  }, []);
 
   // --- Daily Progress Functions (Kept essential parts) ---
   const getTodayKey = () => {
@@ -1049,14 +1152,93 @@ function Dashboard({ user, setUser, token }) {
     }
   };
     
-  const resetDailyProgress = () => {
-    setTaskXP({}); 
-    setDailyProgress(0); 
-    saveDailyTaskStatus({}); 
-    setShowProgressResetModal(false);
-    setToast({ message: 'Daily progress reset! Start fresh today! 🌟', type: 'success' });
-    setTimeout(() => setToast(null), 3000);
+  const resetDailyProgress = async () => {
+    try {
+      // COMPLETE RESET: Clear all daily task completion status
+      const emptyTaskXP = {};
+      setTaskXP(emptyTaskXP); 
+      setDailyProgress(0); 
+      
+      // Clear from localStorage (backend storage)
+      const progressData = {
+        todayTaskXP: {},
+        lastUpdated: getTodayKey()
+      };
+      localStorage.setItem('dailyTaskStatus', JSON.stringify(progressData));
+      
+      // Reset today's XP counter to 0 in localStorage (backend)
+      const today = new Date().toISOString().split('T')[0];
+      const dailyXPData = JSON.parse(localStorage.getItem('dailyXP') || '{}');
+      dailyXPData[today] = 0;
+      localStorage.setItem('dailyXP', JSON.stringify(dailyXPData));
+      
+      // Update Firebase backend if user is logged in
+      const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
+      const firebaseUid = user?.uid || storedUser.uid || storedUser.id || storedUser._id || user?._id || user?.id || null;
+      
+      if (firebaseUid) {
+        try {
+          await setDoc(
+            doc(db, 'users', firebaseUid),
+            {
+              last_updated: serverTimestamp(),
+              updatedAt: serverTimestamp(),
+            },
+            { merge: true }
+          );
+        } catch (firestoreError) {
+          console.error('Error syncing reset to Firestore:', firestoreError);
+        }
+      }
+      
+      setShowProgressResetModal(false);
+      setToast({ message: 'Your XP for today is set to 0. You can now complete your tasks one by one!', type: 'success' });
+      setTimeout(() => setToast(null), 4000);
+    } catch (error) {
+      console.error('Error resetting daily progress:', error);
+      setToast({ message: 'Error resetting progress. Please try again.', type: 'error' });
+      setTimeout(() => setToast(null), 3000);
+    }
   };
+
+  // Save tasks to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem('dashboardTasks', JSON.stringify(tasks));
+  }, [tasks]);
+
+  // Calculate total XP from all tasks
+  const getTotalTaskXP = () => {
+    return tasks.reduce((total, task) => total + (task.xp || 0), 0);
+  };
+
+  // Get today's earned XP
+  const getTodayXP = () => {
+    const today = new Date().toISOString().split('T')[0];
+    const dailyXPData = JSON.parse(localStorage.getItem('dailyXP') || '{}');
+    return dailyXPData[today] || 0;
+  };
+
+  // Clean up old daily XP data (keep only last 7 days)
+  useEffect(() => {
+    const today = new Date();
+    const dailyXPData = JSON.parse(localStorage.getItem('dailyXP') || '{}');
+    const cleanedData = {};
+    
+    Object.keys(dailyXPData).forEach(dateStr => {
+      const date = new Date(dateStr);
+      const daysDiff = Math.floor((today - date) / (1000 * 60 * 60 * 24));
+      if (daysDiff < 7) {
+        cleanedData[dateStr] = dailyXPData[dateStr];
+      }
+    });
+    
+    localStorage.setItem('dailyXP', JSON.stringify(cleanedData));
+  }, []);
+
+  // Save activeSection to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem('dashboardActiveSection', activeSection.toString());
+  }, [activeSection]);
 
   // --- useEffect (Simplified/Adapted) ---
   useEffect(() => {
@@ -1074,6 +1256,20 @@ function Dashboard({ user, setUser, token }) {
   // --- addXP Function (Kept logic) ---
   const addXP = async (taskId, xpToAdd, clickPosition = { x: window.innerWidth / 2, y: window.innerHeight / 2 }) => {
     const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
+
+    // Check daily XP limit
+    const today = new Date().toISOString().split('T')[0];
+    const dailyXPData = JSON.parse(localStorage.getItem('dailyXP') || '{}');
+    const todayXP = dailyXPData[today] || 0;
+    
+    if (todayXP + xpToAdd > 100) {
+      setToast({ 
+        message: `Daily XP limit reached! You've earned ${todayXP}/100 XP today. Come back tomorrow!`, 
+        type: 'error' 
+      });
+      setTimeout(() => setToast(null), 4000);
+      return;
+    }
 
     const baseXp = typeof storedUser.xp === 'number' ? storedUser.xp : userStats.xp || 0;
     const baseLevel = storedUser.level || userStats.level || 1;
@@ -1109,6 +1305,11 @@ function Dashboard({ user, setUser, token }) {
     };
 
     localStorage.setItem('user', JSON.stringify(updatedUser));
+    
+    // Update daily XP tracking
+    dailyXPData[today] = todayXP + xpToAdd;
+    localStorage.setItem('dailyXP', JSON.stringify(dailyXPData));
+    
     if (setUser) {
       setUser(updatedUser);
     }
@@ -1176,16 +1377,30 @@ function Dashboard({ user, setUser, token }) {
 
   // --- Task CRUD Functions (Kept logic for custom tasks) ---
   const addNewTask = () => {
-    // ... (Code for addNewTask remains the same)
+    // Validate task name and XP
     if (!newTask.name.trim() || newTask.xp <= 0) {
       setToast({ message: 'Please enter a valid task name and XP value', type: 'error' });
       setTimeout(() => setToast(null), 3000);
       return;
     }
+    
+    // Check if adding this task would exceed 100 XP limit
+    const currentTotalXP = getTotalTaskXP();
+    const newTotalXP = currentTotalXP + newTask.xp;
+    
+    if (newTotalXP > 100) {
+      setToast({ 
+        message: `Cannot add task! Total XP would be ${newTotalXP}. Maximum allowed is 100 XP. (Current: ${currentTotalXP} XP)`, 
+        type: 'error' 
+      });
+      setTimeout(() => setToast(null), 5000);
+      return;
+    }
+    
     const task = { ...newTask, id: `custom_${Date.now()}` };
     setTasks(prev => [task, ...prev]); 
     setShowAddModal(false);
-    setToast({ message: `New task "${task.name}" added!`, type: 'success' });
+    setToast({ message: `New task "${task.name}" added! Total XP: ${newTotalXP}/100`, type: 'success' });
     setTimeout(() => setToast(null), 3000);
   };
   const editTask = () => {
@@ -1370,13 +1585,16 @@ function Dashboard({ user, setUser, token }) {
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.4 }}
                 style={{
-                  fontSize: "0.9rem", // Reduced font size
+                  fontSize: "0.9rem",
                   color: pastelTheme.textSecondary,
                   margin: "4px 0 0",
-                  fontWeight: "400"
+                  fontWeight: "400",
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
                 }}
               >
-                Let's make today count! You're on a roll 🚀
+                Let's make today count! You're on a roll <Rocket size={16} color="#8B7FC7" />
               </motion.p>
             </div>
             {/* Stats Badges - Enhanced with Pastel Theme */}
@@ -1406,6 +1624,19 @@ function Dashboard({ user, setUser, token }) {
                 }}>
                 <div style={{ fontSize: "0.7rem", color: pastelTheme.textSecondary, marginBottom: "4px", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.5px" }}>Total XP</div>
                 <div style={{ fontSize: "1.6rem", fontWeight: "800", color: "#8B7FC7" }}>{userStats.xp}</div>
+              </motion.div>
+              <motion.div 
+                whileHover={{ scale: 1.05 }}
+                style={{
+                  padding: "14px 24px",
+                  borderRadius: "16px",
+                  background: getTodayXP() >= 100 ? "linear-gradient(135deg, #FFE5E5, #FFE5E5)" : "linear-gradient(135deg, #E8F5E9, #E8F5E9)",
+                  border: "2px solid rgba(0, 0, 0, 0.08)",
+                  boxShadow: getTodayXP() >= 100 ? "0 4px 12px rgba(255, 229, 229, 0.3), 0 2px 4px rgba(0, 0, 0, 0.04)" : "0 4px 12px rgba(232, 245, 233, 0.3), 0 2px 4px rgba(0, 0, 0, 0.04)",
+                  transition: "all 0.3s ease",
+                }}>
+                <div style={{ fontSize: "0.7rem", color: pastelTheme.textSecondary, marginBottom: "4px", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.5px" }}>Today's XP</div>
+                <div style={{ fontSize: "1.6rem", fontWeight: "800", color: getTodayXP() >= 100 ? "#ef4444" : "#10b981" }}>{getTodayXP()}/100</div>
               </motion.div>
             </div>
           </div>
@@ -1496,6 +1727,16 @@ function Dashboard({ user, setUser, token }) {
                                   boxSizing: 'border-box'
                                 }}
                                 onClick={(event) => {
+                                  // Check if task was already completed today
+                                  if (isCompleted) {
+                                    setToast({ 
+                                      message: 'Your limit reached! You can only complete each task once per day.', 
+                                      type: 'error' 
+                                    });
+                                    setTimeout(() => setToast(null), 3000);
+                                    return;
+                                  }
+                                  
                                   const clickPosition = {
                                     x: event.clientX,
                                     y: event.clientY,
@@ -1608,9 +1849,9 @@ function Dashboard({ user, setUser, token }) {
                           <motion.div
                             animate={{ scale: [1, 1.1, 1], rotate: [0, 5, -5, 0] }}
                             transition={{ duration: 2, repeat: Infinity, repeatDelay: 2 }}
-                            style={{ fontSize: "3rem", marginBottom: "15px" }}
+                            style={{ marginBottom: "15px", display: 'flex', justifyContent: 'center' }}
                           >
-                            🎉
+                            <Sparkles size={60} color="#10b981" />
                           </motion.div>
                           <h3 style={{
                             fontSize: "1.6rem",
@@ -1624,9 +1865,13 @@ function Dashboard({ user, setUser, token }) {
                           <p style={{
                             fontSize: "1rem",
                             color: pastelTheme.textSecondary,
-                            lineHeight: "1.5"
+                            lineHeight: "1.5",
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '8px'
                           }}>
-                            Amazing work! You've completed all your daily habits. Keep the momentum going! 🚀
+                            Amazing work! You've completed all your daily habits. Keep the momentum going! <Rocket size={18} color="#10b981" />
                           </p>
                         </motion.div>
                       )}
@@ -1716,9 +1961,11 @@ function Dashboard({ user, setUser, token }) {
                 fontSize: "0.95rem"
               }}
             >
-              <span style={{ fontSize: "1.2rem" }}>
-                {toast.type === 'error' ? '⚠️' : '✅'}
-              </span>
+              {toast.type === 'error' ? (
+                <AlertTriangle size={20} color="#ef4444" />
+              ) : (
+                <CheckCircle2 size={20} color="#10b981" />
+              )}
               {toast.message}
             </motion.div>
           )}
