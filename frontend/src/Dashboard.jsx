@@ -12,7 +12,7 @@ import Expenses from "./Expenses";
 import LevelRoadmap from "./LevelRoadmap";
 import Leaderboard from "./Leaderboard";
 import CalorieTracker from "./CalorieTracker";
-import UserProfile from "./UserProfile";
+import ProfilePage from "./ProfilePage";
 import AIAssistant from "./AIAssistant";
 import Icon from "./components/ui/Icon";
 import CalendarSection from "./CalendarSection";
@@ -143,24 +143,51 @@ const HabitIcon = ({ icon, color = '#8b5cf6', size = 'md', className = '' }) => 
   );
 };
 const TodoListCard = ({ glassmorphicStyle, theme }) => {
+  const MIN_TODO_XP = 2;
+  const MAX_TODO_XP = 5;
+  const DEFAULT_TODO_XP = 5;
+
+  const applyTodoDefaults = (list) =>
+    list.map((todo) => {
+      const baseXP =
+        typeof todo.xp === 'number' && todo.xp >= MIN_TODO_XP
+          ? todo.xp
+          : DEFAULT_TODO_XP;
+
+      const xpValue = Math.min(MAX_TODO_XP, baseXP);
+
+      return {
+        ...todo,
+        xp: xpValue,
+        // If a task is already completed in seed data, assume XP was awarded
+        xpAwarded: Boolean(todo.xpAwarded) || Boolean(todo.completed),
+      };
+    });
+
   // Load todos from localStorage
   const [todos, setTodos] = useState(() => {
     try {
       const savedTodos = localStorage.getItem('dashboardTodos');
-      return savedTodos ? JSON.parse(savedTodos) : [
+      if (savedTodos) {
+        return applyTodoDefaults(JSON.parse(savedTodos));
+      }
+
+      return applyTodoDefaults([
         { id: 1, text: "Plan today's tasks", completed: false },
         { id: 2, text: "Review meeting notes", completed: true },
         { id: 3, text: "Schedule a call", completed: false },
-      ];
+      ]);
     } catch (error) {
-      return [
+      return applyTodoDefaults([
         { id: 1, text: "Plan today's tasks", completed: false },
         { id: 2, text: "Review meeting notes", completed: true },
         { id: 3, text: "Schedule a call", completed: false },
-      ];
+      ]);
     }
   });
+
   const [newTodo, setNewTodo] = useState('');
+  const [newTodoXP, setNewTodoXP] = useState(DEFAULT_TODO_XP);
 
   // Save todos to localStorage whenever they change
   useEffect(() => {
@@ -169,42 +196,83 @@ const TodoListCard = ({ glassmorphicStyle, theme }) => {
 
   const addTodo = () => {
     if (newTodo.trim() !== '') {
-      setTodos([...todos, { id: Date.now(), text: newTodo.trim(), completed: false }]);
+      const parsedXP = Number(newTodoXP);
+      const clamped = Number.isFinite(parsedXP)
+        ? Math.max(MIN_TODO_XP, Math.min(MAX_TODO_XP, parsedXP))
+        : DEFAULT_TODO_XP;
+
+      setTodos([
+        ...todos,
+        {
+          id: Date.now(),
+          text: newTodo.trim(),
+          completed: false,
+          xp: clamped,
+          xpAwarded: false,
+        },
+      ]);
+
       setNewTodo('');
+      setNewTodoXP(clamped);
     }
   };
 
   const toggleTodo = (id) => {
-    const todo = todos.find(t => t.id === id);
-    const wasCompleted = todo?.completed;
-    
-    setTodos(todos.map(todo => 
-      todo.id === id ? { ...todo, completed: !todo.completed } : todo
-    ));
-    
-    // Award 5 XP when completing a todo (not when uncompleting)
-    if (!wasCompleted && todo) {
-      // Get current user from localStorage
+    let awardedXP = 0;
+
+    setTodos((prevTodos) =>
+      prevTodos.map((todo) => {
+        if (todo.id !== id) return todo;
+
+        const togglingToCompleted = !todo.completed;
+        const baseXP =
+          typeof todo.xp === 'number' && todo.xp >= MIN_TODO_XP
+            ? todo.xp
+            : DEFAULT_TODO_XP;
+
+        const xpValue = Math.min(MAX_TODO_XP, baseXP);
+
+        // Award XP only the first time this task is completed
+        if (togglingToCompleted && !todo.xpAwarded) {
+          awardedXP = xpValue;
+          return {
+            ...todo,
+            completed: true,
+            xp: xpValue,
+            xpAwarded: true,
+          };
+        }
+
+        return {
+          ...todo,
+          completed: togglingToCompleted,
+        };
+      })
+    );
+
+    if (awardedXP > 0) {
       const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
       const currentXP = storedUser.xp || 0;
       const currentLevel = storedUser.level || 1;
       const currentTasksCompleted = storedUser.tasksCompleted || 0;
-      
-      const newXP = currentXP + 5;
+
+      const newXP = currentXP + awardedXP;
       const newLevel = Math.floor(newXP / 100) + 1;
-      
+
       const updatedUser = {
         ...storedUser,
         xp: newXP,
         level: newLevel,
-        tasksCompleted: currentTasksCompleted + 1
+        tasksCompleted: currentTasksCompleted + 1,
       };
-      
+
       localStorage.setItem('user', JSON.stringify(updatedUser));
-      
-      // Show toast notification
+
       if (window.showToast) {
-        window.showToast({ message: '+5 XP for completing a todo!', type: 'success' });
+        window.showToast({
+          message: `+${awardedXP} XP for completing a todo!`,
+          type: 'success',
+        });
       }
     }
   };
@@ -280,7 +348,8 @@ const TodoListCard = ({ glassmorphicStyle, theme }) => {
       </div>
       
       {/* Input Field with Enhanced Design */}
-      <div style={{ display: 'flex', gap: '12px', marginBottom: '24px' }}>        <div style={{ position: 'relative', flex: 1 }}>
+      <div style={{ display: 'flex', gap: '12px', marginBottom: '24px' }}>
+        <div style={{ position: 'relative', flex: 1 }}>
           <Sparkles size={18} color="#8B7FC7" style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', zIndex: 1 }} />
           <input
             type="text"
@@ -299,6 +368,29 @@ const TodoListCard = ({ glassmorphicStyle, theme }) => {
               outline: "none",
               transition: "all 0.3s ease",
               boxSizing: 'border-box'
+            }}
+          />
+        </div>
+        {/* XP input */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '6px' }}>
+          <span style={{ fontSize: '0.75rem', color: '#6b7280', fontWeight: 500 }}>XP</span>
+          <input
+            type="number"
+            min={2}
+            max={5}
+            value={newTodoXP}
+            onChange={(e) => setNewTodoXP(e.target.value)}
+            style={{
+              width: '80px',
+              padding: '10px 12px',
+              borderRadius: '12px',
+              border: '2px solid rgba(139, 127, 199, 0.2)',
+              background: 'rgba(255, 255, 255, 0.8)',
+              fontSize: '0.9rem',
+              color: theme.textPrimary,
+              outline: 'none',
+              textAlign: 'center',
+              boxSizing: 'border-box',
             }}
           />
         </div>
@@ -377,24 +469,65 @@ const TodoListCard = ({ glassmorphicStyle, theme }) => {
                   {todo.text}
                 </span>
               </div>
-              <motion.button
-                whileHover={{ scale: 1.1, rotate: 90 }}
-                whileTap={{ scale: 0.9 }}
-                onClick={(e) => deleteTodo(todo.id, e)}
-                style={{
-                  background: 'rgba(239, 68, 68, 0.1)',
-                  border: '1px solid rgba(239, 68, 68, 0.3)',
-                  borderRadius: '10px',
-                  padding: '6px 10px',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  transition: 'all 0.3s ease'
-                }}
-              >
-                <Trash2 size={18} color="#ef4444" />
-              </motion.button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                {/* Per-task XP pill */}
+                <div
+                  style={{
+                    minWidth: '70px',
+                    padding: '6px 10px',
+                    borderRadius: '999px',
+                    background: todo.completed
+                      ? 'rgba(16, 185, 129, 0.08)'
+                      : 'rgba(139, 127, 199, 0.08)',
+                    border: `1px solid ${
+                      todo.completed
+                        ? 'rgba(16, 185, 129, 0.4)'
+                        : 'rgba(139, 127, 199, 0.35)'
+                    }`,
+                    fontSize: '0.8rem',
+                    fontWeight: 600,
+                    color: todo.completed ? '#059669' : '#4b5563',
+                    textAlign: 'center',
+                  }}
+                >
+                  {(todo.xp ?? 5)} XP
+                </div>
+
+                {/* XP awarded label for completed tasks */}
+                {todo.completed && todo.xpAwarded && (
+                  <span
+                    style={{
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      color: '#16a34a',
+                      background: 'rgba(22, 163, 74, 0.08)',
+                      borderRadius: '999px',
+                      padding: '4px 8px',
+                    }}
+                  >
+                    XP awarded
+                  </span>
+                )}
+
+                <motion.button
+                  whileHover={{ scale: 1.1, rotate: 90 }}
+                  whileTap={{ scale: 0.9 }}
+                  onClick={(e) => deleteTodo(todo.id, e)}
+                  style={{
+                    background: 'rgba(239, 68, 68, 0.1)',
+                    border: '1px solid rgba(239, 68, 68, 0.3)',
+                    borderRadius: '10px',
+                    padding: '6px 10px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    transition: 'all 0.3s ease',
+                  }}
+                >
+                  <Trash2 size={18} color="#ef4444" />
+                </motion.button>
+              </div>
             </motion.div>
           ))}
         </AnimatePresence>
@@ -787,26 +920,16 @@ const navItems = [
 ];
 
 // --- Sidebar Component ---
+// Modern, professional vertical navigation using react-icons
 const Sidebar = ({ activeSection, setActiveSection, isVisible = true }) => {
-  // ... (Code for Sidebar shapes remains the same)
-  const shapes = [
-    { borderRadius: '50%' }, // Circle - Daily Tasks
-    { borderRadius: '15px', transform: 'rotate(45deg)' }, // Diamond - Levels
-    { borderRadius: '25% 75% 75% 25% / 25% 25% 75% 75%' }, // Blob 1 - AI Assistant
-    { borderRadius: '8px' }, // Square - Challenges
-    { borderRadius: '50% 0 50% 0' }, // Leaf - Leaderboard
-    { borderRadius: '0 50% 50% 50%' }, // Drop - Calories
-    { borderRadius: '75% 25% 75% 25% / 25% 75% 25% 75%' }, // Blob 2 - Profile
-  ];
-
   return (
-    <motion.div
+    <motion.aside
       initial={{ x: -100, opacity: 0 }}
-      animate={{ 
-        x: isVisible ? 0 : -100, 
-        opacity: isVisible ? 1 : 0 
+      animate={{
+        x: isVisible ? 0 : -100,
+        opacity: isVisible ? 1 : 0,
       }}
-      transition={{ duration: 0.3 }}
+      transition={{ duration: 0.25, ease: 'easeOut' }}
       className="sidebar-container"
       style={{
         position: 'fixed',
@@ -814,99 +937,85 @@ const Sidebar = ({ activeSection, setActiveSection, isVisible = true }) => {
         top: 0,
         bottom: 0,
         width: '80px',
-        // --- THIS IS THE WHITE GLASS STYLE THAT MATCHES YOUR CARDS ---
-        background: 'rgba(255, 255, 255, 0.9)', 
-        backdropFilter: 'blur(15px) saturate(180%)',
-        WebkitBackdropFilter: 'blur(15px) saturate(180%)',
-        borderRight: '2px solid rgba(255, 255, 255, 0.4)',
-        boxShadow: '4px 0 25px rgba(139, 92, 246, 0.1)',
-        // --- END OF STYLE CHANGE ---
+        background: 'rgba(248, 250, 252, 0.9)',
+        backdropFilter: 'blur(18px) saturate(180%)',
+        WebkitBackdropFilter: 'blur(18px) saturate(180%)',
+        borderRight: '1px solid rgba(148, 163, 184, 0.35)',
+        boxShadow: '4px 0 18px rgba(15, 23, 42, 0.08)',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        padding: '20px 0',
+        justifyContent: 'flex-start',
+        padding: '24px 0',
+        gap: '10px',
         zIndex: 1000,
         pointerEvents: isVisible ? 'auto' : 'none',
       }}
     >
       {navItems.map((item, index) => {
         const isActive = activeSection === index;
-        const shape = shapes[index] || shapes[0];
-        
+
         return (
-          <motion.div
-            key={index}
-            whileHover={{ 
-              scale: 1.15,
-              rotate: index === 1 ? 0 : index % 2 === 0 ? 5 : -5,
+          <motion.button
+            key={item.title}
+            onClick={() => setActiveSection(index)}
+            whileHover={{ scale: 1.08 }}
+            whileTap={{ scale: 0.96 }}
+            animate={{
+              background: isActive
+                ? 'linear-gradient(135deg, #4f46e5, #a855f7)'
+                : 'rgba(255, 255, 255, 0.85)',
+              boxShadow: isActive
+                ? '0 10px 24px rgba(79, 70, 229, 0.35)'
+                : '0 4px 10px rgba(15, 23, 42, 0.12)',
+              borderColor: isActive
+                ? 'rgba(129, 140, 248, 0.7)'
+                : 'rgba(148, 163, 184, 0.45)',
             }}
-            whileTap={{ scale: 0.9 }}
+            transition={{ duration: 0.2 }}
             style={{
-              margin: '10px 0',
+              width: '56px',
+              height: '56px',
+              borderRadius: '18px',
+              borderWidth: '1px',
+              borderStyle: 'solid',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
               position: 'relative',
+              padding: 0,
+              outline: 'none',
             }}
+            title={item.title}
+            aria-label={item.title}
           >
-            <motion.button
-              onClick={() => setActiveSection(index)}
-              animate={{
-                background: isActive 
-                  ? 'linear-gradient(135deg, #8b5cf6, #a78bfa)' 
-                  : '#8b5cf6',
-                boxShadow: isActive 
-                  ? '0 8px 20px rgba(139, 92, 246, 0.4), 0 0 0 4px rgba(139, 92, 246, 0.15)' 
-                  : '0 4px 12px rgba(139, 92, 246, 0.3)',
-              }}
-              whileHover={{
-                boxShadow: '0 12px 28px rgba(139, 92, 246, 0.5), 0 0 0 2px rgba(139, 92, 246, 0.2)',
-              }}
-              transition={{ duration: 0.3 }}
-              style={{
-                width: '54px',
-                height: '54px',
-                ...shape,
-                border: 'none',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                position: 'relative',
-                overflow: 'visible',
-              }}
-              title={item.title}
-            >
-              <div style={{
-                transform: index === 1 ? 'rotate(-45deg)' : 'none', // Counter-rotate icon for diamond
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}>
-                {/* === THIS IS THE ONLY LINE I CHANGED === */}
-                <Icon name={item.icon} size={22} color="#E8D5F2" /> 
-              </div>
-              
-              {/* Active indicator dot */}
-              {isActive && (
-                <motion.div
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  style={{
-                    position: 'absolute',
-                    top: '-4px',
-                    right: '-4px',
-                    width: '12px',
-                    height: '12px',
-                    borderRadius: '50%',
-                    background: '#22c55e',
-                    border: '2px solid white',
-                    boxShadow: '0 2px 8px rgba(34, 197, 94, 0.4)',
-                  }}
-                />
-              )}
-            </motion.button>
-          </motion.div>
+            <Icon
+              name={item.icon}
+              size={22}
+              color={isActive ? '#EEF2FF' : '#6B7280'}
+            />
+            {isActive && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.5 }}
+                animate={{ opacity: 1, scale: 1 }}
+                style={{
+                  position: 'absolute',
+                  left: '-4px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  width: '4px',
+                  height: '26px',
+                  borderRadius: '999px',
+                  background: '#22c55e',
+                  boxShadow: '0 0 10px rgba(34, 197, 94, 0.55)',
+                }}
+              />
+            )}
+          </motion.button>
         );
       })}
-    </motion.div>
+    </motion.aside>
   );
 };
 
@@ -1887,7 +1996,7 @@ function Dashboard({ user, setUser, token }) {
                 {activeSection === 3 && (<motion.div key={3} {...sectionAnimation}><Expenses addXP={addXP} /></motion.div>)}
                 {activeSection === 4 && (<motion.div key={4} {...sectionAnimation}> <Leaderboard user={user} /> </motion.div>)}
                 {activeSection === 5 && (<motion.div key={5} {...sectionAnimation}><CalorieTracker user={user} addXP={addXP} userStats={userStats} setUserStats={setUserStats} /></motion.div>)}
-                {activeSection === 6 && (<motion.div key={6} {...sectionAnimation}><UserProfile user={user} setUser={setUser} /></motion.div>)}
+                {activeSection === 6 && (<motion.div key={6} {...sectionAnimation}><ProfilePage /></motion.div>)}
               </AnimatePresence>
             </div>
           </div>
