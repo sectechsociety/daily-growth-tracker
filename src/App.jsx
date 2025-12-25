@@ -1,38 +1,28 @@
 import React, { useState, useEffect } from "react";
-import { BrowserRouter as Router, Routes, Route, Navigate, Link, useNavigate, useLocation } from "react-router-dom"; // Added useLocation
+import { BrowserRouter as Router, Routes, Route, Navigate, Link, useNavigate, useLocation } from "react-router-dom"; 
 import { AnimatePresence, motion } from "framer-motion";
 import { Palette, LogOut } from "lucide-react";
 import { ThemeProvider, useTheme } from "./ThemeContext";
 import ThemeCustomizer from "./ThemeCustomizer";
-import Welcome from "./Welcome";
-// Removed Auth (not used)
+import Welcome from "./Welcome.jsx";
 import LoginPage from "./LoginPage";
 import Dashboard from "./Dashboard";
-import Profile from "./ProfilePage"; // Make sure this is unused if Dashboard handles it
-import Leaderboard from "./Leaderboard"; // Make sure this is unused if Dashboard handles it
-import AdventureMap from "./AdventureMap.jsx"; // Make sure this is unused if Dashboard handles it
-import Game from "./Game"; // Make sure this is unused if Dashboard handles it
-import AIAssistant from "./AIAssistant"; // Make sure this is unused if Dashboard handles it
-import LevelRoadmap from "./LevelRoadmap"; // Make sure this is unused if Dashboard handles it
 import { onAuthStateChange, db, logout } from './firebase';
 import { doc, getDoc } from "firebase/firestore";
 
-// --- NEW: We will create this component next ---
-// import InvitePage from "./InvitePage"; 
+
 
 // --- This component holds all the animated routes ---
 function AnimatedRoutes({ user, setUser, token, setToken }) {
-  const location = useLocation(); // Added location for AnimatePresence
+  const location = useLocation(); 
 
   const pageVariants = {
     initial: {
       opacity: 0,
-      scale: 0.98,
       y: 20
     },
     in: {
       opacity: 1,
-      scale: 1,
       y: 0,
       transition: {
         duration: 0.6,
@@ -41,7 +31,6 @@ function AnimatedRoutes({ user, setUser, token, setToken }) {
     },
     out: {
       opacity: 0,
-      scale: 1.02,
       y: -20,
       transition: {
         duration: 0.4,
@@ -68,6 +57,8 @@ function AnimatedRoutes({ user, setUser, token, setToken }) {
             </motion.div>
           }
         />
+        
+       
         
         {/* Redirect old /welcome to new root / */}
         <Route path="/welcome" element={<Navigate to="/" replace />} />
@@ -101,16 +92,8 @@ function AnimatedRoutes({ user, setUser, token, setToken }) {
                 custom="auth"
                 variants={{
                   initial: { opacity: 0, scale: 0.95 },
-                  in: {
-                    opacity: 1,
-                    scale: 1,
-                    transition: { duration: 0.4, ease: "easeOut" }
-                  },
-                  out: {
-                    opacity: 0,
-                    scale: 0.9,
-                    transition: { duration: 0.3, ease: "easeIn" }
-                  }
+                  in: { opacity: 1, scale: 1, transition: { duration: 0.4, ease: "easeOut" } },
+                  out: { opacity: 0, scale: 0.9, transition: { duration: 0.3, ease: "easeIn" } }
                 }}
                 initial="initial"
                 animate="in"
@@ -124,7 +107,7 @@ function AnimatedRoutes({ user, setUser, token, setToken }) {
           }
         />
 
-        {/* --- NEW: INVITE ROUTE --- */}
+        {/* --- INVITE ROUTE --- */}
         <Route
           path="/invite/:inviteId"
           element={
@@ -133,36 +116,21 @@ function AnimatedRoutes({ user, setUser, token, setToken }) {
                 custom="auth"
                 variants={{
                   initial: { opacity: 0, scale: 0.95 },
-                  in: {
-                    opacity: 1,
-                    scale: 1,
-                    transition: { duration: 0.4, ease: "easeOut" }
-                  },
-                  out: {
-                    opacity: 0,
-                    scale: 0.9,
-                    transition: { duration: 0.3, ease: "easeIn" }
-                  }
+                  in: { opacity: 1, scale: 1, transition: { duration: 0.4, ease: "easeOut" } },
+                  out: { opacity: 0, scale: 0.9, transition: { duration: 0.3, ease: "easeIn" } }
                 }}
                 initial="initial"
                 animate="in"
                 exit="out"
               >
-                {/* This will show the login page.
-                  We can create a new <InvitePage /> component later.
-                */}
                 <LoginPage setUser={setUser} setToken={setToken} isInvite={true} />
               </motion.div>
             ) : (
-              <Navigate to="/dashboard" replace /> // If already logged in, just go to dashboard
+              <Navigate to="/dashboard" replace /> 
             )
           }
         />
-
-        {/* NOTE: Your Profile, Leaderboard, etc. are all inside your Dashboard component,
-          so we don't need separate routes for them here. This is correct.
-        */}
-
+        
         {/* Fallback route - if no other route matches, go to home */}
         <Route path="*" element={<Navigate to="/" replace />} />
         
@@ -170,6 +138,7 @@ function AnimatedRoutes({ user, setUser, token, setToken }) {
     </AnimatePresence>
   );
 }
+
 function AppContent() {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(null);
@@ -220,7 +189,6 @@ function AppContent() {
             skillsUnlocked: firestoreData.skillsUnlocked ?? existingLocalUser.skillsUnlocked ?? 0,
             last_updated: firestoreData.last_updated ?? existingLocalUser.last_updated ?? null,
             createdAt: firestoreData.createdAt ?? existingLocalUser.createdAt ?? null,
-            // Ensure username is set for the invite link
             username: firestoreData.username || authUser.displayName || authUser.email?.split('@')[0] || 'explorer'
           };
 
@@ -365,7 +333,7 @@ function AppContent() {
               fontWeight: "600",
               cursor: "pointer",
               display: "flex",
-              alignItems: "center",
+              alignItems: 'center',
               gap: "8px",
               boxShadow: "0 4px 15px rgba(239, 68, 68, 0.3)",
               transition: "all 0.3s ease",

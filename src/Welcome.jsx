@@ -1,228 +1,298 @@
-import { motion } from "framer-motion";
-import { useNavigate } from "react-router-dom";
-import { useTheme } from "./ThemeContext";
+import React from 'react';
+import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
+import { FiArrowRight } from 'react-icons/fi';
+import { FaRocket } from 'react-icons/fa';
 
-function Welcome() {
+// This is the SVG for the animated bars graphic
+const AnimatedBars = () => (
+  <motion.svg
+    width="480"
+    height="380"
+    viewBox="0 0 480 380"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    style={{ position: 'absolute', bottom: 0, right: 0 }}
+  >
+    <path d="M0 380 H 480" stroke="#C4B5FD" strokeWidth="4" />
+    <motion.rect
+      x="100"
+      width="100"
+      height="180"
+      rx="15"
+      fill="#C4B5FD"
+      initial={{ height: 0, y: 380 }}
+      animate={{ height: 180, y: 200 }}
+      transition={{ delay: 0.8, duration: 0.8, ease: "easeOut" }}
+    />
+    <motion.rect
+      x="220"
+      width="100"
+      height="260"
+      rx="15"
+      fill="#A78BFA"
+      initial={{ height: 0, y: 380 }}
+      animate={{ height: 260, y: 120 }}
+      transition={{ delay: 1.0, duration: 0.8, ease: "easeOut" }}
+    />
+    <motion.rect
+      x="340"
+      width="100"
+      height="100"
+      rx="15"
+      fill="#818CF8"
+      initial={{ height: 0, y: 380 }}
+      animate={{ height: 100, y: 280 }}
+      transition={{ delay: 1.2, duration: 0.8, ease: "easeOut" }}
+    />
+  </motion.svg>
+);
+
+
+export default function Welcome() {
   const navigate = useNavigate();
-  const { theme } = useTheme();
 
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        display: "flex",
-        flexDirection: "column",
-        justifyContent: "center",
-        alignItems: "center",
-        background: theme.background,
-        color: theme.textPrimary,
-        padding: "20px",
-        position: "relative",
-        overflow: "hidden",
-      }}
-    >
-      {/* Animated Background Elements */}
-      <div style={{
-        position: "absolute", top: "10%", left: "5%", width: "300px", height: "300px",
-        background: `radial-gradient(circle, ${theme.accent}15 0%, transparent 70%)`,
-        borderRadius: "50%", animation: "float 20s ease-in-out infinite",
-      }} />
-      <div style={{
-        position: "absolute", bottom: "10%", right: "8%", width: "250px", height: "250px",
-        background: `radial-gradient(circle, ${theme.accentSecondary}15 0%, transparent 70%)`,
-        borderRadius: "50%", animation: "float 25s ease-in-out infinite reverse",
-      }} />
+    <div style={styles.container}>
+      <div style={styles.floatingOrb1} />
+      <div style={styles.floatingOrb2} />
 
-      {/* Main Content */}
-      <motion.div
+      <motion.div 
+        style={{...styles.decoBlock, top: '20%', right: '15%'}}
+        initial={{ scale: 0, rotate: 45 }}
+        animate={{ scale: 1, rotate: 0 }}
+        transition={{ delay: 1.4, duration: 0.5 }}
+      />
+      <motion.div 
+        style={{...styles.decoCircle, top: '30%', right: '30%'}}
+        initial={{ scale: 0 }}
+        animate={{ scale: 1 }}
+        transition={{ delay: 1.2, duration: 0.5 }}
+      />
+
+      {/* ======================================================== */}
+      {/* === NAVIGATION BAR (ONLY LOGIN BUTTON) === */}
+      {/* ======================================================== */}
+      <motion.nav
+        style={styles.navbar}
         initial={{ opacity: 0, y: -50 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.8, ease: "easeOut" }}
-        style={{
-          textAlign: "center",
-          maxWidth: "800px",
-          zIndex: 1,
-        }}
+        transition={{ duration: 0.5, delay: 0.1 }}
       >
-        {/* Logo/Icon */}
-        <motion.div
-          initial={{ scale: 0 }}
-          animate={{ scale: 1, rotate: 360 }}
-          transition={{ duration: 1, delay: 0.2, type: "spring" }}
-          style={{
-            fontSize: "5rem",
-            marginBottom: "30px",
-            filter: "drop-shadow(0 0 20px rgba(255, 255, 255, 0.3))",
-          }}
-        >
-          🌟
-        </motion.div>
-
-        {/* Title */}
-        <motion.h1
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.4 }}
-          style={{
-            fontSize: "3.5rem",
-            fontWeight: "900",
-            background: `linear-gradient(135deg, ${theme.accent}, ${theme.accentSecondary})`,
-            WebkitBackgroundClip: "text",
-            WebkitTextFillColor: "transparent",
-            backgroundClip: "text",
-            marginBottom: "20px",
-            letterSpacing: "-1px",
-          }}
-        >
-          Daily Growth Tracker
-        </motion.h1>
-
-        {/* Subtitle */}
-        <motion.p
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.6 }}
-          style={{
-            fontSize: "1.4rem",
-            color: theme.textSecondary,
-            marginBottom: "50px",
-            lineHeight: "1.6",
-            fontWeight: "500",
-          }}
-        >
-          Transform your daily habits into extraordinary achievements.
-          <br />
-          Track progress, earn XP, and level up your life! 🚀
-        </motion.p>
-
-        {/* Feature Cards */}
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.8 }}
-          style={{
-            display: "flex",
-            justifyContent: "center",
-            gap: "20px",
-            flexWrap: "wrap",
-            marginBottom: "50px",
-          }}
-        >
-          {[
-            { icon: "📊", text: "Track Progress" },
-            { icon: "🔥", text: "Build Streaks" },
-            { icon: "🏆", text: "Earn Rewards" },
-            { icon: "🎯", text: "Achieve Goals" },
-          ].map((feature, index) => (
-            <motion.div
-              key={feature.text}
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.5, delay: 1 + index * 0.1 }}
-              whileHover={{ scale: 1.05, y: -5 }}
-              style={{
-                background: theme.cardBg,
-                backdropFilter: "blur(20px)",
-                padding: "20px 30px",
-                borderRadius: "20px",
-                border: `1px solid ${theme.border}`,
-                boxShadow: `0 8px 32px ${theme.shadow}`,
-                display: "flex",
-                alignItems: "center",
-                gap: "12px",
-                minWidth: "160px",
-              }}
-            >
-              <span style={{ fontSize: "2rem" }}>{feature.icon}</span>
-              <span style={{ fontSize: "1rem", fontWeight: "600", color: theme.textPrimary }}>
-                {feature.text}
-              </span>
-            </motion.div>
-          ))}
-        </motion.div>
-
-        {/* CTA Buttons */}
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 1.4 }}
-          style={{
-            display: "flex",
-            gap: "20px",
-            justifyContent: "center",
-            flexWrap: "wrap",
-          }}
-        >
+        <div style={styles.logoRocketIconContainer}>
+          <FaRocket size={32} color="#4F46E5" />
+        </div>
+        
+        <div style={styles.navLinks}>          
+          {/* "Login" button box */}
           <motion.button
-            whileHover={{ scale: 1.05, boxShadow: `0 10px 40px ${theme.accent}40` }}
+            whileHover={{ scale: 1.05, backgroundColor: 'rgba(255, 255, 255, 0.5)' }}
             whileTap={{ scale: 0.95 }}
-            onClick={() => navigate("/auth")}
-            style={{
-              padding: "18px 40px",
-              fontSize: "1.2rem",
-              fontWeight: "700",
-              borderRadius: "15px",
-              border: "none",
-              background: `linear-gradient(135deg, ${theme.accent}, ${theme.accentSecondary})`,
-              color: "#fff",
-              cursor: "pointer",
-              boxShadow: `0 8px 25px ${theme.accent}30`,
-              transition: "all 0.3s ease",
-            }}
+            onClick={() => navigate('/auth')}
+            style={styles.navButton}
           >
-            Get Started 🚀
+            Login
           </motion.button>
+        </div>
+      </motion.nav>
+      {/* ======================================================== */}
+      {/* === END NAVIGATION BAR === */}
+      {/* ======================================================== */}
 
+
+      {/* Main Content Area */}
+      <div style={styles.contentWrapper}>
+        {/* Left Content */}
+        <motion.div
+          style={styles.leftContent}
+          initial={{ opacity: 0, x: -50 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.8, delay: 0.5 }}
+        >
+          <h1 style={styles.mainTitle}>
+            Daily Growth Tracker
+          </h1>
+          <p style={styles.tagline}>
+            Your growth is in your hands
+          </p>
+          <p style={styles.description}>
+            Your intelligent companion for personal development.
+            Track progress, build streaks, earn rewards, and achieve your goals
+            one day at a time with ease and motivation.
+          </p>
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            onClick={() => navigate("/")}
-            style={{
-              padding: "18px 40px",
-              fontSize: "1.2rem",
-              fontWeight: "700",
-              borderRadius: "15px",
-              border: `2px solid ${theme.border}`,
-              background: theme.cardBg,
-              backdropFilter: "blur(20px)",
-              color: theme.textPrimary,
-              cursor: "pointer",
-              transition: "all 0.3s ease",
-            }}
+            onClick={() => navigate('/auth')}
+            style={styles.ctaButton}
           >
-            Explore Dashboard
+            Get Started
+            <FiArrowRight style={{ marginLeft: '8px' }} />
           </motion.button>
         </motion.div>
-
-        {/* Additional Info */}
-        <motion.p
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.8, delay: 1.8 }}
-          style={{
-            marginTop: "40px",
-            fontSize: "0.95rem",
-            color: theme.textSecondary,
-            fontWeight: "500",
-          }}
+        
+        {/* Right Content (Illustration) */}
+        <motion.div 
+          style={styles.rightContent}
+          initial={{ opacity: 0, x: 50 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.8, delay: 0.7 }}
         >
-          Join thousands of users transforming their lives, one day at a time ✨
-        </motion.p>
-      </motion.div>
-
-      {/* Floating Animation Keyframes */}
-      <style>
-        {`
-          @keyframes float {
-            0%, 100% { transform: translateY(0) translateX(0); }
-            25% { transform: translateY(-20px) translateX(10px); }
-            50% { transform: translateY(-10px) translateX(-10px); }
-            75% { transform: translateY(-30px) translateX(5px); }
-          }
-        `}
-      </style>
+          <AnimatedBars />
+        </motion.div>
+      </div>
     </div>
   );
 }
 
-export default Welcome;
+// =================================================================
+// === STYLES OBJECT ===
+// =================================================================
+const styles = {
+  container: {
+    background: 'linear-gradient(135deg, #f0e6ff 0%, #e0d9ff 100%)',
+    minHeight: '100vh',
+    display: 'flex',
+    flexDirection: 'column',
+    fontFamily: "'Inter', 'Segoe UI', sans-serif",
+    position: 'relative',
+    overflow: 'hidden',
+    color: '#1e0a40',
+  },
+  floatingOrb1: {
+    position: 'absolute',
+    top: '-100px',
+    right: '-100px',
+    width: '400px',
+    height: '400px',
+    borderRadius: '50%',
+    background: 'radial-gradient(circle, rgba(138, 43, 226, 0.08) 0%, rgba(138, 43, 226, 0) 70%)',
+    zIndex: 0,
+  },
+  floatingOrb2: {
+    position: 'absolute',
+    bottom: '-150px',
+    left: '-100px',
+    width: '500px',
+    height: '500px',
+    borderRadius: '50%',
+    background: 'radial-gradient(circle, rgba(168, 85, 247, 0.05) 0%, rgba(168, 85, 247, 0) 70%)',
+    zIndex: 0,
+  },
+  decoBlock: {
+    position: 'absolute',
+    width: '30px',
+    height: '30px',
+    borderRadius: '8px',
+    background: '#A78BFA',
+    opacity: 0.5,
+    zIndex: 1,
+  },
+  decoCircle: {
+    position: 'absolute',
+    width: '20px',
+    height: '20px',
+    borderRadius: '50%',
+    background: '#C4B5FD',
+    opacity: 0.5,
+    zIndex: 1,
+  },
+  logoRocketIconContainer: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  navbar: {
+    width: '100%',
+    maxWidth: '1200px',
+    margin: '0 auto',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '20px 40px',
+    boxSizing: 'border-box',
+    zIndex: 10,
+    position: 'absolute',
+    top: 0,
+    left: '50%',
+    transform: 'translateX(-50%)',
+  },
+  navLinks: {
+    display: 'flex',
+    gap: '20px',
+    alignItems: 'center',
+  },
+  navButton: {
+    textDecoration: 'none',
+    color: '#4F46E5',
+    border: '2px solid #C4B5FD',
+    padding: '8px 16px',
+    borderRadius: '8px',
+    fontWeight: '500',
+    fontSize: '0.9rem',
+    background: 'rgba(255, 255, 255, 0.2)',
+    cursor: 'pointer',
+    transition: 'all 0.3s ease',
+  },
+  contentWrapper: {
+    flex: 1,
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr',
+    alignItems: 'center',
+    maxWidth: '1200px',
+    width: '100%',
+    margin: '0 auto',
+    padding: '0 40px',
+    boxSizing: 'border-box',
+    zIndex: 5,
+  },
+  leftContent: {
+    maxWidth: '500px',
+  },
+  rightContent: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+    minHeight: '400px',
+  },
+  mainTitle: {
+    fontSize: '3.8rem',
+    fontWeight: '800',
+    color: '#1e0a40',
+    marginBottom: '20px',
+    lineHeight: '1.2',
+    letterSpacing: '-1px',
+  },
+  tagline: {
+    fontFamily: 'serif',
+    fontSize: '1.5rem',
+    color: '#4f46e5',
+    fontWeight: '500',
+    margin: 0,
+    marginBottom: '24px',
+  },
+  description: {
+    fontSize: '1.1rem',
+    color: '#6B7280',
+    marginBottom: '40px',
+    lineHeight: '1.7',
+    fontWeight: '400',
+  },
+  ctaButton: {
+    background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+    color: '#fff',
+    border: 'none',
+    borderRadius: '12px',
+    padding: '16px 32px',
+    fontSize: '1.1rem',
+    fontWeight: '600',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '8px',
+    cursor: 'pointer',
+    boxShadow: '0 4px 20px rgba(99, 102, 241, 0.3)',
+    transition: 'all 0.3s ease',
+  },
+};
