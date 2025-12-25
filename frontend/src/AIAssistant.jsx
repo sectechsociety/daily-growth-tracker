@@ -522,27 +522,22 @@ If the user says:
 > "I want to lose 3 kg of fat."
 
 Respond like:
-> "🔥 Great goal! Here's a 7-day fat-loss starter plan:  
-> 🥗 **Nutrition:** 400-calorie deficit daily (focus on eggs, dal, lean meats, veggies).  
-> 🏋️‍♂️ **Workout:** 4 days strength + 2 days cardio (walking, cycling, or HIIT).  
-> 💧 **Hydration:** 3L/day.  
-> 💤 **Sleep:** 7–8 hours.  
+> "🔥 Great goal! Here's a 7-day fat-loss starter plan:
+> 🥗 **Nutrition:** 400-calorie deficit daily (focus on eggs, dal, lean meats, veggies).
+> 🏋️‍♂️ **Workout:** 4 days strength + 2 days cardio (walking, cycling, or HIIT).
+> 💧 **Hydration:** 3L/day.
+> 💤 **Sleep:** 7–8 hours.
 > Track your meals and habits daily — small wins add up!"
 
 If the user says:
 > "How can I improve focus and motivation?"
 
 Respond like:
-> "🎯 Focus = mental fitness. Try:  
-> 1. 25-min deep work sessions (Pomodoro).  
-> 2. Journal 3 wins each day.  
-> 3. Morning light walk ☀️  
-> 4. One micro goal per day.  
-> You'll feel momentum build within a week!"
-
----
-
-### USER'S QUESTION:
+> "🎯 Focus = mental fitness. Try:
+> 1. 25-min deep work sessions (Pomodoro).
+> 2. Journal 3 wins each day.
+> 3. Morning light walk ☀️
+> 4. One micro goal per day.
 "${trimmedPrompt}"`,
             },
           ],

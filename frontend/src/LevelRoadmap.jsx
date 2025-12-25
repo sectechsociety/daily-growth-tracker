@@ -2,30 +2,31 @@
 /* eslint-disable no-unused-vars */
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FaTrophy, FaStar, FaCrown, FaFire, FaBolt, FaGem, FaInfoCircle, FaLock, FaCheck, FaMedal } from 'react-icons/fa';
+import { 
+  Trophy, Star, Crown, Flame, Zap, Gem, Info, Lock, Check, Medal,
+  Sprout, Leaf, TreeDeciduous, FlaskConical, Rocket, Mountain, Lightbulb, 
+  GraduationCap, Sparkles, Dumbbell, Flower2, Eye, Swords
+} from 'lucide-react';
 import axios from 'axios'; 
-// useTheme removed - styles are controlled locally
 
-// Level data (no changes)
+// Level data with React icons - Purple theme
 const LEVELS = [
-  { id: 1, name: "Sprout", xpRequired: 0, icon: "🌱", color: "#10b981", description: "Your journey begins! Take your first steps toward growth.", reward: "Basic Profile Badge" },
-  { id: 2, name: "Seedling", xpRequired: 250, icon: "🌿", color: "#3b82f6", description: "Growing stronger each day. Keep up the momentum!", reward: "Daily Streak Multiplier" },
-  { id: 3, name: "Bloom", xpRequired: 500, icon: "🌸", color: "#8b5cf6", description: "Your efforts are starting to show beautiful results.", reward: "Custom Theme Access" },
-  { id: 4, name: "Growth", xpRequired: 1000, icon: "🌳", color: "#ec4899", description: "Steady progress and consistent effort lead to substantial growth.", reward: "Bonus XP Tasks" },
-  { id: 5, name: "Flourish", xpRequired: 1500, icon: "🌺", color: "#f59e0b", description: "You're flourishing! Your habits are becoming second nature.", reward: "Achievement Showcase" },
-  { id: 6, name: "Thrive", xpRequired: 2000, icon: "🌴", color: "#ef4444", description: "Thriving in your journey, inspiring others around you.", reward: "Weekly Challenge Access" },
-  { id: 7, name: "Excel", xpRequired: 2500, icon: "⭐", color: "#dc2626", description: "Excellence is not an act but a habit you've mastered.", reward: "Profile Animations" },
-  { id: 8, name: "Master", xpRequired: 3000, icon: "👑", color: "#7c3aed", description: "You've mastered the fundamentals and are ready for greater challenges.", reward: "Exclusive Avatar Frame" },
-  { id: 9, name: "Sage", xpRequired: 3500, icon: "🧙", color: "#db2777", description: "Your wisdom and experience guide not only you but others.", reward: "Mentor Badge" },
-  { id: 10, name: "Legend", xpRequired: 4000, icon: "🏆", color: "#06b6d4", description: "Your dedication has made you legendary among peers.", reward: "Custom Dashboard Layout" },
-  { id: 11, name: "Champion", xpRequired: 4500, icon: "⚡", color: "#fbbf24", description: "A champion of personal growth, unstoppable and inspiring.", reward: "Double XP Weekends" },
-  { id: 12, name: "Hero", xpRequired: 5000, icon: "🦸", color: "#a855f7", description: "Your heroic journey inspires everyone around you.", reward: "Special Event Access" },
-  { id: 13, name: "Titan", xpRequired: 5500, icon: "💪", color: "#f97316", description: "Titan of discipline and consistency, a force to be reckoned with.", reward: "Leaderboard Spotlight" },
-  { id: 14, name: "Oracle", xpRequired: 6000, icon: "🔮", color: "#0ea5e9", description: "Your insights and foresight guide your perfect decisions.", reward: "Predictive Analytics" },
-  { id: 15, name: "Divine", xpRequired: 6500, icon: "✨", color: "#fcd34d", description: "You've reached the pinnacle of personal excellence.", reward: "Legacy Achievement" },
-];
-
-function LevelRoadmap({ level, xp }) {
+  { id: 1, name: "Sprout", xpRequired: 0, icon: Sprout, color: "#d98fc5ff", description: "Your journey begins! Take your first steps toward growth.", reward: "Basic Profile Badge" },
+  { id: 2, name: "Seedling", xpRequired: 250, icon: Leaf, color: "#8B7FC7", description: "Growing stronger each day. Keep up the momentum!", reward: "Daily Streak Multiplier" },
+  { id: 3, name: "Bloom", xpRequired: 500, icon: Flower2, color: "#a99ee0", description: "Your efforts are starting to show beautiful results.", reward: "Custom Theme Access" },
+  { id: 4, name: "Growth", xpRequired: 1000, icon: TreeDeciduous, color: "#292055ff", description: "Steady progress and consistent effort lead to substantial growth.", reward: "Bonus XP Tasks" },
+  { id: 5, name: "Flourish", xpRequired: 1500, icon: FlaskConical, color: "#9d8fd9", description: "You're flourishing! Your habits are becoming second nature.", reward: "Achievement Showcase" },
+  { id: 6, name: "Thrive", xpRequired: 2000, icon: Mountain, color: "#7a6eb5", description: "Thriving in your journey, inspiring others around you.", reward: "Weekly Challenge Access" },
+  { id: 7, name: "Excel", xpRequired: 2500, icon: Star, color: "#a99ee0", description: "Excellence is not an act but a habit you've mastered.", reward: "Profile Animations" },
+  { id: 8, name: "Master", xpRequired: 3000, icon: Crown, color: "#8B7FC7", description: "You've mastered the fundamentals and are ready for greater challenges.", reward: "Exclusive Avatar Frame" },
+  { id: 9, name: "Sage", xpRequired: 3500, icon: GraduationCap, color: "#9d8fd9", description: "Your wisdom and experience guide not only you but others.", reward: "Mentor Badge" },
+  { id: 10, name: "Legend", xpRequired: 4000, icon: Trophy, color: "#7a6eb5", description: "Your dedication has made you legendary among peers.", reward: "Custom Dashboard Layout" },
+  { id: 11, name: "Champion", xpRequired: 4500, icon: Zap, color: "#a99ee0", description: "A champion of personal growth, unstoppable and inspiring.", reward: "Double XP Weekends" },
+  { id: 12, name: "Hero", xpRequired: 5000, icon: Rocket, color: "#8B7FC7", description: "Your heroic journey inspires everyone around you.", reward: "Special Event Access" },
+  { id: 13, name: "Titan", xpRequired: 5500, icon: Dumbbell, color: "#9d8fd9", description: "Titan of discipline and consistency, a force to be reckoned with.", reward: "Leaderboard Spotlight" },
+  { id: 14, name: "Oracle", xpRequired: 6000, icon: Eye, color: "#7a6eb5", description: "Your insights and foresight guide your perfect decisions.", reward: "Predictive Analytics" },
+  { id: 15, name: "Divine", xpRequired: 6500, icon: Sparkles, color: "#a99ee0", description: "You've reached the pinnacle of personal excellence.", reward: "Legacy Achievement" },
+];function LevelRoadmap({ level, xp }) {
   // UseTheme is no longer the primary style driver
   // const { theme } = useTheme(); 
   // const currentTheme = theme || {};
@@ -217,7 +218,7 @@ function LevelRoadmap({ level, xp }) {
                   background: `linear-gradient(135deg, ${selectedLevel.color}33, ${selectedLevel.color}66)`,
                   boxShadow: `0 0 20px ${selectedLevel.color}66`
                 }}>
-                  <span style={styles.modalIcon}>{selectedLevel.icon}</span>
+                  {React.createElement(selectedLevel.icon, { size: 60, color: selectedLevel.color })}
                 </div>
                 <h2 style={styles.modalTitle}>Level {selectedLevel.id}: {selectedLevel.name}</h2>
                 <p style={styles.modalXP}>{selectedLevel.xpRequired} XP required</p>
@@ -232,7 +233,7 @@ function LevelRoadmap({ level, xp }) {
                 <div style={styles.modalSection}>
                   <h3 style={styles.modalSectionTitle}>Reward</h3>
                   <div style={styles.rewardBadge}>
-                    <FaMedal color={selectedLevel.color} size={24} style={{ marginRight: '10px' }} />
+                    <Medal color={selectedLevel.color} size={24} style={{ marginRight: '10px' }} />
                     <span>{selectedLevel.reward}</span>
                   </div>
                 </div>
@@ -242,12 +243,12 @@ function LevelRoadmap({ level, xp }) {
                   <div style={styles.statusBadge}>
                     {level >= selectedLevel.id ? (
                       <>
-                        <FaCheck color="#10b981" size={18} style={{ marginRight: '10px' }} />
+                        <Check color="#8B7FC7" size={18} style={{ marginRight: '10px' }} />
                         <span>Unlocked</span>
                       </>
                     ) : (
                       <>
-                        <FaLock color="#9ca3af" size={18} style={{ marginRight: '10px' }} />
+                        <Lock color="#9ca3af" size={18} style={{ marginRight: '10px' }} />
                         <span>Locked - Need {selectedLevel.xpRequired - xp} more XP</span>
                       </>
                     )}
@@ -268,75 +269,68 @@ function LevelRoadmap({ level, xp }) {
         )}
       </AnimatePresence>
 
-      {/* Level Up Animation (unchanged) */}
-      <AnimatePresence>
-        {showLevelUp && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.5, y: 50 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.5, y: -50 }}
-            style={styles.levelUpNotification} // This style is missing, added below
-          >
-            <FaCrown size={50} color="#fbbf24" />
-            <h2>LEVEL UP!</h2>
-            <p>🎉 Congratulations! You've reached Level {currentLevel.id}: {currentLevel.name}! Keep growing!</p>
-            <div style={styles.rewardUnlocked}>
-              <FaMedal color="#fbbf24" size={24} style={{ marginRight: '10px' }} />
-              <span>Reward Unlocked: {currentLevel.reward}</span>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Header Section */}
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        style={styles.header}
-      >
-        <h1 style={styles.title}>
-          <FaTrophy color="#fbbf24" /> Your Growth Journey
-        </h1>
-        <p style={styles.subtitle}>Progress through 15 legendary levels</p>
-      </motion.div>
-
-      {/* Current Level Card */}
+      {/* Level Up Animation */}
+      <AnimatePresence>
+        {showLevelUp && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.5, y: 50 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.5, y: -50 }}
+            style={styles.levelUpNotification}
+          >
+            <Crown size={50} color="#8B7FC7" />
+            <h2 style={{ color: '#2D3748', marginTop: '20px', marginBottom: '10px' }}>LEVEL UP!</h2>
+            <p style={{ color: '#4A5568' }}>Congratulations! You've reached Level {currentLevel.id}: {currentLevel.name}! Keep growing!</p>
+            <div style={styles.rewardUnlocked}>
+              <Medal color="#8B7FC7" size={24} style={{ marginRight: '10px' }} />
+              <span>Reward Unlocked: {currentLevel.reward}</span>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>      {/* Header Section */}
+      <motion.div
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        style={styles.header}
+      >
+        <h1 style={styles.title}>
+          <Trophy color="#8B7FC7" /> Your Growth Journey
+        </h1>
+        <p style={styles.subtitle}>Progress through 15 legendary levels</p>
+      </motion.div>      {/* Current Level Card */}
 			<motion.div
 				initial={{ opacity: 0, scale: 0.9 }}
 				animate={{ opacity: 1, scale: 1 }}
 				whileHover={{ scale: 1.02, boxShadow: '0 12px 45px rgba(139, 127, 199, 0.25)' }}
         transition={{ type: "spring", stiffness: 300 }}
-        style={{
-          ...styles.currentLevelCard,
-					// Bright white card background
+        style={{
+          ...styles.currentLevelCard,
 					background: 'rgba(255, 255, 255, 0.98)', 
-					// Soft purple border
 					borderColor: 'rgba(139, 127, 199, 0.2)',
-        }}
-        onClick={() => handleLevelClick(currentLevelInfo)}
-      >
-        <div style={styles.levelIcon}>{currentLevelInfo.icon}</div>
-        <div style={styles.levelInfo}>
-          <h2 style={styles.levelName}>
-            Level {currentLevelInfo.id}: {currentLevelInfo.name}
-          </h2>
-          <p style={styles.xpText}>
-            {/* MODIFIED: Use `xp` prop directly */}
-      	  {xp} / {nextLevelInfo.xpRequired} XP
-          </p>
-          <p style={styles.levelDescription}>{currentLevelInfo.description}</p>
-        </div>
-        <div style={styles.levelBadge}>
-          <FaStar color="#FFD700" size={24} />
-          <FaInfoCircle 
-            color="#fff" 
-            size={16} 
-            style={{ marginTop: '10px', cursor: 'pointer' }} 
-          />
-        </div>
-      </motion.div>
-
-      {/* Progress Bar */}
+        }}
+        onClick={() => handleLevelClick(currentLevelInfo)}
+      >
+        <div style={styles.levelIcon}>
+          {React.createElement(currentLevelInfo.icon, { size: 70, color: currentLevelInfo.color })}
+        </div>
+        <div style={styles.levelInfo}>
+          <h2 style={styles.levelName}>
+            Level {currentLevelInfo.id}: {currentLevelInfo.name}
+          </h2>
+          <p style={styles.xpText}>
+      	  {xp} / {nextLevelInfo.xpRequired} XP
+          </p>
+          <p style={styles.levelDescription}>{currentLevelInfo.description}</p>
+        </div>
+        <div style={styles.levelBadge}>
+          <Star color="#8B7FC7" size={24} />
+          <Info 
+            color="#8B7FC7" 
+            size={16} 
+            style={{ marginTop: '10px', cursor: 'pointer' }} 
+          />
+        </div>
+      </motion.div>      {/* Progress Bar */}
       <div style={styles.progressContainer}>
         <div style={styles.progressLabels}>
           <span style={styles.progressLabel}>
@@ -356,7 +350,7 @@ function LevelRoadmap({ level, xp }) {
             style={{
               ...styles.progressBarFill,
               // MODIFIED: Hardcoded gradient to match image (purple-to-pink)
-              background: `linear-gradient(90deg, #8b5cf6, #ec4899)`,
+              background: `linear-gradient(90deg, #8B7FC7, #9d8fd9)`,
             }}
           />
         </div>
@@ -381,7 +375,7 @@ function LevelRoadmap({ level, xp }) {
                 style={styles.achievementItem}
 	whileHover={{ scale: 1.02, background: 'rgba(255,255,255,0.96)' }}
               >
-                <FaMedal color="#fbbf24" size={18} style={{ marginRight: '10px' }} />
+                <Medal color="#8B7FC7" size={18} style={{ marginRight: '10px' }} />
                 <div style={styles.achievementInfo}>
                   <p style={styles.achievementName}>{achievement.name}</p>
                   <p style={styles.achievementDescription}>{achievement.description}</p>
@@ -396,7 +390,7 @@ function LevelRoadmap({ level, xp }) {
               style={styles.achievementItem}
 		  whileHover={{ scale: 1.02, background: 'rgba(255,255,255,0.96)' }}
             >
-              <FaMedal color="#fbbf24" size={18} style={{ marginRight: '10px' }} />
+              <Medal color="#8B7FC7" size={18} style={{ marginRight: '10px' }} />
               <div style={styles.achievementInfo}>
                 <p style={styles.noAchievements}>Complete tasks to earn achievements!</p>
               </div>
@@ -471,7 +465,7 @@ function LevelRoadmap({ level, xp }) {
 									cursor: 'pointer',
 								}}
 							>
-                  <span style={styles.levelEmoji}>{levelNode.icon}</span>
+                  {React.createElement(levelNode.icon, { size: 40, color: levelNode.color })}
                   {isCurrent && (
                     <motion.div
                       animate={{ rotate: 360 }}
@@ -493,7 +487,7 @@ function LevelRoadmap({ level, xp }) {
                   <p style={styles.levelNodeXP}>{levelNode.xpRequired} XP</p>
 									{isUnlocked && (
 										<motion.div>
-											<FaStar color={levelNode.color} size={12} style={styles.unlockedStar} />
+											<Star color={levelNode.color} size={12} style={styles.unlockedStar} />
 										</motion.div>
 									)}
                 </motion.div>
@@ -550,7 +544,7 @@ const styles = {
     zIndex: 1001, // Above confetti
     boxShadow: '0 20px 60px rgba(221, 207, 207, 0.95)',
     border: '1px solid rgba(235, 228, 228, 0.1)',
-    color: '#FFFFFF',
+    color: '#2D3748',
   },
   rewardUnlocked: {
     display: 'flex',
@@ -558,10 +552,10 @@ const styles = {
     justifyContent: 'center',
     marginTop: '20px',
     padding: '10px 20px',
-    background: 'rgba(251, 191, 36, 0.2)',
+    background: 'rgba(139, 127, 199, 0.15)',
     borderRadius: '10px',
     fontWeight: '600',
-    color: '#fbbf24',
+    color: '#8B7FC7',
   },
   header: {
     textAlign: 'center',
@@ -575,13 +569,13 @@ const styles = {
     alignItems: 'center',
     justifyContent: 'center',
     gap: '15px',
-    // MODIFIED: Explicitly set white
-    color: '#FFFFFF',
+    // MODIFIED: Dark color visible on light background
+    color: '#2D3748',
   },
   subtitle: {
     fontSize: '1.2rem',
-    // MODIFIED: Light lavender color
-    color: '#B0A8D9',
+    // MODIFIED: Darker color for visibility
+    color: '#718096',
     fontWeight: '500',
   },
 	currentLevelCard: {
@@ -773,7 +767,7 @@ const styles = {
   currentIndicator: {
     position: 'absolute',
     inset: '-10px',
-    border: '3px solid #fbbf24',
+    border: '3px solid #a99ee0',
     borderRadius: '50%',
     borderTop: '3px solid transparent',
   },
@@ -785,13 +779,13 @@ const styles = {
     fontSize: '0.9rem',
     fontWeight: '700',
     marginBottom: '5px',
-    // MODIFIED: White text
-    color: '#FFFFFF',
+    // MODIFIED: Dark text visible on light background
+    color: '#2D3748',
   },
   levelNodeXP: {
     fontSize: '0.75rem',
-    // MODIFIED: Light lavender text
-    color: '#B0A8D9',
+    // MODIFIED: Darker purple for visibility
+    color: '#7a6eb5',
   },
   unlockedStar: {
     marginTop: '5px',
@@ -896,7 +890,7 @@ const styles = {
   	 padding: '12px 30px',
   	 borderRadius: '10px',
   	 border: 'none',
-    background: 'linear-gradient(135deg, #8b5cf6, #6366f1)',
+    background: 'linear-gradient(135deg, #8B7FC7, #9d8fd9)',
   	 color: '#fff',
   	 fontSize: '1rem',
   	 fontWeight: '600',

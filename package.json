@@ -4,10 +4,10 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
+    "dev": "vite --config frontend/vite.config.js",
+    "build": "vite build --config frontend/vite.config.js",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview --config frontend/vite.config.js"
   },
   "dependencies": {
     "@dataconnect/generated": "file:src/dataconnect-generated",
