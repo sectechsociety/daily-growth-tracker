@@ -1425,8 +1425,428 @@ function CalorieTracker({ user, addXP, userStats, setUserStats }) {
         )}
       </AnimatePresence>
 
+      {/* Nutrition Status Section */}
+      <NutritionStatusSection todayMealLog={todayMealLog} user={user} addXP={addXP} />
+
     </motion.div>
   );
 }
+
+// Nutrition Status Component
+const NutritionStatusSection = ({ todayMealLog, user, addXP }) => {
+  const [nutritionXPEarned, setNutritionXPEarned] = useState(false);
+  const [showSuccessAnimation, setShowSuccessAnimation] = useState(false);
+
+  // Calculate total nutrition from logged meals
+  const totalNutrition = todayMealLog.reduce((acc, meal) => {
+    return {
+      calories: acc.calories + (meal.calories || 0),
+      protein: acc.protein + (meal.protein || 0),
+      carbs: acc.carbs + (meal.carbs || 0),
+      fat: acc.fat + (meal.fat || 0)
+    };
+  }, { calories: 0, protein: 0, carbs: 0, fat: 0 });
+
+  // Daily nutrition requirements (basic)
+  const requirements = {
+    protein: 50, // grams
+    carbs: 130,  // grams
+    fat: 44      // grams
+  };
+
+  // Check if XP already earned today
+  useEffect(() => {
+    const today = getTodayDateKey();
+    const earnedKey = `nutritionXP_${today}`;
+    const earned = localStorage.getItem(earnedKey) === 'true';
+    setNutritionXPEarned(earned);
+  }, []);
+
+  // Check if nutrition goals are met
+  const goalsMet = 
+    totalNutrition.protein >= requirements.protein &&
+    totalNutrition.carbs >= requirements.carbs &&
+    totalNutrition.fat >= requirements.fat;
+
+  // Award XP when goals are met
+  useEffect(() => {
+    if (goalsMet && !nutritionXPEarned && todayMealLog.length > 0) {
+      const today = getTodayDateKey();
+      const earnedKey = `nutritionXP_${today}`;
+      
+      // Award 15 XP for nutrition goals
+      if (addXP) {
+        addXP('nutrition', 15, { x: window.innerWidth / 2, y: window.innerHeight / 2 });
+      }
+      
+      localStorage.setItem(earnedKey, 'true');
+      setNutritionXPEarned(true);
+      setShowSuccessAnimation(true);
+      
+      setTimeout(() => setShowSuccessAnimation(false), 3000);
+    }
+  }, [goalsMet, nutritionXPEarned, todayMealLog.length, addXP]);
+
+  const getPercentage = (current, required) => Math.min((current / required) * 100, 100);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5, delay: 0.3 }}
+      style={{
+        marginTop: '40px',
+        background: designTheme.cardBg,
+        borderRadius: '20px',
+        padding: '32px',
+        boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
+        border: `2px solid ${designTheme.border}`
+      }}
+    >
+      {/* Success Animation */}
+      <AnimatePresence>
+        {showSuccessAnimation && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.8, y: -20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.8, y: -20 }}
+            style={{
+              position: 'fixed',
+              top: '20px',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              zIndex: 1000,
+              background: 'linear-gradient(135deg, #10b981, #059669)',
+              color: '#ffffff',
+              padding: '16px 32px',
+              borderRadius: '16px',
+              boxShadow: '0 12px 40px rgba(16, 185, 129, 0.4)',
+              fontSize: '1.1rem',
+              fontWeight: '700',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px'
+            }}
+          >
+            <span style={{ fontSize: '1.5rem' }}>🎉</span>
+            Nutrition Goals Achieved! +15 XP
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Header */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginBottom: '24px',
+        flexWrap: 'wrap',
+        gap: '12px'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <IoNutrition size={32} color={designTheme.accent} />
+          <div>
+            <h3 style={{
+              margin: 0,
+              fontSize: '1.5rem',
+              fontWeight: '800',
+              color: designTheme.text
+            }}>
+              Nutrition Status
+            </h3>
+            <p style={{
+              margin: '4px 0 0 0',
+              fontSize: '0.9rem',
+              color: designTheme.textSecondary
+            }}>
+              Track your daily macros and earn XP
+            </p>
+          </div>
+        </div>
+        
+        {goalsMet && (
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            style={{
+              background: 'linear-gradient(135deg, #10b981, #059669)',
+              color: '#ffffff',
+              padding: '8px 16px',
+              borderRadius: '12px',
+              fontSize: '0.9rem',
+              fontWeight: '700',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px'
+            }}
+          >
+            <span>✓</span> Goals Met {nutritionXPEarned && '• XP Earned'}
+          </motion.div>
+        )}
+      </div>
+
+      {/* Nutrition Grid */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+        gap: '20px',
+        marginBottom: '24px'
+      }}>
+        {/* Protein */}
+        <motion.div
+          whileHover={{ scale: 1.02 }}
+          style={{
+            background: 'rgba(239, 68, 68, 0.05)',
+            borderRadius: '16px',
+            padding: '20px',
+            border: '2px solid rgba(239, 68, 68, 0.2)'
+          }}
+        >
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            marginBottom: '12px'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '1.5rem' }}>💪</span>
+              <span style={{
+                fontSize: '1.1rem',
+                fontWeight: '700',
+                color: designTheme.text
+              }}>
+                Protein
+              </span>
+            </div>
+            <span style={{
+              fontSize: '1.2rem',
+              fontWeight: '800',
+              color: totalNutrition.protein >= requirements.protein ? '#10b981' : '#ef4444'
+            }}>
+              {Math.round(totalNutrition.protein)}g
+            </span>
+          </div>
+          
+          <div style={{
+            width: '100%',
+            height: '10px',
+            background: '#f3f4f6',
+            borderRadius: '20px',
+            overflow: 'hidden',
+            marginBottom: '8px'
+          }}>
+            <motion.div
+              initial={{ width: 0 }}
+              animate={{ width: `${getPercentage(totalNutrition.protein, requirements.protein)}%` }}
+              transition={{ duration: 0.8, delay: 0.1 }}
+              style={{
+                height: '100%',
+                background: 'linear-gradient(90deg, #ef4444, #dc2626)',
+                borderRadius: '20px'
+              }}
+            />
+          </div>
+          
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            fontSize: '0.85rem',
+            color: designTheme.textSecondary
+          }}>
+            <span>Goal: {requirements.protein}g</span>
+            <span>{Math.round(getPercentage(totalNutrition.protein, requirements.protein))}%</span>
+          </div>
+        </motion.div>
+
+        {/* Carbs */}
+        <motion.div
+          whileHover={{ scale: 1.02 }}
+          style={{
+            background: 'rgba(245, 158, 11, 0.05)',
+            borderRadius: '16px',
+            padding: '20px',
+            border: '2px solid rgba(245, 158, 11, 0.2)'
+          }}
+        >
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            marginBottom: '12px'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '1.5rem' }}>🌾</span>
+              <span style={{
+                fontSize: '1.1rem',
+                fontWeight: '700',
+                color: designTheme.text
+              }}>
+                Carbs
+              </span>
+            </div>
+            <span style={{
+              fontSize: '1.2rem',
+              fontWeight: '800',
+              color: totalNutrition.carbs >= requirements.carbs ? '#10b981' : '#f59e0b'
+            }}>
+              {Math.round(totalNutrition.carbs)}g
+            </span>
+          </div>
+          
+          <div style={{
+            width: '100%',
+            height: '10px',
+            background: '#f3f4f6',
+            borderRadius: '20px',
+            overflow: 'hidden',
+            marginBottom: '8px'
+          }}>
+            <motion.div
+              initial={{ width: 0 }}
+              animate={{ width: `${getPercentage(totalNutrition.carbs, requirements.carbs)}%` }}
+              transition={{ duration: 0.8, delay: 0.2 }}
+              style={{
+                height: '100%',
+                background: 'linear-gradient(90deg, #f59e0b, #d97706)',
+                borderRadius: '20px'
+              }}
+            />
+          </div>
+          
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            fontSize: '0.85rem',
+            color: designTheme.textSecondary
+          }}>
+            <span>Goal: {requirements.carbs}g</span>
+            <span>{Math.round(getPercentage(totalNutrition.carbs, requirements.carbs))}%</span>
+          </div>
+        </motion.div>
+
+        {/* Fat */}
+        <motion.div
+          whileHover={{ scale: 1.02 }}
+          style={{
+            background: 'rgba(139, 127, 199, 0.05)',
+            borderRadius: '16px',
+            padding: '20px',
+            border: '2px solid rgba(139, 127, 199, 0.2)'
+          }}
+        >
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            marginBottom: '12px'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '1.5rem' }}>🥑</span>
+              <span style={{
+                fontSize: '1.1rem',
+                fontWeight: '700',
+                color: designTheme.text
+              }}>
+                Healthy Fats
+              </span>
+            </div>
+            <span style={{
+              fontSize: '1.2rem',
+              fontWeight: '800',
+              color: totalNutrition.fat >= requirements.fat ? '#10b981' : designTheme.accent
+            }}>
+              {Math.round(totalNutrition.fat)}g
+            </span>
+          </div>
+          
+          <div style={{
+            width: '100%',
+            height: '10px',
+            background: '#f3f4f6',
+            borderRadius: '20px',
+            overflow: 'hidden',
+            marginBottom: '8px'
+          }}>
+            <motion.div
+              initial={{ width: 0 }}
+              animate={{ width: `${getPercentage(totalNutrition.fat, requirements.fat)}%` }}
+              transition={{ duration: 0.8, delay: 0.3 }}
+              style={{
+                height: '100%',
+                background: `linear-gradient(90deg, ${designTheme.accent}, #7a6db5)`,
+                borderRadius: '20px'
+              }}
+            />
+          </div>
+          
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            fontSize: '0.85rem',
+            color: designTheme.textSecondary
+          }}>
+            <span>Goal: {requirements.fat}g</span>
+            <span>{Math.round(getPercentage(totalNutrition.fat, requirements.fat))}%</span>
+          </div>
+        </motion.div>
+      </div>
+
+      {/* Suggestions */}
+      {!goalsMet && todayMealLog.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          style={{
+            background: 'rgba(245, 158, 11, 0.08)',
+            border: '2px solid rgba(245, 158, 11, 0.2)',
+            borderRadius: '12px',
+            padding: '16px',
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: '12px'
+          }}
+        >
+          <span style={{ fontSize: '1.5rem', flexShrink: 0 }}>💡</span>
+          <div>
+            <h4 style={{
+              margin: '0 0 8px 0',
+              fontSize: '1rem',
+              fontWeight: '700',
+              color: designTheme.text
+            }}>
+              Nutrition Tips
+            </h4>
+            <p style={{
+              margin: 0,
+              fontSize: '0.9rem',
+              color: designTheme.textSecondary,
+              lineHeight: '1.5'
+            }}>
+              {totalNutrition.protein < requirements.protein && '• Add protein-rich foods like eggs, chicken, or Greek yogurt '}
+              {totalNutrition.carbs < requirements.carbs && '• Include complex carbs like oats, rice, or whole wheat '}
+              {totalNutrition.fat < requirements.fat && '• Add healthy fats like almonds, avocado, or olive oil'}
+            </p>
+          </div>
+        </motion.div>
+      )}
+
+      {todayMealLog.length === 0 && (
+        <div style={{
+          textAlign: 'center',
+          padding: '40px 20px',
+          color: designTheme.textSecondary
+        }}>
+          <IoNutrition size={64} style={{ opacity: 0.3, marginBottom: '16px' }} />
+          <p style={{ fontSize: '1.1rem', fontWeight: '600', margin: '0 0 8px 0' }}>
+            No meals logged yet
+          </p>
+          <p style={{ fontSize: '0.9rem', margin: 0 }}>
+            Start logging your meals to track your nutrition status!
+          </p>
+        </div>
+      )}
+    </motion.div>
+  );
+};
 
 export default CalorieTracker;

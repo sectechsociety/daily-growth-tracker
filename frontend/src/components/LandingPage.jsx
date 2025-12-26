@@ -110,13 +110,30 @@ export default function NewLandingPage({ user, onSignIn, onEnterApp, onSignOut }
                 onClick={isAuthenticated ? onEnterApp : onSignIn}
                 className="bg-purple-600 hover:bg-purple-700 text-white px-8 py-3 rounded-lg font-bold text-lg transition-all transform hover:scale-105"
               >
-                Get Started
+                Start Your Streak
               </button>
               <button
                 className="bg-gray-200 hover:bg-gray-300 text-gray-800 px-8 py-3 rounded-lg font-semibold text-lg transition-all"
               >
-                Learn More
+                See Features
               </button>
+            </div>
+
+            {/* Hero stats: XP, Streak, Level */}
+            <div className="mt-6 flex flex-wrap items-center justify-center lg:justify-start gap-4">
+              <div className="flex items-center gap-2 bg-purple-100 text-purple-700 px-3 py-2 rounded-lg shadow-sm">
+                <span className="inline-block w-2 h-2 rounded-full bg-purple-500 motion-safe:animate-pulse"></span>
+                <span className="font-bold">XP</span>
+                <span className="font-semibold">1,240</span>
+              </div>
+              <div className="flex items-center gap-2 bg-purple-100 text-purple-700 px-3 py-2 rounded-lg shadow-sm">
+                <span className="font-bold">Streak</span>
+                <span className="font-semibold">12 days 🔥</span>
+              </div>
+              <div className="flex items-center gap-2 bg-purple-100 text-purple-700 px-3 py-2 rounded-lg shadow-sm">
+                <span className="font-bold">Level</span>
+                <span className="font-semibold">5</span>
+              </div>
             </div>
           </div>
 
@@ -138,7 +155,90 @@ export default function NewLandingPage({ user, onSignIn, onEnterApp, onSignOut }
         </div>
       </main>
 
-      {/* Simple footer area */}
+      {/* How It Works */}
+      <section className="w-full max-w-7xl mx-auto px-6 py-16">
+        <h2 className="text-3xl md:text-4xl font-extrabold text-black text-center">How It Works</h2>
+        <p className="mt-3 text-gray-600 text-center">Add tasks, complete habits, earn XP, and level up—simple and motivating.</p>
+        <div className="mt-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="rounded-xl bg-white p-6 shadow-sm border border-purple-100">
+            <div className="w-10 h-10 rounded-lg bg-purple-100 text-purple-700 flex items-center justify-center font-bold">1</div>
+            <h3 className="mt-4 font-semibold text-black">Add tasks</h3>
+            <p className="text-gray-600 text-sm">Plan your day with focused tasks and habits.</p>
+          </div>
+          <div className="rounded-xl bg-white p-6 shadow-sm border border-purple-100">
+            <div className="w-10 h-10 rounded-lg bg-purple-100 text-purple-700 flex items-center justify-center font-bold">2</div>
+            <h3 className="mt-4 font-semibold text-black">Complete habits</h3>
+            <p className="text-gray-600 text-sm">Build streaks by checking off your routines.</p>
+          </div>
+          <div className="rounded-xl bg-white p-6 shadow-sm border border-purple-100">
+            <div className="w-10 h-10 rounded-lg bg-purple-100 text-purple-700 flex items-center justify-center font-bold">3</div>
+            <h3 className="mt-4 font-semibold text-black">Earn XP</h3>
+            <p className="text-gray-600 text-sm">Every completion gives you XP towards level ups.</p>
+          </div>
+          <div className="rounded-xl bg-white p-6 shadow-sm border border-purple-100">
+            <div className="w-10 h-10 rounded-lg bg-purple-100 text-purple-700 flex items-center justify-center font-bold">4</div>
+            <h3 className="mt-4 font-semibold text-black">Level up</h3>
+            <p className="text-gray-600 text-sm">Hit milestones, unlock badges, and keep the momentum.</p>
+          </div>
+        </div>
+      </section>
+
+      {/* Feature Grid */}
+      <section className="w-full max-w-7xl mx-auto px-6 py-16 bg-purple-50 rounded-2xl">
+        <h2 className="text-3xl md:text-4xl font-extrabold text-black text-center">Powerful Features</h2>
+        <div className="mt-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[
+            {title: "Daily Tasks", desc: "Organize your day with clean task lists."},
+            {title: "Smart To‑Do with XP", desc: "Tie tasks to XP for instant feedback."},
+            {title: "Streak system", desc: "Maintain momentum with streaks."},
+            {title: "Analytics", desc: "Track progress with simple insights."},
+            {title: "AI assistant", desc: "Get suggestions and planning help."},
+            {title: "Leaderboard", desc: "Friendly competition to stay motivated."},
+          ].map((f) => (
+            <div key={f.title} className="rounded-xl bg-white p-6 shadow-sm border border-purple-100 hover:shadow-md transition">
+              <h3 className="font-semibold text-black">{f.title}</h3>
+              <p className="mt-2 text-gray-600 text-sm">{f.desc}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Dashboard Preview */}
+      <section className="w-full max-w-7xl mx-auto px-6 py-16">
+        <h2 className="text-3xl md:text-4xl font-extrabold text-black text-center">Dashboard Preview</h2>
+        <p className="mt-3 text-gray-600 text-center">A glimpse of what you’ll use every day.</p>
+        <div className="mt-10 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="rounded-2xl bg-white p-5 border border-purple-100 shadow-sm">
+            <div className="h-40 rounded-xl bg-purple-100 flex items-center justify-center text-purple-700 font-semibold">Daily Tasks</div>
+            <p className="mt-3 text-sm text-gray-600">Clean checklist with XP per task.</p>
+          </div>
+          <div className="rounded-2xl bg-white p-5 border border-purple-100 shadow-sm">
+            <div className="h-40 rounded-xl bg-purple-100 flex items-center justify-center text-purple-700 font-semibold">Calendar</div>
+            <p className="mt-3 text-sm text-gray-600">Plan habits with a pastel calendar view.</p>
+          </div>
+          <div className="rounded-2xl bg-white p-5 border border-purple-100 shadow-sm">
+            <div className="h-40 rounded-xl bg-purple-100 flex items-center justify-center text-purple-700 font-semibold">To‑Do + XP</div>
+            <p className="mt-3 text-sm text-gray-600">Smart to‑dos that reward progress.</p>
+          </div>
+          <div className="rounded-2xl bg-white p-5 border border-purple-100 shadow-sm">
+            <div className="h-40 rounded-xl bg-purple-100 flex items-center justify-center text-purple-700 font-semibold">Streaks</div>
+            <p className="mt-3 text-sm text-gray-600">Keep the flame alive with streak tracking.</p>
+          </div>
+        </div>
+
+        {/* Motivational CTA */}
+        <div className="mt-12 rounded-2xl bg-gradient-to-r from-purple-100 to-purple-200 p-6 text-center">
+          <h3 className="text-xl font-bold text-purple-900">Start your streak today—earn XP with every task.</h3>
+          <button
+            onClick={isAuthenticated ? onEnterApp : onSignIn}
+            className="mt-4 bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg font-semibold transition"
+          >
+            Claim Your First XP
+          </button>
+        </div>
+      </section>
+
+      {/* Footer */}
       <footer className="w-full max-w-7xl mx-auto px-6 py-8 text-center text-gray-500">
         <p>&copy; {new Date().getFullYear()} Growth Tracker. All rights reserved.</p>
       </footer>

@@ -12,7 +12,11 @@ const CalendarSection = ({ user, userStats, tasks, dailyProgress, onResetDaily, 
   const [showNoteModal, setShowNoteModal] = useState(false);
   const [currentNote, setCurrentNote] = useState('');
   const [currentReminder, setCurrentReminder] = useState('');
+  const [reminderTime, setReminderTime] = useState('');
   const [motivationQuote, setMotivationQuote] = useState('');
+  const [activeNotifications, setActiveNotifications] = useState([]);
+  const [audioRefs, setAudioRefs] = useState({});
+  const [dismissedNotifications, setDismissedNotifications] = useState(new Set());
   
   // Calculate XP Today
   const xpToday = taskXP ? Object.entries(taskXP).reduce((sum, [taskId, count]) => {
@@ -87,23 +91,51 @@ const CalendarSection = ({ user, userStats, tasks, dailyProgress, onResetDaily, 
 
   const handleDateClick = (dayInfo) => {
     setSelectedDate(dayInfo.dateKey);
-    setCurrentNote(notes[dayInfo.dateKey] || '');
-    setCurrentReminder(reminders[dayInfo.dateKey] || '');
+    setCurrentNote(notes[dayInfo.dateKey]?.text || '');
+    setCurrentReminder(reminders[dayInfo.dateKey]?.text || '');
+    setReminderTime(reminders[dayInfo.dateKey]?.time || '');
     setShowNoteModal(true);
   };
 
   const saveNote = () => {
     if (selectedDate) {
+      // Save note
       if (currentNote.trim()) {
-        setNotes({ ...notes, [selectedDate]: currentNote.trim() });
+        setNotes({ ...notes, [selectedDate]: { text: currentNote.trim(), addedAt: Date.now() } });
+        
+        // Add note to todo list
+        const savedTodos = JSON.parse(localStorage.getItem('dashboardTodos') || '[]');
+        const newTodo = {
+          id: Date.now(),
+          text: `📝 ${currentNote.trim()} (from ${new Date(selectedDate.split('-')[0], selectedDate.split('-')[1], selectedDate.split('-')[2]).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })})`,
+          completed: false
+        };
+        savedTodos.push(newTodo);
+        localStorage.setItem('dashboardTodos', JSON.stringify(savedTodos));
+        window.dispatchEvent(new Event('storage')); // Trigger update
       }
+      
+      // Save reminder with time
       if (currentReminder.trim()) {
-        setReminders({ ...reminders, [selectedDate]: currentReminder.trim() });
+        const reminderData = {
+          text: currentReminder.trim(),
+          time: reminderTime,
+          date: selectedDate,
+          id: Date.now()
+        };
+        setReminders({ ...reminders, [selectedDate]: reminderData });
+        
+        // If time is set, schedule notification
+        if (reminderTime) {
+          scheduleNotification(reminderData);
+        }
       }
+      
       setShowNoteModal(false);
       setSelectedDate(null);
       setCurrentNote('');
       setCurrentReminder('');
+      setReminderTime('');
     }
   };
 
@@ -119,11 +151,115 @@ const CalendarSection = ({ user, userStats, tasks, dailyProgress, onResetDaily, 
       setSelectedDate(null);
       setCurrentNote('');
       setCurrentReminder('');
+      setReminderTime('');
     }
   };
 
+  // Schedule notification for reminder
+  const scheduleNotification = (reminderData) => {
+    if (!reminderData.time) return;
+    
+    const [hours, minutes] = reminderData.time.split(':');
+    const [year, month, day] = reminderData.date.split('-');
+    const reminderDateTime = new Date(parseInt(year), parseInt(month), parseInt(day), parseInt(hours), parseInt(minutes));
+    const now = new Date();
+    const timeUntilReminder = reminderDateTime - now;
+    
+    if (timeUntilReminder > 0) {
+      setTimeout(() => {
+        showNotification(reminderData);
+      }, timeUntilReminder);
+    }
+  };
+
+  // Show notification with sound
+  const showNotification = (reminderData) => {
+    // Check if already dismissed
+    if (dismissedNotifications.has(reminderData.id)) {
+      return;
+    }
+
+    const notification = {
+      id: reminderData.id,
+      text: reminderData.text,
+      time: reminderData.time
+    };
+    
+    setActiveNotifications(prev => [...prev, notification]);
+    
+    // Create alarm sound using Web Audio API - play once only
+    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    
+    // Create three quick beeps for alarm sound
+    for (let i = 0; i < 3; i++) {
+      const osc = audioContext.createOscillator();
+      const gain = audioContext.createGain();
+      
+      osc.connect(gain);
+      gain.connect(audioContext.destination);
+      
+      osc.type = 'square'; // Square wave for alarm-like sound
+      osc.frequency.setValueAtTime(880, audioContext.currentTime + (i * 0.15)); // A5 note
+      
+      gain.gain.setValueAtTime(0, audioContext.currentTime + (i * 0.15));
+      gain.gain.linearRampToValueAtTime(0.3, audioContext.currentTime + (i * 0.15) + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + (i * 0.15) + 0.1);
+      
+      osc.start(audioContext.currentTime + (i * 0.15));
+      osc.stop(audioContext.currentTime + (i * 0.15) + 0.1);
+    }
+    
+    setAudioRefs(prev => ({ ...prev, [notification.id]: { context: audioContext } }));
+  };
+
+  // Dismiss notification
+  const dismissNotification = (notificationId) => {
+    // Close audio context if exists
+    if (audioRefs[notificationId]) {
+      if (audioRefs[notificationId].context) {
+        audioRefs[notificationId].context.close();
+      }
+    }
+    
+    // Mark as dismissed
+    setDismissedNotifications(prev => new Set([...prev, notificationId]));
+    
+    // Remove notification
+    setActiveNotifications(prev => prev.filter(n => n.id !== notificationId));
+    setAudioRefs(prev => {
+      const newRefs = { ...prev };
+      delete newRefs[notificationId];
+      return newRefs;
+    });
+  };
+
+  // Check for due reminders on mount and every minute
+  useEffect(() => {
+    const checkReminders = () => {
+      const now = new Date();
+      Object.entries(reminders).forEach(([dateKey, reminderData]) => {
+        if (reminderData.time) {
+          const [hours, minutes] = reminderData.time.split(':');
+          const [year, month, day] = dateKey.split('-');
+          const reminderDateTime = new Date(parseInt(year), parseInt(month), parseInt(day), parseInt(hours), parseInt(minutes));
+          
+          // Show notification if within 1 minute of reminder time
+          const timeDiff = Math.abs(now - reminderDateTime);
+          if (timeDiff < 60000 && !activeNotifications.find(n => n.id === reminderData.id)) {
+            showNotification(reminderData);
+          }
+        }
+      });
+    };
+    
+    checkReminders();
+    const interval = setInterval(checkReminders, 60000); // Check every minute
+    
+    return () => clearInterval(interval);
+  }, [reminders]);
+
   // View buttons
-  const viewOptions = ['DAY', 'WEEK', 'MONTH', 'YEAR'];
+  const viewOptions = ['WEEK', 'MONTH', 'YEAR'];
 
   return (
     <div style={{
@@ -157,20 +293,6 @@ const CalendarSection = ({ user, userStats, tasks, dailyProgress, onResetDaily, 
         >
           Welcome back, {user?.displayName || user?.name || 'Explorer'}!
         </motion.h2>
-        
-        {/* Steps count */}
-        <motion.p
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3, duration: 0.5 }}
-          style={{
-            fontSize: '1rem',
-            color: '#718096',
-            marginBottom: '30px',
-          }}
-        >
-          Today you have taken <strong>128</strong> steps.
-        </motion.p>
 
         {/* Progress Circle with Side Stats */}
         <div className="progress-with-stats" style={{
@@ -644,19 +766,19 @@ const CalendarSection = ({ user, userStats, tasks, dailyProgress, onResetDaily, 
                 padding: '20px 16px',
                 borderRadius: '16px',
                 background: dayInfo.isToday 
-                  ? 'linear-gradient(135deg, #3B82F6, #60A5FA)' 
+                  ? 'linear-gradient(135deg, #8B7FC7, #A78BFA)' 
                   : dayInfo.hasNote
                   ? 'rgba(139, 127, 199, 0.15)'
                   : 'rgba(255, 255, 255, 0.7)',
                 border: dayInfo.isToday 
-                  ? '2px solid #3B82F6' 
+                  ? '2px solid #8B7FC7' 
                   : dayInfo.hasNote
                   ? '2px solid rgba(139, 127, 199, 0.3)'
                   : '2px solid rgba(0, 0, 0, 0.05)',
                 cursor: 'pointer',
                 textAlign: 'center',
                 boxShadow: dayInfo.isToday 
-                  ? '0 6px 20px rgba(59, 130, 246, 0.3)' 
+                  ? '0 6px 20px rgba(139, 127, 199, 0.3)' 
                   : '0 2px 8px rgba(0, 0, 0, 0.05)',
                 transition: 'all 0.3s ease',
                 position: 'relative',
@@ -686,7 +808,7 @@ const CalendarSection = ({ user, userStats, tasks, dailyProgress, onResetDaily, 
                   width: '8px',
                   height: '8px',
                   borderRadius: '50%',
-                  background: reminders[dayInfo.dateKey] ? '#EF4444' : '#8B5CF6',
+                  background: reminders[dayInfo.dateKey] ? '#A78BFA' : '#8B5CF6',
                 }} />
               )}
             </motion.div>
@@ -785,7 +907,7 @@ const CalendarSection = ({ user, userStats, tasks, dailyProgress, onResetDaily, 
                         width: '6px',
                         height: '6px',
                         borderRadius: '50%',
-                        background: reminders[dayInfo.dateKey] ? '#EF4444' : '#8B5CF6',
+                        background: reminders[dayInfo.dateKey] ? '#A78BFA' : '#8B5CF6',
                       }} />
                     )}
                   </motion.div>
@@ -930,7 +1052,7 @@ const CalendarSection = ({ user, userStats, tasks, dailyProgress, onResetDaily, 
                 />
               </div>
 
-              <div style={{ marginBottom: '30px' }}>
+              <div style={{ marginBottom: '20px' }}>
                 <label style={{
                   display: 'block',
                   fontSize: '0.9rem',
@@ -956,8 +1078,35 @@ const CalendarSection = ({ user, userStats, tasks, dailyProgress, onResetDaily, 
                     outline: 'none',
                     resize: 'vertical',
                     fontFamily: 'inherit',
+                    marginBottom: '12px',
                   }}
                 />
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <label style={{
+                    fontSize: '0.85rem',
+                    fontWeight: '600',
+                    color: '#4B5563',
+                    whiteSpace: 'nowrap',
+                  }}>
+                    ⏰ Time:
+                  </label>
+                  <input
+                    type="time"
+                    value={reminderTime}
+                    onChange={(e) => setReminderTime(e.target.value)}
+                    style={{
+                      flex: 1,
+                      padding: '10px 14px',
+                      borderRadius: '10px',
+                      border: '2px solid rgba(139, 127, 199, 0.2)',
+                      background: 'rgba(255, 255, 255, 0.8)',
+                      color: '#2D3748',
+                      fontSize: '0.9rem',
+                      outline: 'none',
+                      fontFamily: 'inherit',
+                    }}
+                  />
+                </div>
               </div>
 
               <div style={{
@@ -1020,8 +1169,109 @@ const CalendarSection = ({ user, userStats, tasks, dailyProgress, onResetDaily, 
         )}
       </AnimatePresence>
 
+      {/* Notification Badges */}
+      <AnimatePresence>
+        {activeNotifications.map((notification, index) => (
+          <motion.div
+            key={notification.id}
+            initial={{ opacity: 0, x: 100, scale: 0.8 }}
+            animate={{ opacity: 1, x: 0, scale: 1 }}
+            exit={{ opacity: 0, x: 100, scale: 0.8 }}
+            style={{
+              position: 'fixed',
+              top: `${20 + index * 110}px`,
+              right: '20px',
+              zIndex: 2000,
+              background: 'linear-gradient(135deg, #8B7FC7, #A78BFA)',
+              borderRadius: '16px',
+              padding: '20px 24px',
+              minWidth: '320px',
+              maxWidth: '400px',
+              boxShadow: '0 10px 40px rgba(139, 127, 199, 0.5), 0 0 0 3px rgba(255, 255, 255, 0.5)',
+              border: '2px solid rgba(255, 255, 255, 0.3)',
+              animation: 'pulse 2s infinite',
+            }}
+          >
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'flex-start',
+              gap: '12px',
+            }}>
+              <div style={{ flex: 1 }}>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  marginBottom: '8px',
+                }}>
+                  <span style={{ fontSize: '1.5rem' }}>🔔</span>
+                  <span style={{
+                    fontSize: '0.75rem',
+                    fontWeight: '700',
+                    color: 'rgba(255, 255, 255, 0.9)',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px',
+                  }}>
+                    Reminder
+                  </span>
+                </div>
+                <p style={{
+                  color: '#fff',
+                  fontSize: '1rem',
+                  fontWeight: '600',
+                  margin: '0 0 8px 0',
+                  lineHeight: '1.4',
+                }}>
+                  {notification.text}
+                </p>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  color: 'rgba(255, 255, 255, 0.9)',
+                  fontSize: '0.85rem',
+                  fontWeight: '500',
+                }}>
+                  <span>⏰</span>
+                  <span>{notification.time}</span>
+                </div>
+              </div>
+              <motion.button
+                whileHover={{ scale: 1.1, rotate: 90 }}
+                whileTap={{ scale: 0.9 }}
+                onClick={() => dismissNotification(notification.id)}
+                style={{
+                  background: 'rgba(255, 255, 255, 0.2)',
+                  border: '2px solid rgba(255, 255, 255, 0.3)',
+                  borderRadius: '10px',
+                  color: '#fff',
+                  padding: '8px 12px',
+                  cursor: 'pointer',
+                  fontSize: '0.85rem',
+                  fontWeight: '700',
+                  minWidth: '80px',
+                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+                }}
+              >
+                Dismiss
+              </motion.button>
+            </div>
+          </motion.div>
+        ))}
+      </AnimatePresence>
+
       {/* Responsive Styles */}
       <style>{`
+        @keyframes pulse {
+          0%, 100% {
+            transform: scale(1);
+          }
+          50% {
+            transform: scale(1.02);
+          }
+        }
+
         @media (max-width: 768px) {
           .calendar-section h2 {
             font-size: 1.5rem !important;
