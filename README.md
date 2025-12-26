@@ -117,3 +117,73 @@ This project demonstrates strong proficiency in **modern web development, system
 
 ---
 
+## WORKFLOW
+
+```mermaid
+flowchart TB
+
+%% ================= USER =================
+USER[👤 User]
+
+%% ================= FRONTEND =================
+subgraph FE["🖥️ FRONTEND (React SPA)"]
+  FE_UI[🎨 UI Shell]
+
+  subgraph FE_FEATURES["📦 App Features"]
+    TODO[📝 To-Do List<br/>Custom XP]
+    TASKS[🎯 Daily Tasks & Habits]
+    CAL[🔥 Calorie Tracker]
+    AI[🤖 AI Assistant]
+  end
+
+  DASH[📊 Dashboard]
+  PROFILE[👤 Profile]
+  LEADER[🏆 Leaderboard]
+end
+
+%% ================= FRONTEND LOGIC =================
+subgraph FE_LOGIC["🧠 Frontend XP Logic"]
+  VALIDATE{✔ Already completed?<br/>✔ Daily XP limit?}
+  ERROR[❌ Toast / Error]
+end
+
+%% ================= BACKEND =================
+subgraph BE["⚙️ BACKEND (Node + Express)"]
+  AUTH[🔐 Auth Middleware]
+  RULES[🧠 XP Rules Engine]
+  CALC[🧮 XP & Level Calculator]
+  SERVICE[📦 User Progress Service]
+end
+
+%% ================= DATABASE =================
+subgraph DB["🗄️ DATABASE"]
+  USERS[(MongoDB<br/>Users)]
+  LOGS[(MongoDB<br/>XP Logs)]
+  FIRE[(Firebase<br/>Leaderboard)]
+end
+
+%% ================= FLOW =================
+USER --> FE_UI
+FE_UI --> FE_FEATURES
+
+TODO --> VALIDATE
+TASKS --> VALIDATE
+CAL --> VALIDATE
+AI --> VALIDATE
+
+VALIDATE -->|❌ Invalid| ERROR
+VALIDATE -->|✔ Valid| AUTH
+
+AUTH --> RULES
+RULES --> CALC
+CALC --> SERVICE
+
+SERVICE --> USERS
+SERVICE --> LOGS
+SERVICE --> FIRE
+
+USERS --> DASH
+USERS --> PROFILE
+FIRE --> LEADER
+
+```
