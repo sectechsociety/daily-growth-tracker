@@ -25,6 +25,21 @@ const leaderboardRoutes = require("./routes/leaderboardRoutes");
 const authRoutes = require("./routes/authRoutes");
 const foodRoutes = require("./routes/foodRoutes");
 const calorieRoutes = require("./routes/calorieRoutes");
+const aiRoutes = require("./routes/aiRoutes");
+const xpRoutes = require("./routes/xpRoutes");
+
+// Warn early if the Gemini key is missing to make debugging easier
+if (
+  !(
+    process.env.GEMINI_API_KEY ||
+    process.env.GOOGLE_GEMINI_API_KEY ||
+    process.env.VITE_GEMINI_API_KEY
+  )
+) {
+  console.warn(
+    "⚠️  GEMINI_API_KEY is not set. The AI proxy (/api/ai/aura) will return 500 until a valid key is provided."
+  );
+}
 
 // Health Check Route
 app.get("/", (req, res) => {
@@ -45,12 +60,16 @@ app.get("/", (req, res) => {
 
 // API Routes
 app.use("/api/users", userRoutes);
+// Alias so clients can call /api/user/... as well
+app.use("/api/user", userRoutes);
 app.use("/api/tasks", taskRoutes);
 app.use("/api/progress", progressRoutes);
 app.use("/api/leaderboard", leaderboardRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/foods", foodRoutes);
 app.use("/api/calories", calorieRoutes);
+app.use("/api/ai", aiRoutes);
+app.use("/api/xp", xpRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

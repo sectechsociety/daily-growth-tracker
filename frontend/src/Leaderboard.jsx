@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import axios from "axios";
 
 // --- UPDATED: Import FaTrophy and FaStar from 'fa' ---
 import { 
@@ -14,8 +15,7 @@ import {
   FiHeart, FiLink, FiCopy, FiCheck, 
   FiStar as FiStarEmpty, FiTrendingUp, FiGitPullRequest, FiCoffee, FiMoon, FiBox, FiSun
 } from "react-icons/fi"; 
-import { collection, query, orderBy, limit, onSnapshot } from "firebase/firestore";
-import { db } from "./firebase";
+const BACKEND_BASE_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
 
 // --- (All your level and badge functions remain the same) ---
 const LEVEL_XP_REQUIREMENTS = {
@@ -194,68 +194,79 @@ function Leaderboard({ user }) {
     }
   }, [user]);
 
-  // (This useEffect for fetching GLOBAL leaderboard is unchanged)
+  // Load global leaderboard from backend (XP is single source of truth)
   useEffect(() => {
-    let unsubscribe;
     let cancelled = false;
 
-    const resolvedUserId = resolvedUser?.user_id || resolvedUser?.id || resolvedUser?._id || resolvedUser?.uid || null;
-    setCurrentUserId(resolvedUserId);
-    setLoading(true);
-    setError(null);
+    const loadLeaderboard = async () => {
+      const resolvedUserId =
+        resolvedUser?.user_id ||
+        resolvedUser?.firebaseUid ||
+        resolvedUser?.uid ||
+        resolvedUser?.id ||
+        resolvedUser?._id ||
+        null;
 
-    const leaderboardQuery = query(
-      collection(db, 'users'),
-      orderBy('xp', 'desc'),
-      limit(100)
-    );
+      setCurrentUserId(resolvedUserId);
+      setLoading(true);
+      setError(null);
 
-    const computeLastUpdatedDate = (rawValue) => {
-      if (!rawValue) return null;
-      if (typeof rawValue === 'string') {
-        const parsed = new Date(rawValue);
-        return Number.isNaN(parsed.getTime()) ? null : parsed;
-      }
-      if (rawValue instanceof Date) {
-        return rawValue;
-      }
-      if (typeof rawValue.toDate === 'function') {
-        try {
-          return rawValue.toDate();
-        } catch (err) {
-          console.warn('Unable to convert Firestore timestamp:', err);
+      const computeLastUpdatedDate = (rawValue) => {
+        if (!rawValue) return null;
+        if (typeof rawValue === 'string') {
+          const parsed = new Date(rawValue);
+          return Number.isNaN(parsed.getTime()) ? null : parsed;
         }
-      }
-      return null;
-    };
+        if (rawValue instanceof Date) {
+          return rawValue;
+        }
+        return null;
+      };
 
-    const passesTimeFilter = (lastUpdated) => {
-      if (timeFilter === 'all') return true;
-      if (!lastUpdated) return true;
-      const windowMs = timeFilter === 'weekly' ? 7 * 24 * 60 * 60 * 1000 : 30 * 24 * 60 * 60 * 1000;
-      return Date.now() - lastUpdated.getTime() <= windowMs;
-    };
+      const passesTimeFilter = (lastUpdated) => {
+        if (timeFilter === 'all') return true;
+        if (!lastUpdated) return true;
+        const windowMs =
+          timeFilter === 'weekly'
+            ? 7 * 24 * 60 * 60 * 1000
+            : 30 * 24 * 60 * 60 * 1000;
+        return Date.now() - lastUpdated.getTime() <= windowMs;
+      };
 
-    unsubscribe = onSnapshot(
-      leaderboardQuery,
-      (snapshot) => {
+      try {
+        const response = await axios.get(
+          `${BACKEND_BASE_URL}/api/leaderboard/xp`,
+          { params: { limit: 100 } }
+        );
+
         if (cancelled) return;
 
-        const users = snapshot.docs
-          .map((doc) => {
-            const data = doc.data();
-            const xp = typeof data.xp === 'number' ? data.xp : Number(data.xp) || 0;
-            const level = typeof data.level === 'number' ? data.level : Number(data.level) || 1;
-            const tasksCompleted = data.tasksCompleted ?? data.totalPoints ?? 0;
-            const streak = data.streak ?? data.streak_days ?? 0;
-            const lastUpdated = computeLastUpdatedDate(
-              data.last_updated || data.updatedAt || data.updated_at || data.lastUpdated
-            );
+        const rawUsers = Array.isArray(response.data) ? response.data : [];
+
+        const users = rawUsers
+          .map((entry) => {
+            const xp =
+              typeof entry.totalXP === 'number' && !Number.isNaN(entry.totalXP)
+                ? entry.totalXP
+                : typeof entry.xp === 'number' && !Number.isNaN(entry.xp)
+                ? entry.xp
+                : 0;
+            const level =
+              typeof entry.level === 'number' && !Number.isNaN(entry.level)
+                ? entry.level
+                : 1;
+            const tasksCompleted = entry.tasksCompleted ?? entry.totalPoints ?? 0;
+            const streak = entry.streak ?? 0;
+            const lastUpdated = computeLastUpdatedDate(entry.lastXPUpdateDate);
 
             return {
-              user_id: doc.id,
-              email: data.email || '',
-              username: data.name || data.username || data.email?.split('@')[0] || 'Explorer',
+              user_id: entry.firebaseUid || entry._id?.toString?.() || entry._id || null,
+              email: entry.email || '',
+              username:
+                entry.name ||
+                entry.username ||
+                entry.email?.split('@')[0] ||
+                'Explorer',
               xp,
               level,
               tasksCompleted,
@@ -278,20 +289,18 @@ function Leaderboard({ user }) {
         setLeaderboardData(users);
         setUserStats(users.find((u) => u.user_id === resolvedUserId) || null);
         setLoading(false);
-      },
-      (err) => {
+      } catch (err) {
         if (cancelled) return;
-        console.error('Error loading leaderboard:', err);
+        console.error('Error loading leaderboard from backend:', err);
         setError('Failed to load leaderboard. Please try again.');
         setLoading(false);
       }
-    );
+    };
+
+    loadLeaderboard();
 
     return () => {
       cancelled = true;
-      if (typeof unsubscribe === 'function') {
-        unsubscribe();
-      }
     };
   }, [resolvedUser, timeFilter, reloadKey]);
 

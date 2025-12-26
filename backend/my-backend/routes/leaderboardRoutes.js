@@ -2,14 +2,14 @@ const express = require("express");
 const router = express.Router();
 const User = require("../models/User");
 
-// Get global leaderboard (top users by total points)
+// Get global leaderboard (top users by total XP/points)
 router.get("/global", async (req, res) => {
   try {
     const { limit = 10 } = req.query;
 
     const leaderboard = await User.find()
-      .select("name email photoURL level xp totalPoints streak")
-      .sort({ totalPoints: -1 })
+      .select("name email photoURL level xp totalXP todayXP totalPoints streak lastXPUpdateDate")
+      .sort({ totalXP: -1, totalPoints: -1 })
       .limit(parseInt(limit));
 
     // Add rank to each user
@@ -31,8 +31,8 @@ router.get("/xp", async (req, res) => {
     const { limit = 10 } = req.query;
 
     const leaderboard = await User.find()
-      .select("name email photoURL level xp totalPoints streak")
-      .sort({ xp: -1 })
+      .select("name email photoURL level xp totalXP todayXP totalPoints streak lastXPUpdateDate")
+      .sort({ totalXP: -1 })
       .limit(parseInt(limit));
 
     const rankedLeaderboard = leaderboard.map((user, index) => ({

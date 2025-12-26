@@ -1,7 +1,9 @@
 const express = require("express");
+const mongoose = require("mongoose");
 const router = express.Router();
 const Task = require("../models/Task");
 const User = require("../models/User");
+const { awardXPToUser } = require("../services/xpService");
 
 // Get all tasks for a user
 router.get("/:userId", async (req, res) => {
@@ -126,33 +128,86 @@ function calculateLevel(xp) {
   return 1;
 }
 
-// Complete a task (awards XP and points)
+// Complete a task (awards XP and points, backend is single source of truth)
 router.patch("/:taskId/complete", async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
   try {
-    const task = await Task.findById(req.params.taskId);
-    if (!task) return res.status(404).json({ message: "Task not found" });
+    const taskId = req.params.taskId;
+
+    // Load task inside the transaction
+    const task = await Task.findById(taskId).session(session);
+    if (!task) {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(404).json({ error: "Task not found" });
+    }
+
+    // If the task is already completed, do NOT award XP again (idempotent)
+    if (task.status === "completed" && task.completedAt) {
+      const existingUser = await User.findOne({ firebaseUid: task.userId })
+        .session(session)
+        .select("name email photoURL level xp totalXP todayXP totalPoints streak tasksCompleted lastXPUpdateDate");
+
+      await session.commitTransaction();
+      session.endSession();
+
+      return res.json({
+        task,
+        user: existingUser || null,
+        meta: { alreadyCompleted: true },
+      });
+    }
 
     // Mark as completed
     task.status = "completed";
     task.completedAt = new Date();
-    await task.save();
+    await task.save({ session });
 
-    // Award XP and points to user
-    const user = await User.findOne({ firebaseUid: task.userId });
+    // Award XP and points to user via centralized service
+    let user = await User.findOne({ firebaseUid: task.userId }).session(session);
+
     if (user) {
-      user.xp += task.points;
-      user.totalPoints += task.points;
-      
-      // Calculate level based on XP (15-level system)
-      user.level = calculateLevel(user.xp);
-      
-      await user.save();
+      user = await awardXPToUser(user, task.points, {
+        session,
+        incrementTasksCompleted: true,
+      });
     }
 
-    res.json({ task, user });
+    await session.commitTransaction();
+    session.endSession();
+
+    res.json({
+      task,
+      user: user
+        ? {
+            _id: user._id,
+            firebaseUid: user.firebaseUid,
+            name: user.name,
+            email: user.email,
+            photoURL: user.photoURL,
+            level: user.level,
+            xp: user.xp,
+            totalXP: user.totalXP,
+            todayXP: user.todayXP,
+            totalPoints: user.totalPoints,
+            streak: user.streak,
+            tasksCompleted: user.tasksCompleted,
+            lastXPUpdateDate: user.lastXPUpdateDate,
+          }
+        : null,
+      meta: { alreadyCompleted: false },
+    });
   } catch (error) {
-    console.error("Error completing task:", error);
-    res.status(500).json({ error: "Server error" });
+    console.error("Error completing task (XP transaction):", error);
+    try {
+      await session.abortTransaction();
+    } catch (abortError) {
+      console.error("Error aborting XP transaction:", abortError);
+    }
+    session.endSession();
+    res.status(500).json({ error: "Server error completing task" });
   }
 });
 

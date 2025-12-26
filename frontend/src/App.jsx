@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate, Link, useNavigate, us
 import { AnimatePresence, motion } from "framer-motion";
 import { Palette, LogOut } from "lucide-react";
 import { ThemeProvider, useTheme } from "./ThemeContext";
+import { XpTasksProvider } from "./contexts/XpTasksContext";
 import ThemeCustomizer from "./ThemeCustomizer";
 import Welcome from "./Welcome.jsx";
 import LoginPage from "./LoginPage";
@@ -360,9 +361,11 @@ function AppContent() {
 function App() {
   return (
     <ThemeProvider>
-      <Router>
-        <AppContent />
-      </Router>
+      <XpTasksProvider>
+        <Router>
+          <AppContent />
+        </Router>
+      </XpTasksProvider>
     </ThemeProvider>
   );
 }

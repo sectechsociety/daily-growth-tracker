@@ -1,6 +1,8 @@
 const express = require("express");
 const router = express.Router();
 const User = require("../models/User");
+const mongoose = require("mongoose");
+const { awardXPToUser } = require("../services/xpService");
 
 // Get or create user profile
 router.post("/profile", async (req, res) => {
@@ -168,66 +170,84 @@ router.get("/progress", verifyToken, async (req, res) => {
   }
 });
 
-// Add XP to user (JWT authenticated)
+// Add XP to user (JWT authenticated, centralized XP logic)
 router.post("/add-xp", verifyToken, async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
   try {
     const { xp } = req.body;
 
     if (!xp || xp <= 0) {
+      await session.abortTransaction();
+      session.endSession();
       return res.status(400).json({ error: "Valid XP amount required" });
     }
 
-    const user = await User.findById(req.userId);
+    const user = await User.findById(req.userId).session(session);
     
+    if (!user) {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    const updatedUser = await awardXPToUser(user, xp, { session });
+    updatedUser.lastActiveDate = new Date();
+    await updatedUser.save({ session });
+
+    await session.commitTransaction();
+    session.endSession();
+
+    res.json({
+      level: updatedUser.level,
+      xp: updatedUser.xp,
+      totalXP: updatedUser.totalXP,
+      todayXP: updatedUser.todayXP,
+      totalPoints: updatedUser.totalPoints,
+      message: `Added ${xp} XP!`,
+    });
+  } catch (error) {
+    console.error("Error adding XP (centralized):", error);
+    try {
+      await session.abortTransaction();
+    } catch (abortError) {
+      console.error("Error aborting add-xp transaction:", abortError);
+    }
+    session.endSession();
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// Public stats endpoint (can be used by dashboard/profile/leaderboard)
+router.get("/stats/:firebaseUid", async (req, res) => {
+  try {
+    const { firebaseUid } = req.params;
+
+    const user = await User.findOne({ firebaseUid }).select(
+      "name email photoURL level xp totalXP todayXP totalPoints streak tasksCompleted lastXPUpdateDate"
+    );
+
     if (!user) {
       return res.status(404).json({ error: "User not found" });
     }
 
-    // Add XP
-    user.xp += xp;
-    user.totalPoints += xp;
-
-    // Calculate new level based on XP
-    const LEVELS = [
-      { id: 1, xpRequired: 1000 },
-      { id: 2, xpRequired: 2000 },
-      { id: 3, xpRequired: 3000 },
-      { id: 4, xpRequired: 4000 },
-      { id: 5, xpRequired: 5000 },
-      { id: 6, xpRequired: 6000 },
-      { id: 7, xpRequired: 7000 },
-      { id: 8, xpRequired: 8000 },
-      { id: 9, xpRequired: 9000 },
-      { id: 10, xpRequired: 10000 },
-      { id: 11, xpRequired: 11000 },
-      { id: 12, xpRequired: 12000 },
-      { id: 13, xpRequired: 13000 },
-      { id: 14, xpRequired: 14000 },
-      { id: 15, xpRequired: 15000 },
-    ];
-
-    // Determine level based on total XP
-    let newLevel = 1;
-    for (let i = LEVELS.length - 1; i >= 0; i--) {
-      if (user.xp >= LEVELS[i].xpRequired) {
-        newLevel = LEVELS[i].id;
-        break;
-      }
-    }
-
-    user.level = newLevel;
-    user.lastActiveDate = new Date();
-
-    await user.save();
-
     res.json({
+      firebaseUid,
+      name: user.name,
+      email: user.email,
+      photoURL: user.photoURL,
       level: user.level,
       xp: user.xp,
-      totalPoints: user.totalPoints,
-      message: `Added ${xp} XP!`,
+      totalXP: user.totalXP || user.xp || 0,
+      todayXP: user.todayXP || 0,
+      totalPoints: user.totalPoints || 0,
+      streak: user.streak || 0,
+      tasksCompleted: user.tasksCompleted || 0,
+      lastXPUpdateDate: user.lastXPUpdateDate,
     });
   } catch (error) {
-    console.error("Error adding XP:", error);
+    console.error("Error fetching user stats:", error);
     res.status(500).json({ error: "Server error" });
   }
 });

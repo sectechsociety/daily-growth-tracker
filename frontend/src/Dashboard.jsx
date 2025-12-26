@@ -1,4 +1,3 @@
-/* eslint-disable no-unused-vars */
 import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
@@ -166,6 +165,19 @@ const TodoListCard = ({ glassmorphicStyle, theme }) => {
   useEffect(() => {
     localStorage.setItem('dashboardTodos', JSON.stringify(todos));
   }, [todos]);
+
+  // Listen for storage events to refresh todos when notes are added from calendar
+  useEffect(() => {
+    const handleStorageChange = () => {
+      const savedTodos = localStorage.getItem('dashboardTodos');
+      if (savedTodos) {
+        setTodos(JSON.parse(savedTodos));
+      }
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
 
   const addTodo = () => {
     if (newTodo.trim() !== '') {
@@ -1578,7 +1590,7 @@ function Dashboard({ user, setUser, token }) {
                   letterSpacing: "-0.02em"
                 }}
               >
-                Good {new Date().getHours() < 12 ? 'Morning' : new Date().getHours() < 18 ? 'Afternoon' : 'Evening'}, {user?.displayName || user?.name || 'Explorer'}! 👋
+                Good {new Date().getHours() < 12 ? 'Morning' : new Date().getHours() < 18 ? 'Afternoon' : 'Evening'}! 👋
               </motion.h1>
               <motion.p
                 initial={{ opacity: 0, x: -20 }}

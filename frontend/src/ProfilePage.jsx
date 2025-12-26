@@ -2,251 +2,121 @@ import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import {
-  User, Target, Award, Clock, CheckCircle,
-  TrendingUp, Settings, LogOut, Edit3,
-  Star, Zap, Heart, Lightbulb, Calendar,
-  Quote, BookOpen, Sparkles, ArrowRight,
-  Plus, ChevronRight, Flame, Camera, Upload,
-  Bell, BellOff, Save, X, Mail, MapPin, Briefcase
+  User, Award, Clock, CheckCircle, TrendingUp, Edit3, Zap,
+  Calendar, Sparkles, Camera, Upload, Save, X, Mail, MapPin, Phone, Users
 } from "lucide-react";
+import { theme } from "./theme";
 import {
   auth,
-  db,
-  storage,
   onAuthStateChange,
   getUserProfile,
-  subscribeToUserProfile,
-  setTodayGoal,
-  getTodayGoal,
-  getQuoteOfTheDay,
-  updateUserProfile
+  updateUserProfile,
+  storage
 } from "./firebase";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
-// Professional color palette (Calm + Notion + Apple inspired)
-const COLORS = {
-  primary: {
-    blue: '#3B82F6',
-    purple: '#8B5CF6',
-    cyan: '#06B6D4',
-    green: '#10B981',
-    orange: '#F59E0B',
-    pink: '#EC4899',
-    indigo: '#6366F1'
-  },
-  gradients: {
-    primary: 'from-blue-500 via-purple-500 to-cyan-500',
-    secondary: 'from-purple-500 via-pink-500 to-orange-500',
-    success: 'from-green-500 to-emerald-500',
-    warning: 'from-orange-500 to-yellow-500',
-    info: 'from-cyan-500 to-blue-500',
-    calm: 'from-indigo-500 via-purple-500 to-pink-500'
-  },
-  backgrounds: {
-    glass: 'bg-white/10 backdrop-blur-xl border border-white/20',
-    glassDark: 'bg-gray-900/90 backdrop-blur-xl border border-gray-700/50',
-    card: 'bg-white/5 backdrop-blur-sm border border-white/10',
-    cardHover: 'hover:bg-white/10 hover:border-white/20'
-  }
+// Built-in avatar emojis
+const AVATAR_EMOJIS = [
+  { id: 1, emoji: "😊", label: "Happy" },
+  { id: 2, emoji: "🎮", label: "Gamer" },
+  { id: 3, emoji: "🚀", label: "Rocket" },
+  { id: 4, emoji: "⭐", label: "Star" },
+  { id: 5, emoji: "🎯", label: "Target" }
+];
+
+// Get today's XP from localStorage
+const getTodayXP = () => {
+  const today = new Date().toISOString().split('T')[0];
+  const dailyXPData = JSON.parse(localStorage.getItem('dailyXP') || '{}');
+  return dailyXPData[today] || 0;
 };
 
-// Animation variants
-const containerVariants = {
-  hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: {
-      staggerChildren: 0.1,
-      delayChildren: 0.2
-    }
-  }
-};
-
-const itemVariants = {
-  hidden: { opacity: 0, y: 20 },
-  visible: {
-    opacity: 1,
-    y: 0,
-    transition: {
-      duration: 0.5,
-      ease: "easeOut"
-    }
-  }
-};
-
-const cardVariants = {
-  hidden: { opacity: 0, scale: 0.9 },
-  visible: {
-    opacity: 1,
-    scale: 1,
-    transition: {
-      duration: 0.4,
-      ease: "easeOut"
-    }
-  }
-};
-
-function Profile() {
+function ProfilePage() {
   const navigate = useNavigate();
-  const [user, setUser] = useState(null);
-  const [userProfile, setUserProfile] = useState(null);
-  const [todayGoal, setTodayGoalState] = useState('');
-  const [newGoal, setNewGoal] = useState('');
-  const [quote, setQuote] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [uploadingPhoto, setUploadingPhoto] = useState(false);
-  const [isEditMode, setIsEditMode] = useState(false);
-  const [editedProfile, setEditedProfile] = useState({});
-  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
-  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const fileInputRef = useRef(null);
+  
+  const [user, setUser] = useState(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [showAvatarPicker, setShowAvatarPicker] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
-  // Listen to auth state changes
+  // Profile data state
+  const [profileData, setProfileData] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    mobile: "",
+    gender: "",
+    country: "",
+    age: "",
+    photoURL: "",
+    level: 1,
+    xp: 0,
+    streak: 0,
+    lastSignedIn: new Date(),
+    tasksCompleted: 0
+  });
+
+  // Edit form state
+  const [editForm, setEditForm] = useState({ ...profileData });
+
+  // Load user data
   useEffect(() => {
     const unsubscribe = onAuthStateChange(async (firebaseUser) => {
       if (firebaseUser) {
         setUser(firebaseUser);
-
-        // Fetch user profile from Firestore with fallback
+        
         try {
+          // Fetch profile from Firestore
           const profile = await getUserProfile(firebaseUser.uid);
-          if (profile) {
-            setUserProfile(profile);
-          } else {
-            // Create default profile if none exists
-            setUserProfile({
-              name: firebaseUser.displayName || 'Growth Seeker',
-              email: firebaseUser.email,
-              level: 1,
-              xp: 0,
-              totalPoints: 0,
-              streak: 0,
-              tasksCompleted: 0,
-              skillsUnlocked: 0,
-              mindfulMinutes: 0,
-              badges: []
-            });
-          }
+          
+          // Parse name into first and last name
+          const [firstName = "", ...lastNameParts] = (profile?.name || firebaseUser?.displayName || "").split(" ");
+          const lastName = lastNameParts.join(" ");
 
-          // Fetch today's goal with fallback
-          try {
-            const goal = await getTodayGoal(firebaseUser.uid);
-            setTodayGoalState(goal);
-          } catch (goalError) {
-            console.warn('Could not fetch today\'s goal:', goalError);
-            setTodayGoalState('');
-          }
+          const userData = {
+            firstName,
+            lastName,
+            email: profile?.email || firebaseUser.email || "",
+            mobile: profile?.mobile || "",
+            gender: profile?.gender || "",
+            country: profile?.country || "",
+            age: profile?.age || "",
+            photoURL: profile?.photoURL || firebaseUser.photoURL || "",
+            level: profile?.level || 1,
+            xp: profile?.xp || 0,
+            streak: profile?.streak || 0,
+            lastSignedIn: new Date(),
+            tasksCompleted: profile?.tasksCompleted || 0
+          };
 
-          // Fetch quote of the day (local fallback)
-          try {
-            const dailyQuote = await getQuoteOfTheDay();
-            setQuote(dailyQuote);
-          } catch (quoteError) {
-            console.warn('Could not fetch quote:', quoteError);
-            // Use local quote as fallback
-            setQuote({
-              text: "Every moment is a fresh beginning.",
-              author: "T.S. Eliot"
-            });
-          }
+          setProfileData(userData);
+          setEditForm(userData);
         } catch (error) {
-          console.error('Error fetching user data:', error);
-          // Use fallback profile data
-          setUserProfile({
-            name: firebaseUser.displayName || 'Growth Seeker',
-            email: firebaseUser.email,
-            level: 1,
-            xp: 0,
-            totalPoints: 0,
-            streak: 0,
-            tasksCompleted: 0,
-            skillsUnlocked: 0,
-            mindfulMinutes: 0,
-            badges: []
-          });
+          console.error('Error loading user profile:', error);
         }
       } else {
-        setUser(null);
-        setUserProfile(null);
-        setTodayGoalState('');
+        navigate('/');
       }
       setLoading(false);
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [navigate]);
 
-  // Subscribe to real-time profile updates
-  useEffect(() => {
-    if (user?.uid) {
-      const unsubscribe = subscribeToUserProfile(user.uid, (updatedProfile) => {
-        setUserProfile(updatedProfile);
-      });
+  // Handle profile picture upload
+  const handlePhotoUpload = async (event) => {
+    const file = event.target.files[0];
+    if (!file || !user) return;
 
-      return () => unsubscribe();
-    }
-  }, [user?.uid]);
-
-  // Calculate level progress
-  const currentLevelXp = (userProfile?.level || 1) * 250;
-  const nextLevelXp = ((userProfile?.level || 1) + 1) * 250;
-  const progressPercent = Math.min(((userProfile?.xp || 0) - currentLevelXp) / 250 * 100, 100);
-
-  // Get level name
-  const getLevelName = (level) => {
-    const levelNames = [
-      'Sprout', 'Seedling', 'Bloom', 'Growth', 'Flourish',
-      'Thrive', 'Excel', 'Master', 'Sage', 'Legend',
-      'Champion', 'Hero', 'Titan', 'Oracle', 'Divine'
-    ];
-    return levelNames[level - 1] || 'Sprout';
-  };
-
-  // Handle setting today's goal
-  const handleSetGoal = async () => {
-    if (newGoal.trim() && user?.uid) {
-      try {
-        const { error } = await setTodayGoal(user.uid, newGoal.trim());
-
-        if (error) {
-          console.error('Error setting goal:', error);
-          // For now, just show the goal locally even if Firestore fails
-          setTodayGoalState(newGoal.trim());
-        } else {
-          setTodayGoalState(newGoal.trim());
-        }
-
-        setNewGoal('');
-      } catch (error) {
-        console.error('Error setting goal:', error);
-        // Show goal locally as fallback
-        setTodayGoalState(newGoal.trim());
-        setNewGoal('');
-      }
-    }
-  };
-
-  // Handle logout
-  const handleLogout = async () => {
-    try {
-      await auth.signOut();
-    } catch (error) {
-      console.error('Error signing out:', error);
-    }
-  };
-
-  // Handle profile photo upload
-  const handlePhotoUpload = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file || !user?.uid) return;
-
-    // Validate file type
+    // Validate file
     if (!file.type.startsWith('image/')) {
       alert('Please select an image file');
       return;
     }
 
-    // Validate file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
       alert('Image size should be less than 5MB');
       return;
@@ -255,639 +125,1218 @@ function Profile() {
     try {
       setUploadingPhoto(true);
 
-      // Create a storage reference
+      // Upload to Firebase Storage
       const storageRef = ref(storage, `profilePhotos/${user.uid}/${Date.now()}_${file.name}`);
-
-      // Upload the file
       await uploadBytes(storageRef, file);
-
-      // Get the download URL
       const photoURL = await getDownloadURL(storageRef);
 
-      // Update user profile in Firestore
-      await updateUserProfile(user.uid, { photoURL });
-
-      // Update local state
-      setUserProfile(prev => ({ ...prev, photoURL }));
-
-      console.log('✅ Profile photo updated successfully');
+      setEditForm({ ...editForm, photoURL });
+      setShowAvatarPicker(false);
     } catch (error) {
       console.error('Error uploading photo:', error);
-      alert('Failed to upload photo. Please try again.');
+      // Fallback to local preview
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setEditForm({ ...editForm, photoURL: reader.result });
+      };
+      reader.readAsDataURL(file);
     } finally {
       setUploadingPhoto(false);
     }
   };
 
-  // Trigger file input click
-  const handlePhotoClick = () => {
-    fileInputRef.current?.click();
+  // Handle avatar emoji selection
+  const handleAvatarSelect = (emoji) => {
+    setEditForm({ ...editForm, photoURL: emoji });
+    setShowAvatarPicker(false);
   };
 
-  // Handle edit mode toggle
-  const handleEditProfile = () => {
-    if (!isEditMode) {
-      setEditedProfile({
-        name: userProfile?.name || user?.displayName || '',
-        bio: userProfile?.bio || '',
-        location: userProfile?.location || '',
-        occupation: userProfile?.occupation || ''
-      });
-    }
-    setIsEditMode(!isEditMode);
+  // Handle form input changes
+  const handleInputChange = (field, value) => {
+    setEditForm({ ...editForm, [field]: value });
   };
 
-  // Handle save profile
+  // Save profile changes
   const handleSaveProfile = async () => {
-    if (!user?.uid) return;
-
     try {
-      await updateUserProfile(user.uid, editedProfile);
-      setUserProfile(prev => ({ ...prev, ...editedProfile }));
-      setIsEditMode(false);
-      setShowSuccessMessage(true);
-      setTimeout(() => setShowSuccessMessage(false), 3000);
+      setSaving(true);
+      
+      if (user?.uid) {
+        // Update in Firestore
+        await updateUserProfile(user.uid, {
+          name: `${editForm.firstName} ${editForm.lastName}`.trim(),
+          email: editForm.email,
+          mobile: editForm.mobile,
+          gender: editForm.gender,
+          country: editForm.country,
+          age: editForm.age,
+          photoURL: editForm.photoURL
+        });
+      }
+      
+      // Update state
+      setProfileData(editForm);
+      setIsEditing(false);
     } catch (error) {
       console.error('Error saving profile:', error);
       alert('Failed to save profile. Please try again.');
+    } finally {
+      setSaving(false);
     }
   };
 
-  // Handle cancel edit
+  // Cancel editing
   const handleCancelEdit = () => {
-    setIsEditMode(false);
-    setEditedProfile({});
-  };
-
-  // Handle notifications toggle
-  const handleToggleNotifications = () => {
-    setNotificationsEnabled(!notificationsEnabled);
-    // You can add actual notification permission logic here
-    console.log('Notifications:', !notificationsEnabled ? 'enabled' : 'disabled');
-  };
-
-  // Handle view journey
-  const handleViewJourney = () => {
-    navigate('/levels');
-  };
-
-  // Handle view stats
-  const handleViewStats = () => {
-    navigate('/');
+    setEditForm(profileData);
+    setIsEditing(false);
+    setShowAvatarPicker(false);
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-indigo-900 to-purple-900 text-white flex items-center justify-center">
+      <div style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        minHeight: "100vh",
+        background: "#F5F3FF"
+      }}>
         <motion.div
           animate={{ rotate: 360 }}
           transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-          className="w-16 h-16 border-2 border-cyan-400 border-t-transparent rounded-full"
+          style={{
+            width: "64px",
+            height: "64px",
+            border: "4px solid #8B7FC7",
+            borderTopColor: "transparent",
+            borderRadius: "50%"
+          }}
         />
       </div>
     );
   }
 
-  if (!user) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-indigo-900 to-purple-900 text-white flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold mb-4">Please sign in to view your profile</h2>
-          <p className="text-gray-400">Authentication required to access your growth dashboard</p>
-        </div>
-      </div>
-    );
-  }
+  const todayXP = getTodayXP();
+  
+  // Calculate today's XP progress percentage (out of 100)
+  const xpProgressPercentage = Math.min(todayXP, 100);
+  
+  // Use stored level from profileData (dashboard system: Math.floor(xp / 100) + 1)
+  console.log('ProfilePage - Total XP:', profileData.xp, 'Stored Level:', profileData.level, 'Today XP:', todayXP, 'XP Progress:', xpProgressPercentage + '%');
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-indigo-900 to-purple-900 text-white relative overflow-hidden">
-      {/* Animated background elements */}
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-cyan-500/10 rounded-full blur-3xl animate-pulse" />
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-purple-500/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }} />
-      </div>
-
+    <div style={{
+      minHeight: "100vh",
+      background: "#F5F3FF",
+      padding: "40px 20px",
+      fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif"
+    }}>
       <motion.div
-        variants={containerVariants}
-        initial="hidden"
-        animate="visible"
-        className="relative z-10 p-6 max-w-6xl mx-auto"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        style={{
+          maxWidth: "1200px",
+          margin: "0 auto"
+        }}
       >
-        {/* Header Section */}
-        <motion.div variants={itemVariants} className="text-center mb-12">
-          <motion.div
-            className="relative inline-block mb-6"
-            whileHover={{ scale: 1.05 }}
-          >
-            {/* Profile Photo with Glow and Upload */}
+        {/* Page Title */}
+        <motion.h1
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          style={{
+            fontSize: "2.5rem",
+            fontWeight: "800",
+            color: theme.textPrimary,
+            marginBottom: "32px",
+            textAlign: "center"
+          }}
+        >
+          My Profile
+        </motion.h1>
+
+        {/* Main Profile Container */}
+        <div style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
+          gap: "24px"
+        }}>
+          {/* Left Column - Profile Header & Info */}
+          <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+            
+            {/* Profile Header Card */}
             <motion.div
-              className="w-32 h-32 rounded-full bg-gradient-to-br from-cyan-400 via-blue-500 to-purple-600 p-1 relative"
-              animate={{
-                boxShadow: [
-                  "0 0 0 0 rgba(6, 182, 212, 0.4)",
-                  "0 0 0 8px rgba(6, 182, 212, 0)",
-                  "0 0 0 0 rgba(6, 182, 212, 0.4)"
-                ]
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.5, delay: 0.1 }}
+              style={{
+                background: "#ffffff",
+                borderRadius: "24px",
+                padding: "32px",
+                boxShadow: "0 20px 60px rgba(0, 0, 0, 0.15)",
+                position: "relative"
               }}
-              transition={{ duration: 2, repeat: Infinity }}
             >
-              <div className="w-full h-full rounded-full bg-gray-900 flex items-center justify-center overflow-hidden">
-                {(userProfile?.photoURL || user?.photoURL) ? (
-                  <img
-                    src={userProfile?.photoURL || user?.photoURL}
-                    alt="Profile"
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <User className="w-16 h-16 text-cyan-400" />
-                )}
-              </div>
-              
-              {/* Upload Button Overlay */}
+              {/* Edit Button */}
               <motion.button
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.9 }}
-                onClick={handlePhotoClick}
-                disabled={uploadingPhoto}
-                className="absolute bottom-0 right-0 bg-gradient-to-r from-cyan-500 to-blue-500 rounded-full p-2 shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
-                title="Upload profile photo"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => isEditing ? handleCancelEdit() : setIsEditing(true)}
+                style={{
+                  position: "absolute",
+                  top: "20px",
+                  right: "20px",
+                  background: theme.accent,
+                  color: "#ffffff",
+                  border: "none",
+                  borderRadius: "12px",
+                  padding: "10px 20px",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  fontSize: "14px",
+                  fontWeight: "600",
+                  boxShadow: "0 4px 12px rgba(0, 0, 0, 0.1)"
+                }}
               >
-                {uploadingPhoto ? (
-                  <motion.div
-                    animate={{ rotate: 360 }}
-                    transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                    className="w-5 h-5 border-2 border-white border-t-transparent rounded-full"
-                  />
-                ) : (
-                  <Camera className="w-5 h-5 text-white" />
-                )}
+                {isEditing ? <X size={16} /> : <Edit3 size={16} />}
+                {isEditing ? "Cancel" : "Edit"}
               </motion.button>
-              
-              {/* Hidden file input */}
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                onChange={handlePhotoUpload}
-                className="hidden"
-              />
-            </motion.div>
-          </motion.div>
 
-          {isEditMode ? (
-            <div className="space-y-4 max-w-md mx-auto">
-              <input
-                type="text"
-                value={editedProfile.name}
-                onChange={(e) => setEditedProfile({ ...editedProfile, name: e.target.value })}
-                placeholder="Your Name"
-                className="w-full bg-gray-800/50 border border-gray-600 rounded-lg p-3 text-white text-center text-2xl font-bold placeholder-gray-400 focus:border-cyan-400 focus:outline-none"
-              />
-              <textarea
-                value={editedProfile.bio}
-                onChange={(e) => setEditedProfile({ ...editedProfile, bio: e.target.value })}
-                placeholder="Tell us about yourself..."
-                className="w-full bg-gray-800/50 border border-gray-600 rounded-lg p-3 text-white placeholder-gray-400 focus:border-cyan-400 focus:outline-none resize-none"
-                rows={3}
-              />
-              <div className="grid grid-cols-2 gap-3">
-                <input
-                  type="text"
-                  value={editedProfile.location}
-                  onChange={(e) => setEditedProfile({ ...editedProfile, location: e.target.value })}
-                  placeholder="📍 Location"
-                  className="w-full bg-gray-800/50 border border-gray-600 rounded-lg p-2 text-white text-sm placeholder-gray-400 focus:border-cyan-400 focus:outline-none"
-                />
-                <input
-                  type="text"
-                  value={editedProfile.occupation}
-                  onChange={(e) => setEditedProfile({ ...editedProfile, occupation: e.target.value })}
-                  placeholder="💼 Occupation"
-                  className="w-full bg-gray-800/50 border border-gray-600 rounded-lg p-2 text-white text-sm placeholder-gray-400 focus:border-cyan-400 focus:outline-none"
-                />
-              </div>
-            </div>
-          ) : (
-            <>
-              <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-cyan-400 via-blue-400 to-purple-400 bg-clip-text text-transparent">
-                {userProfile?.name || user.displayName || 'Growth Seeker'}
-              </h1>
-              {userProfile?.bio && (
-                <p className="text-gray-300 mb-3 max-w-md mx-auto italic">"{userProfile.bio}"</p>
-              )}
-              <p className="text-gray-300 mb-2 flex items-center justify-center gap-2">
-                <Sparkles className="w-4 h-4 text-yellow-400" />
-                Level {userProfile?.level || 1} — {getLevelName(userProfile?.level || 1)}
-              </p>
-              <p className="text-gray-400 text-sm flex items-center justify-center gap-2">
-                <Mail className="w-3 h-3" />
-                {user.email}
-              </p>
-              {(userProfile?.location || userProfile?.occupation) && (
-                <div className="flex items-center justify-center gap-4 mt-2 text-sm text-gray-400">
-                  {userProfile?.location && (
-                    <span className="flex items-center gap-1">
-                      <MapPin className="w-3 h-3" />
-                      {userProfile.location}
-                    </span>
-                  )}
-                  {userProfile?.occupation && (
-                    <span className="flex items-center gap-1">
-                      <Briefcase className="w-3 h-3" />
-                      {userProfile.occupation}
-                    </span>
-                  )}
+              {/* Profile Picture Section */}
+              <div style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                marginBottom: "24px"
+              }}>
+                <div style={{ position: "relative" }}>
+                  {/* Profile Image */}
+                  <motion.div
+                    whileHover={{ scale: 1.05 }}
+                    style={{
+                      width: "140px",
+                      height: "140px",
+                      borderRadius: "50%",
+                      background: profileData.photoURL && !profileData.photoURL.includes('http') && profileData.photoURL.length < 10
+                        ? "linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
+                        : "#f3f4f6",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: profileData.photoURL?.length < 10 ? "4rem" : "3rem",
+                      fontWeight: "700",
+                      color: "#ffffff",
+                      border: "6px solid #ffffff",
+                      boxShadow: "0 12px 40px rgba(0, 0, 0, 0.15)",
+                      overflow: "hidden",
+                      position: "relative"
+                    }}
+                  >
+                    {profileData.photoURL ? (
+                      profileData.photoURL.length < 10 ? (
+                        <span>{profileData.photoURL}</span>
+                      ) : (
+                        <img
+                          src={profileData.photoURL}
+                          alt="Profile"
+                          style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                        />
+                      )
+                    ) : (
+                      <User size={56} color="#9ca3af" />
+                    )}
+                  </motion.div>
+
+                  {/* Camera Icon Overlay - Purple Icon */}
+                  <motion.div
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.9 }}
+                    onClick={() => isEditing && setShowAvatarPicker(!showAvatarPicker)}
+                    style={{
+                      position: "absolute",
+                      bottom: "10px",
+                      right: "10px",
+                      width: "56px",
+                      height: "56px",
+                      borderRadius: "50%",
+                      background: "#ffffff",
+                      border: "none",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      cursor: isEditing && !uploadingPhoto ? "pointer" : "not-allowed",
+                      boxShadow: "0 8px 24px rgba(139, 127, 199, 0.5)",
+                      opacity: uploadingPhoto ? 0.6 : 1,
+                      zIndex: 999
+                    }}
+                  >
+                    {uploadingPhoto ? (
+                      <motion.div
+                        animate={{ rotate: 360 }}
+                        transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                        style={{
+                          width: "24px",
+                          height: "24px",
+                          border: "3px solid #8B7FC7",
+                          borderTopColor: "transparent",
+                          borderRadius: "50%"
+                        }}
+                      />
+                    ) : (
+                      <Camera size={28} color="#8B7FC7" strokeWidth={2.5} />
+                    )}
+                  </motion.div>
                 </div>
-              )}
-            </>
-          )}
 
-          {/* XP Progress Bar */}
-          <div className="max-w-md mx-auto mt-6">
-            <div className="flex justify-between items-center mb-2">
-              <span className="text-sm text-gray-400">Level Progress</span>
-              <span className="text-sm text-cyan-400 font-medium">
-                {(userProfile?.xp || 0) - currentLevelXp} / 250 XP
-              </span>
-            </div>
-            <div className="w-full bg-gray-700/50 rounded-full h-3 overflow-hidden">
-              <motion.div
-                className="h-full bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-500 rounded-full relative"
-                initial={{ width: 0 }}
-                animate={{ width: `${progressPercent}%` }}
-                transition={{ duration: 1.5, ease: "easeOut" }}
-              >
-                <motion.div
-                  className="absolute inset-0 bg-white/20"
-                  animate={{ x: ['-100%', '100%'] }}
-                  transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-                />
-              </motion.div>
-            </div>
-          </div>
-        </motion.div>
+                {/* User Name */}
+                <motion.h2
+                  style={{
+                    fontSize: "1.75rem",
+                    fontWeight: "700",
+                    color: theme.textPrimary,
+                    marginTop: "16px",
+                    marginBottom: "4px",
+                    textAlign: "center"
+                  }}
+                >
+                  {profileData.firstName} {profileData.lastName}
+                </motion.h2>
 
-        {/* Stats Cards */}
-        <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-          {[
-            {
-              label: 'Tasks Completed',
-              value: userProfile?.tasksCompleted || 0,
-              icon: CheckCircle,
-              gradient: COLORS.gradients.success,
-              bgColor: 'bg-green-500/10',
-              iconColor: 'text-green-400'
-            },
-            {
-              label: 'Skills Unlocked',
-              value: userProfile?.skillsUnlocked || 0,
-              icon: Lightbulb,
-              gradient: COLORS.gradients.warning,
-              bgColor: 'bg-orange-500/10',
-              iconColor: 'text-orange-400'
-            },
-            {
-              label: 'Mindful Minutes',
-              value: userProfile?.mindfulMinutes || 0,
-              icon: Clock,
-              gradient: COLORS.gradients.calm,
-              bgColor: 'bg-purple-500/10',
-              iconColor: 'text-purple-400'
-            }
-          ].map((stat, index) => (
-            <motion.div
-              key={`stat-${stat.label}-${index}`}
-              variants={cardVariants}
-              whileHover={{ scale: 1.05, y: -5 }}
-              className={`${stat.bgColor} ${COLORS.backgrounds.glass} rounded-xl p-6 text-center border border-white/10 hover:border-white/20 transition-all duration-300`}
-            >
-              <div className={`inline-flex p-3 rounded-full bg-gradient-to-r ${stat.gradient} mb-4`}>
-                <stat.icon className={`${stat.iconColor} text-xl`} />
+                {/* Level Badge */}
+                <div style={{
+                  background: theme.accent,
+                  color: "#ffffff",
+                  padding: "6px 16px",
+                  borderRadius: "20px",
+                  fontSize: "14px",
+                  fontWeight: "600",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  marginTop: "8px"
+                }}>
+                  <Award size={16} />
+                  Level {profileData.level}
+                </div>
               </div>
-              <motion.div
-                className="font-bold text-2xl"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.2 + index * 0.1 }}
-              >
-                {stat.value.toLocaleString()}
-              </motion.div>
-              <p className="text-gray-400 text-sm mt-2">{stat.label}</p>
-            </motion.div>
-          ))}
-        </motion.div>
 
-        {/* Daily Inspiration Section */}
-        <motion.div variants={itemVariants} className="mb-12">
-          <h2 className="text-2xl font-bold mb-6 text-center bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent">
-            Daily Inspiration
-          </h2>
+              {/* Avatar Picker Modal */}
+              <AnimatePresence>
+                {showAvatarPicker && isEditing && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    style={{
+                      background: "#f9fafb",
+                      borderRadius: "16px",
+                      padding: "20px",
+                      marginBottom: "20px",
+                      border: "2px solid #e5e7eb"
+                    }}
+                  >
+                    <h3 style={{
+                      fontSize: "1rem",
+                      fontWeight: "600",
+                      color: theme.textPrimary,
+                      marginBottom: "12px"
+                    }}>
+                      Choose Avatar
+                    </h3>
 
-          {quote && (
-            <motion.div
-              variants={cardVariants}
-              className={`${COLORS.backgrounds.glass} rounded-xl p-6 mb-6 border border-white/10`}
-            >
-              <div className="flex items-start gap-4">
-                <Quote className="w-8 h-8 text-cyan-400 flex-shrink-0 mt-1" />
+                    {/* Avatar Emojis */}
+                    <div style={{
+                      display: "flex",
+                      gap: "12px",
+                      flexWrap: "wrap",
+                      marginBottom: "16px"
+                    }}>
+                      {AVATAR_EMOJIS.map((avatar) => (
+                        <motion.button
+                          key={avatar.id}
+                          whileHover={{ scale: 1.1 }}
+                          whileTap={{ scale: 0.95 }}
+                          onClick={() => handleAvatarSelect(avatar.emoji)}
+                          style={{
+                            width: "60px",
+                            height: "60px",
+                            borderRadius: "50%",
+                            background: "#ffffff",
+                            border: "3px solid #e5e7eb",
+                            fontSize: "2rem",
+                            cursor: "pointer",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            transition: "all 0.2s"
+                          }}
+                        >
+                          {avatar.emoji}
+                        </motion.button>
+                      ))}
+                    </div>
+
+                    {/* Upload Photo Button */}
+                    <label style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: "8px",
+                      background: theme.accent,
+                      color: "#ffffff",
+                      padding: "10px 16px",
+                      borderRadius: "12px",
+                      cursor: "pointer",
+                      fontSize: "14px",
+                      fontWeight: "600",
+                      transition: "all 0.2s"
+                    }}>
+                      <Upload size={16} />
+                      Upload Photo
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        onChange={handlePhotoUpload}
+                        style={{ display: "none" }}
+                      />
+                    </label>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* User Information Form/Display */}
+              <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                {/* First Name */}
                 <div>
-                  <p className="text-lg text-gray-200 mb-2 italic">"{quote.text}"</p>
-                  <p className="text-cyan-400 font-medium">— {quote.author}</p>
-                </div>
-              </div>
-            </motion.div>
-          )}
-
-          {/* Today's Goal Section */}
-          <motion.div
-            variants={cardVariants}
-            className={`${COLORS.backgrounds.glass} rounded-xl p-6 border border-white/10`}
-          >
-            <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-              <Target className="w-5 h-5 text-green-400" />
-              Today's Goal
-            </h3>
-
-            {todayGoal ? (
-              <div className="mb-4">
-                <p className="text-gray-200 mb-3">🎯 {todayGoal}</p>
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => setTodayGoalState('')}
-                  className="text-sm text-gray-400 hover:text-cyan-400 transition-colors"
-                >
-                  Change Goal
-                </motion.button>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <textarea
-                  value={newGoal}
-                  onChange={(e) => setNewGoal(e.target.value)}
-                  placeholder="What would you like to accomplish today?"
-                  className="w-full bg-gray-800/50 border border-gray-600 rounded-lg p-3 text-white placeholder-gray-400 focus:border-cyan-400 focus:outline-none resize-none"
-                  rows={3}
-                />
-                <motion.button
-                  whileHover={{ scale: 1.05, y: -2 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={handleSetGoal}
-                  disabled={!newGoal.trim()}
-                  className={`w-full bg-gradient-to-r ${COLORS.gradients.primary} text-white font-bold py-3 px-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed`}
-                >
-                  <div className="flex items-center justify-center gap-2">
-                    <Sparkles className="w-5 h-5" />
-                    Set Today's Goal
-                    <ArrowRight className="w-4 h-4" />
-                  </div>
-                </motion.button>
-              </div>
-            )}
-          </motion.div>
-        </motion.div>
-
-        {/* Growth Timeline */}
-        <motion.div variants={itemVariants} className="mb-12">
-          <h2 className="text-2xl font-bold mb-8 text-center bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent">
-            Growth Journey
-          </h2>
-
-          <div className="max-w-2xl mx-auto space-y-6">
-            {[
-              { title: 'Started Journey', date: 'Today', xp: 0, description: 'Welcome to your growth journey!' },
-              { title: 'First Steps', date: '1 day ago', xp: 100, description: 'Completed your first mindful session' },
-              { title: 'Week Warrior', date: '3 days ago', xp: 500, description: 'Maintained a 7-day streak' }
-            ].map((milestone, index) => {
-              const isLast = index === 2;
-
-              return (
-                <motion.div
-                  key={`milestone-${milestone.title}-${index}`}
-                  variants={itemVariants}
-                  whileHover={{ x: 10 }}
-                  className="relative flex items-start gap-4"
-                >
-                  {/* Timeline line */}
-                  {!isLast && (
-                    <div className="absolute left-4 top-12 w-0.5 h-16 bg-gradient-to-b from-cyan-400 to-transparent" />
+                  <label style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    fontSize: "13px",
+                    fontWeight: "600",
+                    color: theme.textSecondary,
+                    marginBottom: "8px"
+                  }}>
+                    <User size={14} />
+                    First Name
+                  </label>
+                  {isEditing ? (
+                    <input
+                      type="text"
+                      value={editForm.firstName}
+                      onChange={(e) => handleInputChange("firstName", e.target.value)}
+                      style={{
+                        width: "100%",
+                        padding: "12px 16px",
+                        borderRadius: "12px",
+                        border: "2px solid #e5e7eb",
+                        fontSize: "15px",
+                        outline: "none",
+                        transition: "all 0.2s",
+                        background: "#ffffff",
+                        color: "#2D3748"
+                      }}
+                      onFocus={(e) => e.target.style.borderColor = theme.accent}
+                      onBlur={(e) => e.target.style.borderColor = "#e5e7eb"}
+                    />
+                  ) : (
+                    <div style={{
+                      padding: "12px 16px",
+                      background: "#f9fafb",
+                      borderRadius: "12px",
+                      fontSize: "15px",
+                      color: theme.textPrimary,
+                      fontWeight: "500"
+                    }}>
+                      {profileData.firstName || "Not set"}
+                    </div>
                   )}
-
-                  {/* Milestone dot */}
-                  <motion.div
-                    className={`relative z-10 w-8 h-8 rounded-full ${COLORS.backgrounds.glass} flex items-center justify-center`}
-                    whileHover={{ scale: 1.2 }}
-                  >
-                    <div className={`w-3 h-3 rounded-full ${isLast ? 'bg-cyan-400' : 'bg-gray-400'} ${isLast ? 'animate-pulse' : ''}`} />
-                  </motion.div>
-
-                  {/* Content */}
-                  <motion.div
-                    variants={cardVariants}
-                    className={`flex-1 ${COLORS.backgrounds.glass} rounded-xl p-4`}
-                  >
-                    <div className="flex items-start justify-between mb-2">
-                      <h3 className="font-semibold text-white">{milestone.title}</h3>
-                      <span className="text-xs text-gray-400">{milestone.date}</span>
-                    </div>
-                    <p className="text-sm text-gray-300 mb-2">{milestone.description}</p>
-                    <div className="flex items-center gap-2">
-                      <Zap className="w-4 h-4 text-cyan-400" />
-                      <span className="text-sm text-cyan-400 font-medium">{milestone.xp.toLocaleString()} XP</span>
-                    </div>
-                  </motion.div>
-                </motion.div>
-              );
-            })}
-          </div>
-        </motion.div>
-
-        {/* Badges Section */}
-        <motion.div variants={itemVariants} className="mb-12">
-          <h2 className="text-2xl font-bold mb-8 text-center bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent">
-            Achievements
-          </h2>
-
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto">
-            {(userProfile?.badges || [
-              { name: 'First Steps', description: 'Completed your first task', rarity: 'common', icon: '🌱' },
-              { name: 'Week Warrior', description: 'Maintained a 7-day streak', rarity: 'rare', icon: '⚡' },
-              { name: 'Skill Master', description: 'Unlocked 10+ skills', rarity: 'epic', icon: '🎯' },
-              { name: 'Growth Seeker', description: 'Reached level 15', rarity: 'legendary', icon: '🏆' }
-            ]).map((badge, index) => {
-              const rarityColors = {
-                common: 'from-gray-400 to-gray-600',
-                rare: 'from-blue-400 to-purple-500',
-                epic: 'from-purple-500 to-pink-500',
-                legendary: 'from-yellow-400 to-orange-500'
-              };
-
-              const rarity = badge.rarity || 'common';
-              const validRarity = rarityColors[rarity] ? rarity : 'common';
-
-              return (
-                <motion.div
-                  key={`badge-${badge.name}-${index}`}
-                  variants={itemVariants}
-                  whileHover={{ scale: 1.05, y: -2 }}
-                  className={`relative ${COLORS.backgrounds.glass} rounded-xl p-4 cursor-pointer group`}
-                >
-                  <div className={`w-full h-2 bg-gradient-to-r ${rarityColors[validRarity]} rounded-full mb-3`} />
-                  <div className="text-center">
-                    <div className="text-2xl mb-2">{badge.icon}</div>
-                    <h3 className="font-semibold text-white mb-1">{badge.name}</h3>
-                    <p className="text-xs text-gray-400 group-hover:text-gray-300 transition-colors">
-                      {badge.description}
-                    </p>
-                  </div>
-
-                  {/* Tooltip */}
-                  <div className="absolute -top-12 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white text-xs rounded-lg px-3 py-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap">
-                    {validRarity.charAt(0).toUpperCase() + validRarity.slice(1)} Badge
-                    <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
-                  </div>
-                </motion.div>
-              );
-            })}
-          </div>
-        </motion.div>
-
-        {/* Success Message */}
-        <AnimatePresence>
-          {showSuccessMessage && (
-            <motion.div
-              initial={{ opacity: 0, y: -50 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -50 }}
-              className="fixed top-20 left-1/2 transform -translate-x-1/2 z-50"
-            >
-              <div className="bg-green-500 text-white px-6 py-3 rounded-xl shadow-2xl flex items-center gap-2">
-                <CheckCircle className="w-5 h-5" />
-                <span className="font-semibold">Profile updated successfully!</span>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Footer Actions */}
-        <motion.div variants={itemVariants} className="text-center space-y-6">
-          {/* Edit Mode Actions */}
-          {isEditMode ? (
-            <div className="flex flex-wrap justify-center gap-4">
-              <motion.button
-                whileHover={{ scale: 1.05, y: -2 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={handleSaveProfile}
-                className="bg-gradient-to-r from-green-500 to-emerald-500 text-white font-bold py-3 px-8 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
-              >
-                <div className="flex items-center gap-2">
-                  <Save className="w-5 h-5" />
-                  Save Changes
                 </div>
-              </motion.button>
 
-              <motion.button
-                whileHover={{ scale: 1.05, y: -2 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={handleCancelEdit}
-                className="bg-gradient-to-r from-gray-600 to-gray-700 text-white font-bold py-3 px-8 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
-              >
-                <div className="flex items-center gap-2">
-                  <X className="w-5 h-5" />
-                  Cancel
+                {/* Last Name */}
+                <div>
+                  <label style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    fontSize: "13px",
+                    fontWeight: "600",
+                    color: theme.textSecondary,
+                    marginBottom: "8px"
+                  }}>
+                    <User size={14} />
+                    Last Name
+                  </label>
+                  {isEditing ? (
+                    <input
+                      type="text"
+                      value={editForm.lastName}
+                      onChange={(e) => handleInputChange("lastName", e.target.value)}
+                      style={{
+                        width: "100%",
+                        padding: "12px 16px",
+                        borderRadius: "12px",
+                        border: "2px solid #e5e7eb",
+                        fontSize: "15px",
+                        outline: "none",
+                        transition: "all 0.2s",
+                        background: "#ffffff",
+                        color: "#2D3748"
+                      }}
+                      onFocus={(e) => e.target.style.borderColor = theme.accent}
+                      onBlur={(e) => e.target.style.borderColor = "#e5e7eb"}
+                    />
+                  ) : (
+                    <div style={{
+                      padding: "12px 16px",
+                      background: "#f9fafb",
+                      borderRadius: "12px",
+                      fontSize: "15px",
+                      color: theme.textPrimary,
+                      fontWeight: "500"
+                    }}>
+                      {profileData.lastName || "Not set"}
+                    </div>
+                  )}
                 </div>
-              </motion.button>
-            </div>
-          ) : (
-            <>
-              {/* Main Action Buttons */}
-              <div className="flex flex-wrap justify-center gap-4">
-                <motion.button
-                  whileHover={{ scale: 1.05, y: -2 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={handleEditProfile}
-                  className={`bg-gradient-to-r ${COLORS.gradients.primary} text-white font-bold py-3 px-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300`}
-                >
-                  <div className="flex items-center gap-2">
-                    <Edit3 className="w-5 h-5" />
-                    Edit Profile
-                  </div>
-                </motion.button>
 
-                <motion.button
-                  whileHover={{ scale: 1.05, y: -2 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={handleViewJourney}
-                  className={`bg-gradient-to-r ${COLORS.gradients.secondary} text-white font-bold py-3 px-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300`}
-                >
-                  <div className="flex items-center gap-2">
-                    <TrendingUp className="w-5 h-5" />
-                    View Journey
+                {/* Email */}
+                <div>
+                  <label style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    fontSize: "13px",
+                    fontWeight: "600",
+                    color: theme.textSecondary,
+                    marginBottom: "8px"
+                  }}>
+                    <Mail size={14} />
+                    Email Address
+                  </label>
+                  <div style={{
+                    padding: "12px 16px",
+                    background: "#f9fafb",
+                    borderRadius: "12px",
+                    fontSize: "15px",
+                    color: theme.textSecondary,
+                    fontWeight: "500",
+                    border: "2px solid #e5e7eb"
+                  }}>
+                    {profileData.email || "Not set"}
                   </div>
-                </motion.button>
+                </div>
 
-                <motion.button
-                  whileHover={{ scale: 1.05, y: -2 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={handleViewStats}
-                  className={`bg-gradient-to-r ${COLORS.gradients.info} text-white font-bold py-3 px-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300`}
-                >
-                  <div className="flex items-center gap-2">
-                    <Award className="w-5 h-5" />
-                    Dashboard
-                  </div>
-                </motion.button>
+                {/* Mobile Number */}
+                <div>
+                  <label style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    fontSize: "13px",
+                    fontWeight: "600",
+                    color: theme.textSecondary,
+                    marginBottom: "8px"
+                  }}>
+                    <Phone size={14} />
+                    Mobile Number
+                  </label>
+                  {isEditing ? (
+                    <input
+                      type="tel"
+                      value={editForm.mobile}
+                      onChange={(e) => handleInputChange("mobile", e.target.value)}
+                      placeholder="+1 (234) 567-8900"
+                      style={{
+                        width: "100%",
+                        padding: "12px 16px",
+                        borderRadius: "12px",
+                        border: "2px solid #e5e7eb",
+                        fontSize: "15px",
+                        outline: "none",
+                        transition: "all 0.2s",
+                        background: "#ffffff",
+                        color: "#2D3748"
+                      }}
+                      onFocus={(e) => e.target.style.borderColor = theme.accent}
+                      onBlur={(e) => e.target.style.borderColor = "#e5e7eb"}
+                    />
+                  ) : (
+                    <div style={{
+                      padding: "12px 16px",
+                      background: "#f9fafb",
+                      borderRadius: "12px",
+                      fontSize: "15px",
+                      color: theme.textPrimary,
+                      fontWeight: "500"
+                    }}>
+                      {profileData.mobile || "Not set"}
+                    </div>
+                  )}
+                </div>
+
+                {/* Gender */}
+                <div>
+                  <label style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    fontSize: "13px",
+                    fontWeight: "600",
+                    color: theme.textSecondary,
+                    marginBottom: "8px"
+                  }}>
+                    <Users size={14} />
+                    Gender
+                  </label>
+                  {isEditing ? (
+                    <select
+                      value={editForm.gender}
+                      onChange={(e) => handleInputChange("gender", e.target.value)}
+                      style={{
+                        width: "100%",
+                        padding: "12px 16px",
+                        borderRadius: "12px",
+                        border: "2px solid #e5e7eb",
+                        fontSize: "15px",
+                        outline: "none",
+                        transition: "all 0.2s",
+                        background: "#ffffff",
+                        cursor: "pointer",
+                        color: "#2D3748"
+                      }}
+                      onFocus={(e) => e.target.style.borderColor = theme.accent}
+                      onBlur={(e) => e.target.style.borderColor = "#e5e7eb"}
+                    >
+                      <option value="" style={{ color: "#2D3748" }}>Select Gender</option>
+                      <option value="male" style={{ color: "#2D3748" }}>Male</option>
+                      <option value="female" style={{ color: "#2D3748" }}>Female</option>
+                      <option value="other" style={{ color: "#2D3748" }}>Other</option>
+                      <option value="prefer-not-to-say" style={{ color: "#2D3748" }}>Prefer not to say</option>
+                    </select>
+                  ) : (
+                    <div style={{
+                      padding: "12px 16px",
+                      background: "#f9fafb",
+                      borderRadius: "12px",
+                      fontSize: "15px",
+                      color: theme.textPrimary,
+                      fontWeight: "500",
+                      textTransform: "capitalize"
+                    }}>
+                      {profileData.gender || "Not set"}
+                    </div>
+                  )}
+                </div>
+
+                {/* Age */}
+                <div>
+                  <label style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    fontSize: "13px",
+                    fontWeight: "600",
+                    color: theme.textSecondary,
+                    marginBottom: "8px"
+                  }}>
+                    <Calendar size={14} />
+                    Age
+                  </label>
+                  {isEditing ? (
+                    <input
+                      type="number"
+                      value={editForm.age}
+                      onChange={(e) => handleInputChange("age", e.target.value)}
+                      placeholder="25"
+                      min="1"
+                      max="120"
+                      style={{
+                        width: "100%",
+                        padding: "12px 16px",
+                        borderRadius: "12px",
+                        border: "2px solid #e5e7eb",
+                        fontSize: "15px",
+                        outline: "none",
+                        transition: "all 0.2s",
+                        background: "#ffffff",
+                        color: "#2D3748"
+                      }}
+                      onFocus={(e) => e.target.style.borderColor = theme.accent}
+                      onBlur={(e) => e.target.style.borderColor = "#e5e7eb"}
+                    />
+                  ) : (
+                    <div style={{
+                      padding: "12px 16px",
+                      background: "#f9fafb",
+                      borderRadius: "12px",
+                      fontSize: "15px",
+                      color: theme.textPrimary,
+                      fontWeight: "500"
+                    }}>
+                      {profileData.age ? `${profileData.age} years` : "Not set"}
+                    </div>
+                  )}
+                </div>
+
+                {/* Country */}
+                <div>
+                  <label style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    fontSize: "13px",
+                    fontWeight: "600",
+                    color: theme.textSecondary,
+                    marginBottom: "8px"
+                  }}>
+                    <MapPin size={14} />
+                    Country
+                  </label>
+                  {isEditing ? (
+                    <input
+                      type="text"
+                      value={editForm.country}
+                      onChange={(e) => handleInputChange("country", e.target.value)}
+                      placeholder="United States"
+                      style={{
+                        width: "100%",
+                        padding: "12px 16px",
+                        borderRadius: "12px",
+                        border: "2px solid #e5e7eb",
+                        fontSize: "15px",
+                        outline: "none",
+                        transition: "all 0.2s",
+                        background: "#ffffff",
+                        color: "#2D3748"
+                      }}
+                      onFocus={(e) => e.target.style.borderColor = theme.accent}
+                      onBlur={(e) => e.target.style.borderColor = "#e5e7eb"}
+                    />
+                  ) : (
+                    <div style={{
+                      padding: "12px 16px",
+                      background: "#f9fafb",
+                      borderRadius: "12px",
+                      fontSize: "15px",
+                      color: theme.textPrimary,
+                      fontWeight: "500"
+                    }}>
+                      {profileData.country || "Not set"}
+                    </div>
+                  )}
+                </div>
               </div>
 
-              {/* Secondary Actions */}
-              <div className="flex flex-wrap justify-center gap-3">
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={handleToggleNotifications}
-                  className="bg-white/10 backdrop-blur-sm border border-white/20 text-white font-semibold py-2 px-5 rounded-lg hover:bg-white/20 transition-all duration-300"
-                >
-                  <div className="flex items-center gap-2">
-                    {notificationsEnabled ? (
+              {/* Save Button (visible when editing) */}
+              <AnimatePresence>
+                {isEditing && (
+                  <motion.button
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 10 }}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={handleSaveProfile}
+                    disabled={saving}
+                    style={{
+                      width: "100%",
+                      marginTop: "20px",
+                      padding: "14px",
+                      background: "linear-gradient(135deg, #10b981 0%, #059669 100%)",
+                      color: "#ffffff",
+                      border: "none",
+                      borderRadius: "12px",
+                      fontSize: "16px",
+                      fontWeight: "600",
+                      cursor: saving ? "not-allowed" : "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: "8px",
+                      boxShadow: "0 4px 12px rgba(16, 185, 129, 0.3)",
+                      opacity: saving ? 0.7 : 1
+                    }}
+                  >
+                    {saving ? (
                       <>
-                        <Bell className="w-4 h-4" />
-                        <span>Notifications On</span>
+                        <motion.div
+                          animate={{ rotate: 360 }}
+                          transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                          style={{
+                            width: "18px",
+                            height: "18px",
+                            border: "2px solid #ffffff",
+                            borderTopColor: "transparent",
+                            borderRadius: "50%"
+                          }}
+                        />
+                        Saving...
                       </>
                     ) : (
                       <>
-                        <BellOff className="w-4 h-4" />
-                        <span>Notifications Off</span>
+                        <Save size={18} />
+                        Save Changes
                       </>
                     )}
-                  </div>
-                </motion.button>
+                  </motion.button>
+                )}
+              </AnimatePresence>
+            </motion.div>
 
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={handleLogout}
-                  className="bg-gradient-to-r from-red-500 to-pink-500 text-white font-semibold py-2 px-5 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300"
-                >
-                  <div className="flex items-center gap-2">
-                    <LogOut className="w-4 h-4" />
-                    Logout
-                  </div>
-                </motion.button>
+            {/* Last Signed In Card */}
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+              style={{
+                background: "#ffffff",
+                borderRadius: "24px",
+                padding: "20px",
+                boxShadow: "0 12px 40px rgba(0, 0, 0, 0.1)"
+              }}
+            >
+              <div style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "12px"
+              }}>
+                <div style={{
+                  width: "40px",
+                  height: "40px",
+                  borderRadius: "12px",
+                  background: theme.accent,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center"
+                }}>
+                  <Calendar size={20} color="#ffffff" />
+                </div>
+                <div>
+                  <p style={{
+                    fontSize: "12px",
+                    fontWeight: "600",
+                    color: theme.textSecondary,
+                    marginBottom: "2px"
+                  }}>
+                    Last Signed In
+                  </p>
+                  <p style={{
+                    fontSize: "14px",
+                    fontWeight: "600",
+                    color: theme.textPrimary
+                  }}>
+                    {new Date(profileData.lastSignedIn).toLocaleDateString('en-US', {
+                      month: 'short',
+                      day: 'numeric',
+                      year: 'numeric'
+                    })} at {new Date(profileData.lastSignedIn).toLocaleTimeString('en-US', {
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })}
+                  </p>
+                </div>
               </div>
-            </>
-          )}
-
-          {/* Streak Display */}
-          <div className="flex items-center justify-center gap-2 text-gray-400">
-            <Flame className="w-4 h-4 text-orange-400" />
-            <span className="text-sm">
-              {userProfile?.streak || 0} day streak • Continue growing! 🌱
-            </span>
+            </motion.div>
           </div>
-        </motion.div>
+
+          {/* Right Column - Activity & Status */}
+          <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+            
+            {/* XP & Level Progress Card */}
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.5, delay: 0.1 }}
+              style={{
+                background: "#ffffff",
+                borderRadius: "24px",
+                padding: "32px",
+                boxShadow: "0 20px 60px rgba(0, 0, 0, 0.15)"
+              }}
+            >
+              <h3 style={{
+                fontSize: "1.25rem",
+                fontWeight: "700",
+                color: theme.textPrimary,
+                marginBottom: "24px",
+                display: "flex",
+                alignItems: "center",
+                gap: "10px"
+              }}>
+                <Sparkles size={24} color={theme.accent} />
+                Today's Progress
+              </h3>
+
+              {/* XP Progress Circle */}
+              <div style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                marginBottom: "24px"
+              }}>
+                <div style={{ position: "relative", marginBottom: "16px" }}>
+                  <svg width="160" height="160" style={{ transform: "rotate(-90deg)" }}>
+                    {/* Background circle */}
+                    <circle
+                      cx="80"
+                      cy="80"
+                      r="70"
+                      fill="none"
+                      stroke="#f3f4f6"
+                      strokeWidth="12"
+                    />
+                    {/* Progress circle */}
+                    <motion.circle
+                      cx="80"
+                      cy="80"
+                      r="70"
+                      fill="none"
+                      stroke="url(#xpGradient)"
+                      strokeWidth="12"
+                      strokeDasharray={2 * Math.PI * 70}
+                      strokeDashoffset={2 * Math.PI * 70 * (1 - xpProgressPercentage / 100)}
+                      strokeLinecap="round"
+                      initial={{ strokeDashoffset: 2 * Math.PI * 70 }}
+                      animate={{ strokeDashoffset: 2 * Math.PI * 70 * (1 - xpProgressPercentage / 100) }}
+                      transition={{ duration: 1.5, ease: "easeOut" }}
+                    />
+                    <defs>
+                      <linearGradient id="xpGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stopColor="#8B7FC7" />
+                        <stop offset="100%" stopColor="#7a6db5" />
+                      </linearGradient>
+                    </defs>
+                  </svg>
+                  {/* Center Content */}
+                  <div style={{
+                    position: "absolute",
+                    top: "50%",
+                    left: "50%",
+                    transform: "translate(-50%, -50%)",
+                    textAlign: "center"
+                  }}>
+                    <div style={{
+                      fontSize: "2rem",
+                      fontWeight: "800",
+                      color: theme.textPrimary,
+                      lineHeight: "1"
+                    }}>
+                      {Math.round(xpProgressPercentage)}%
+                    </div>
+                    <div style={{
+                      fontSize: "12px",
+                      fontWeight: "600",
+                      color: theme.textSecondary,
+                      marginTop: "4px"
+                    }}>
+                      Level {profileData.level}
+                    </div>
+                  </div>
+                </div>
+
+                {/* XP Info */}
+                <div style={{
+                  width: "100%",
+                  background: "#f9fafb",
+                  borderRadius: "12px",
+                  padding: "16px",
+                  textAlign: "center"
+                }}>
+                  <div style={{
+                    fontSize: "24px",
+                    fontWeight: "700",
+                    color: theme.accent,
+                    marginBottom: "4px"
+                  }}>
+                    {todayXP}/100 XP
+                  </div>
+                  <div style={{
+                    fontSize: "13px",
+                    fontWeight: "600",
+                    color: theme.textSecondary
+                  }}>
+                    Daily XP Progress
+                  </div>
+                </div>
+              </div>
+
+              {/* Progress Bar Alternative */}
+              <div>
+                <div style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  marginBottom: "8px"
+                }}>
+                  <span style={{
+                    fontSize: "13px",
+                    fontWeight: "600",
+                    color: theme.textSecondary
+                  }}>
+                    Today's XP
+                  </span>
+                  <span style={{
+                    fontSize: "13px",
+                    fontWeight: "700",
+                    color: theme.accent
+                  }}>
+                    {todayXP}/100
+                  </span>
+                </div>
+                <div style={{
+                  width: "100%",
+                  height: "12px",
+                  background: "#f3f4f6",
+                  borderRadius: "20px",
+                  overflow: "hidden",
+                  position: "relative"
+                }}>
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ width: `${todayXP}%` }}
+                    transition={{ duration: 1.5, ease: "easeOut" }}
+                    style={{
+                      height: "100%",
+                      background: theme.accent,
+                      borderRadius: "20px",
+                      position: "relative",
+                      overflow: "hidden"
+                    }}
+                  >
+                    {/* Shine effect */}
+                    <motion.div
+                      animate={{
+                        x: ["-100%", "200%"]
+                      }}
+                      transition={{
+                        duration: 2,
+                        repeat: Infinity,
+                        ease: "linear"
+                      }}
+                      style={{
+                        position: "absolute",
+                        top: 0,
+                        left: 0,
+                        width: "50%",
+                        height: "100%",
+                        background: "linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent)"
+                      }}
+                    />
+                  </motion.div>
+                </div>
+              </div>
+            </motion.div>
+
+            {/* Statistics Cards */}
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(2, 1fr)",
+                gap: "16px"
+              }}
+            >
+              {/* XP Earned */}
+              <motion.div
+                whileHover={{ scale: 1.02, y: -2 }}
+                style={{
+                  background: theme.accent,
+                  borderRadius: "20px",
+                  padding: "24px",
+                  boxShadow: "0 12px 40px rgba(139, 127, 199, 0.3)",
+                  color: "#ffffff"
+                }}
+              >
+                <div style={{
+                  width: "48px",
+                  height: "48px",
+                  borderRadius: "12px",
+                  background: "rgba(255, 255, 255, 0.2)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  marginBottom: "12px"
+                }}>
+                  <Zap size={24} />
+                </div>
+                <div style={{
+                  fontSize: "28px",
+                  fontWeight: "800",
+                  marginBottom: "4px"
+                }}>
+                  {profileData.xp.toLocaleString()}
+                </div>
+                <div style={{
+                  fontSize: "13px",
+                  fontWeight: "600",
+                  opacity: 0.9
+                }}>
+                  Total XP Earned
+                </div>
+              </motion.div>
+
+              {/* Current Level */}
+              <motion.div
+                whileHover={{ scale: 1.02, y: -2 }}
+                style={{
+                  background: theme.accent,
+                  borderRadius: "20px",
+                  padding: "24px",
+                  boxShadow: "0 12px 40px rgba(139, 127, 199, 0.3)",
+                  color: "#ffffff"
+                }}
+              >
+                <div style={{
+                  width: "48px",
+                  height: "48px",
+                  borderRadius: "12px",
+                  background: "rgba(255, 255, 255, 0.2)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  marginBottom: "12px"
+                }}>
+                  <TrendingUp size={24} />
+                </div>
+                <div style={{
+                  fontSize: "28px",
+                  fontWeight: "800",
+                  marginBottom: "4px"
+                }}>
+                  {profileData.level}
+                </div>
+                <div style={{
+                  fontSize: "13px",
+                  fontWeight: "600",
+                  opacity: 0.9
+                }}>
+                  Current Level
+                </div>
+              </motion.div>
+
+              {/* Streak */}
+              <motion.div
+                whileHover={{ scale: 1.02, y: -2 }}
+                style={{
+                  background: theme.accent,
+                  borderRadius: "20px",
+                  padding: "24px",
+                  boxShadow: "0 12px 40px rgba(139, 127, 199, 0.3)",
+                  color: "#ffffff"
+                }}
+              >
+                <div style={{
+                  width: "48px",
+                  height: "48px",
+                  borderRadius: "12px",
+                  background: "rgba(255, 255, 255, 0.2)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  marginBottom: "12px"
+                }}>
+                  <Calendar size={24} />
+                </div>
+                <div style={{
+                  fontSize: "28px",
+                  fontWeight: "800",
+                  marginBottom: "4px"
+                }}>
+                  {profileData.streak}
+                </div>
+                <div style={{
+                  fontSize: "13px",
+                  fontWeight: "600",
+                  opacity: 0.9
+                }}>
+                  Day Streak
+                </div>
+              </motion.div>
+
+              {/* Tasks Completed */}
+              <motion.div
+                whileHover={{ scale: 1.02, y: -2 }}
+                style={{
+                  background: theme.accent,
+                  borderRadius: "20px",
+                  padding: "24px",
+                  boxShadow: "0 12px 40px rgba(139, 127, 199, 0.3)",
+                  color: "#ffffff"
+                }}
+              >
+                <div style={{
+                  width: "48px",
+                  height: "48px",
+                  borderRadius: "12px",
+                  background: "rgba(255, 255, 255, 0.2)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  marginBottom: "12px"
+                }}>
+                  <CheckCircle size={24} />
+                </div>
+                <div style={{
+                  fontSize: "28px",
+                  fontWeight: "800",
+                  marginBottom: "4px"
+                }}>
+                  {profileData.tasksCompleted}
+                </div>
+                <div style={{
+                  fontSize: "13px",
+                  fontWeight: "600",
+                  opacity: 0.9
+                }}>
+                  Tasks Completed
+                </div>
+              </motion.div>
+            </motion.div>
+
+            {/* Achievements Badge (Placeholder) */}
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.5, delay: 0.3 }}
+              style={{
+                background: "#ffffff",
+                borderRadius: "24px",
+                padding: "24px",
+                boxShadow: "0 12px 40px rgba(0, 0, 0, 0.1)",
+                border: "2px dashed #e5e7eb"
+              }}
+            >
+              <h3 style={{
+                fontSize: "1.1rem",
+                fontWeight: "700",
+                color: theme.textPrimary,
+                marginBottom: "12px",
+                display: "flex",
+                alignItems: "center",
+                gap: "10px"
+              }}>
+                <Award size={20} color={theme.accent} />
+                Achievements
+              </h3>
+              <p style={{
+                fontSize: "14px",
+                color: theme.textSecondary,
+                lineHeight: "1.6"
+              }}>
+                Keep completing tasks to unlock special achievements and badges! 🏆
+              </p>
+            </motion.div>
+          </div>
+        </div>
       </motion.div>
     </div>
   );
 }
 
-export default Profile;
+export default ProfilePage;

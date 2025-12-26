@@ -45,6 +45,12 @@ const userSchema = new mongoose.Schema({
   // Gaming/progress fields
   level: { type: Number, default: 1, min: 1, max: 15 },
   xp: { type: Number, default: 0 },
+  // Canonical XP fields
+  // xp: historical field (kept for backward compatibility)
+  // totalXP: single source of truth for total lifetime XP
+  totalXP: { type: Number, default: 0 },
+  todayXP: { type: Number, default: 0 },
+  lastXPUpdateDate: { type: Date },
   totalPoints: { type: Number, default: 0 },
   streak: { type: Number, default: 0 },
   lastActiveDate: { type: Date, default: Date.now },

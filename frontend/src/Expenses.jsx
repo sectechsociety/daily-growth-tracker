@@ -62,14 +62,55 @@ const Expenses = ({ addXP }) => {
     { id: 'childcare', name: 'Childcare', icon: <FiSmile size={32} color="#8B7FC7" />, color: '#8B7FC7' },
   ];
 
+  // Helper: map a simple icon key to an actual React icon element for custom categories
+  const resolveCustomIcon = (iconKey) => {
+    const key = (iconKey || '').toLowerCase();
+    switch (key) {
+      case 'coffee':
+        return <FiCoffee size={32} color="#8B7FC7" />;
+      case 'book':
+      case 'education':
+        return <FiBookOpen size={32} color="#8B7FC7" />;
+      case 'heart':
+      case 'charity':
+        return <FiHeart size={32} color="#8B7FC7" />;
+      case 'shopping':
+        return <FiShoppingBag size={32} color="#8B7FC7" />;
+      case 'home':
+        return <FiHome size={32} color="#8B7FC7" />;
+      default:
+        return <FiPackage size={32} color="#8B7FC7" />;
+    }
+  };
+
   useEffect(() => {
     const savedExpenses = localStorage.getItem('expenses');
     const savedIncome = localStorage.getItem('income');
     const savedCustomCategories = localStorage.getItem('customCategories');
     const savedDailyTarget = localStorage.getItem('dailySavingsTarget');
+
     if (savedExpenses) setExpenses(JSON.parse(savedExpenses));
     if (savedIncome) setIncome(parseFloat(savedIncome));
-    if (savedCustomCategories) setCustomCategories(JSON.parse(savedCustomCategories));
+
+    if (savedCustomCategories) {
+      try {
+        const parsed = JSON.parse(savedCustomCategories);
+        if (Array.isArray(parsed)) {
+          setCustomCategories(
+            parsed.map((c) => ({
+              id: c.id,
+              name: c.name,
+              iconKey: c.iconKey || '',
+              color: c.color || '#8B7FC7',
+            }))
+          );
+        }
+      } catch (err) {
+        console.error('Failed to parse customCategories from localStorage, clearing it:', err);
+        localStorage.removeItem('customCategories');
+      }
+    }
+
     if (savedDailyTarget) setDailySavingsTarget(parseFloat(savedDailyTarget));
   }, []);
 
@@ -139,18 +180,13 @@ const Expenses = ({ addXP }) => {
 
   const handleAddCustomCategory = () => {
     if (!newCategoryName.trim()) return;
+
     const newCategory = {
       id: `custom_${Date.now()}`,
       name: newCategoryName,
-      icon: <FiPackage size={32} color="#8B7FC7" />, // Default icon
+      iconKey: newCategoryIcon.trim().toLowerCase(),
       color: '#8B7FC7',
     };
-    
-    // Check if user provided an icon name (basic check)
-    if (newCategoryIcon.trim()) {
-      // This is a simple way; a real app might use a dynamic import or mapping
-      newCategory.icon = <Icon name={newCategoryIcon.trim().toLowerCase()} size={32} color="#8B7FC7" />
-    }
 
     const updatedCustomCategories = [...customCategories, newCategory];
     setCustomCategories(updatedCustomCategories);
@@ -160,7 +196,13 @@ const Expenses = ({ addXP }) => {
     setNewCategoryIcon('');
   };
 
-  const allCategories = [...categories, ...customCategories];
+  // Resolve custom categories into a shape that always has a real React icon element
+  const resolvedCustomCategories = customCategories.map((category) => ({
+    ...category,
+    icon: resolveCustomIcon(category.iconKey),
+  }));
+
+  const allCategories = [...categories, ...resolvedCustomCategories];
 
   // This function now filters for the CURRENTLY selected time period (Day, Week, Month)
   const getExpensesByTimePeriod = (expenseList = expenses) => {
