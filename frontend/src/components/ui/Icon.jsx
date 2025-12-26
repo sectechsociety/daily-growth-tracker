@@ -2,9 +2,13 @@ import React from 'react';
 import { 
   FaWater, FaHamburger, FaCoffee, FaRunning, FaCode, FaBook, FaMedal, 
   FaBed, FaPencilAlt, FaWalking, FaHeart, FaGraduationCap, FaMusic, 
-  FaBroom, FaList, FaTrophy, FaRobot, FaBullseye, FaCrown, FaFire, 
-  FaUser, FaCheck, FaTimes, FaStar, FaTrophy as FaTrophySolid
+  FaBroom, FaRobot, FaBullseye, FaCrown, FaFire, 
+  FaCheck, FaTimes, FaStar, FaTrophy as FaTrophySolid
 } from 'react-icons/fa';
+import {
+  FiList, FiAward, FiCalendar, FiStar, FiTrendingUp, FiActivity, FiUser,
+  FiMenu, FiX
+} from 'react-icons/fi';
 
 const iconMap = {
   // Task Icons
@@ -24,13 +28,17 @@ const iconMap = {
   clean: FaBroom,
   
   // Navigation Icons
-  list: FaList,
-  trophy: FaTrophy,
+  list: FiList,
+  trophy: FiAward,
+  calendar: FiCalendar,
   ai: FaRobot,
   target: FaBullseye,
-  leaderboard: FaCrown,
-  flame: FaFire,
-  user: FaUser,
+  leaderboard: FiTrendingUp,
+  flame: FiActivity,
+  user: FiUser,
+  menu: FiMenu,
+  x: FiX,
+  starNav: FiStar,
   
   // Status Icons
   success: FaCheck,

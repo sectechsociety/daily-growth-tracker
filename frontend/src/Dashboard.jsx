@@ -1,4 +1,3 @@
-/* eslint-disable no-unused-vars */
 import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
@@ -12,7 +11,7 @@ import Expenses from "./Expenses";
 import LevelRoadmap from "./LevelRoadmap";
 import Leaderboard from "./Leaderboard";
 import CalorieTracker from "./CalorieTracker";
-import ProfilePage from "./ProfilePage";
+import UserProfile from "./UserProfile";
 import AIAssistant from "./AIAssistant";
 import Icon from "./components/ui/Icon";
 import CalendarSection from "./CalendarSection";
@@ -143,136 +142,105 @@ const HabitIcon = ({ icon, color = '#8b5cf6', size = 'md', className = '' }) => 
   );
 };
 const TodoListCard = ({ glassmorphicStyle, theme }) => {
-  const MIN_TODO_XP = 2;
-  const MAX_TODO_XP = 5;
-  const DEFAULT_TODO_XP = 5;
+  const defaultTodos = [
+    { id: 1, text: "Plan today's tasks", completed: false, xp: 1 },
+    { id: 2, text: "Review meeting notes", completed: true, xp: 2 },
+    { id: 3, text: "Schedule a call", completed: false, xp: 1 },
+  ];
 
-  const applyTodoDefaults = (list) =>
+  const sanitizeTodos = (list) =>
     list.map((todo) => {
-      const baseXP =
-        typeof todo.xp === 'number' && todo.xp >= MIN_TODO_XP
-          ? todo.xp
-          : DEFAULT_TODO_XP;
-
-      const xpValue = Math.min(MAX_TODO_XP, baseXP);
-
-      return {
-        ...todo,
-        xp: xpValue,
-        // If a task is already completed in seed data, assume XP was awarded
-        xpAwarded: Boolean(todo.xpAwarded) || Boolean(todo.completed),
-      };
+      const rawXp = typeof todo.xp === 'number' ? todo.xp : parseInt(todo.xp, 10);
+      const clampedXp = Math.min(5, Math.max(1, isNaN(rawXp) ? 1 : rawXp));
+      return { ...todo, xp: clampedXp };
     });
 
   // Load todos from localStorage
   const [todos, setTodos] = useState(() => {
     try {
       const savedTodos = localStorage.getItem('dashboardTodos');
-      if (savedTodos) {
-        return applyTodoDefaults(JSON.parse(savedTodos));
-      }
-
-      return applyTodoDefaults([
-        { id: 1, text: "Plan today's tasks", completed: false },
-        { id: 2, text: "Review meeting notes", completed: true },
-        { id: 3, text: "Schedule a call", completed: false },
-      ]);
+      return sanitizeTodos(savedTodos ? JSON.parse(savedTodos) : defaultTodos);
     } catch (error) {
-      return applyTodoDefaults([
-        { id: 1, text: "Plan today's tasks", completed: false },
-        { id: 2, text: "Review meeting notes", completed: true },
-        { id: 3, text: "Schedule a call", completed: false },
-      ]);
+      return sanitizeTodos(defaultTodos);
     }
   });
-
   const [newTodo, setNewTodo] = useState('');
-  const [newTodoXP, setNewTodoXP] = useState(DEFAULT_TODO_XP);
+  const [newXp, setNewXp] = useState(null);
+  const [xpError, setXpError] = useState(false);
 
   // Save todos to localStorage whenever they change
   useEffect(() => {
     localStorage.setItem('dashboardTodos', JSON.stringify(todos));
   }, [todos]);
 
+  // Listen for storage events to refresh todos when notes are added from calendar
+  useEffect(() => {
+    const handleStorageChange = () => {
+      const savedTodos = localStorage.getItem('dashboardTodos');
+      if (savedTodos) {
+        setTodos(sanitizeTodos(JSON.parse(savedTodos)));
+      }
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
+
   const addTodo = () => {
-    if (newTodo.trim() !== '') {
-      const parsedXP = Number(newTodoXP);
-      const clamped = Number.isFinite(parsedXP)
-        ? Math.max(MIN_TODO_XP, Math.min(MAX_TODO_XP, parsedXP))
-        : DEFAULT_TODO_XP;
-
-      setTodos([
-        ...todos,
-        {
-          id: Date.now(),
-          text: newTodo.trim(),
-          completed: false,
-          xp: clamped,
-          xpAwarded: false,
-        },
-      ]);
-
-      setNewTodo('');
-      setNewTodoXP(clamped);
+    const trimmedTodo = newTodo.trim();
+    if (!trimmedTodo || newXp === null || newXp < 1 || newXp > 5) {
+      setXpError(true);
+      return;
     }
+
+    const xpValue = Math.min(5, Math.max(1, newXp));
+
+    setTodos([
+      ...todos,
+      {
+        id: Date.now(),
+        text: trimmedTodo,
+        completed: false,
+        xp: xpValue,
+      },
+    ]);
+    setNewTodo('');
+    setNewXp(null);
+    setXpError(false);
   };
 
   const toggleTodo = (id) => {
-    let awardedXP = 0;
-
-    setTodos((prevTodos) =>
-      prevTodos.map((todo) => {
-        if (todo.id !== id) return todo;
-
-        const togglingToCompleted = !todo.completed;
-        const baseXP =
-          typeof todo.xp === 'number' && todo.xp >= MIN_TODO_XP
-            ? todo.xp
-            : DEFAULT_TODO_XP;
-
-        const xpValue = Math.min(MAX_TODO_XP, baseXP);
-
-        // Award XP only the first time this task is completed
-        if (togglingToCompleted && !todo.xpAwarded) {
-          awardedXP = xpValue;
-          return {
-            ...todo,
-            completed: true,
-            xp: xpValue,
-            xpAwarded: true,
-          };
-        }
-
-        return {
-          ...todo,
-          completed: togglingToCompleted,
-        };
-      })
-    );
-
-    if (awardedXP > 0) {
+    const todo = todos.find(t => t.id === id);
+    const wasCompleted = todo?.completed;
+    
+    setTodos(todos.map(todo => 
+      todo.id === id ? { ...todo, completed: !todo.completed } : todo
+    ));
+    
+    // Award 5 XP when completing a todo (not when uncompleting)
+    if (!wasCompleted && todo) {
+      // Get current user from localStorage
       const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
       const currentXP = storedUser.xp || 0;
       const currentLevel = storedUser.level || 1;
       const currentTasksCompleted = storedUser.tasksCompleted || 0;
-
-      const newXP = currentXP + awardedXP;
+      
+      const xpReward = todo.xp ?? 1;
+      const newXP = currentXP + xpReward;
       const newLevel = Math.floor(newXP / 100) + 1;
-
+      
       const updatedUser = {
         ...storedUser,
         xp: newXP,
         level: newLevel,
-        tasksCompleted: currentTasksCompleted + 1,
+        tasksCompleted: currentTasksCompleted + 1
       };
-
+      
       localStorage.setItem('user', JSON.stringify(updatedUser));
-
+      
+      // Show toast notification
       if (window.showToast) {
-        window.showToast({
-          message: `+${awardedXP} XP for completing a todo!`,
-          type: 'success',
-        });
+        window.showToast({ message: `+${xpReward} XP for completing a todo!`, type: 'success' });
       }
     }
   };
@@ -284,6 +252,8 @@ const TodoListCard = ({ glassmorphicStyle, theme }) => {
 
   const completedCount = todos.filter(t => t.completed).length;
   const totalCount = todos.length;
+
+  const isAddDisabled = !newTodo.trim() || newXp === null;
 
   return (
     <motion.div
@@ -348,8 +318,8 @@ const TodoListCard = ({ glassmorphicStyle, theme }) => {
       </div>
       
       {/* Input Field with Enhanced Design */}
-      <div style={{ display: 'flex', gap: '12px', marginBottom: '24px' }}>
-        <div style={{ position: 'relative', flex: 1 }}>
+      <div style={{ display: 'flex', gap: '12px', marginBottom: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+        <div style={{ position: 'relative', flex: 1, minWidth: '220px' }}>
           <Sparkles size={18} color="#8B7FC7" style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', zIndex: 1 }} />
           <input
             type="text"
@@ -371,185 +341,210 @@ const TodoListCard = ({ glassmorphicStyle, theme }) => {
             }}
           />
         </div>
-        {/* XP input */}
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '6px' }}>
-          <span style={{ fontSize: '0.75rem', color: '#6b7280', fontWeight: 500 }}>XP</span>
-          <input
-            type="number"
-            min={2}
-            max={5}
-            value={newTodoXP}
-            onChange={(e) => setNewTodoXP(e.target.value)}
-            style={{
-              width: '80px',
-              padding: '10px 12px',
-              borderRadius: '12px',
-              border: '2px solid rgba(139, 127, 199, 0.2)',
-              background: 'rgba(255, 255, 255, 0.8)',
-              fontSize: '0.9rem',
-              color: theme.textPrimary,
-              outline: 'none',
-              textAlign: 'center',
-              boxSizing: 'border-box',
-            }}
-          />
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '10px 14px',
+            borderRadius: '16px',
+            background: 'rgba(139, 127, 199, 0.12)',
+            border: '1px solid rgba(139, 127, 199, 0.25)',
+            boxShadow: '0 8px 20px rgba(139, 127, 199, 0.08)',
+            flexWrap: 'wrap'
+          }}
+        >
+          <span style={{ fontSize: '0.85rem', fontWeight: 600, color: theme.primary }}>XP</span>
+          {[1, 2, 3, 4, 5].map((value) => {
+            const isActive = newXp === value;
+            return (
+              <button
+                key={value}
+                type="button"
+                onClick={() => {
+                  setNewXp(value);
+                  setXpError(false);
+                }}
+                style={{
+                  width: '34px',
+                  height: '34px',
+                  borderRadius: '999px',
+                  border: 'none',
+                  fontWeight: 600,
+                  fontSize: '0.85rem',
+                  cursor: 'pointer',
+                  background: isActive ? `linear-gradient(135deg, ${theme.accent}, ${theme.secondary})` : 'rgba(255, 255, 255, 0.8)',
+                  color: isActive ? '#fff' : theme.textPrimary,
+                  boxShadow: isActive ? '0 6px 16px rgba(139, 127, 199, 0.25)' : '0 4px 12px rgba(139, 127, 199, 0.12)',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                {value}
+              </button>
+            );
+          })}
         </div>
         <motion.button
-          whileHover={{ scale: 1.05, boxShadow: '0 8px 20px rgba(139, 127, 199, 0.3)' }}
-          whileTap={{ scale: 0.95 }}
+          whileHover={isAddDisabled ? {} : { scale: 1.05, boxShadow: '0 8px 20px rgba(139, 127, 199, 0.3)' }}
+          whileTap={isAddDisabled ? {} : { scale: 0.95 }}
           onClick={addTodo}
+          disabled={isAddDisabled}
           style={{
             padding: "14px 20px",
             borderRadius: "16px",
             border: "none",
-            background: `linear-gradient(135deg, ${theme.accent}, #a78bfa)`,
-            color: "#fff",
+            background: isAddDisabled ? 'rgba(139, 127, 199, 0.3)' : `linear-gradient(135deg, ${theme.accent}, #a78bfa)`,
+            color: isAddDisabled ? 'rgba(255, 255, 255, 0.8)' : "#fff",
             fontWeight: "700",
             fontSize: "1.1rem",
-            cursor: "pointer",
+            cursor: isAddDisabled ? 'not-allowed' : "pointer",
             flexShrink: 0,
-            boxShadow: '0 4px 12px rgba(139, 127, 199, 0.3)'
+            boxShadow: isAddDisabled ? 'none' : '0 4px 12px rgba(139, 127, 199, 0.3)'
           }}
         >
           + Add
         </motion.button>
       </div>
 
+      {xpError && (
+        <div style={{
+          marginBottom: '18px',
+          fontSize: '0.85rem',
+          fontWeight: 500,
+          color: '#ef4444'
+        }}>
+          Please provide a task and select an XP value between 1 and 5.
+        </div>
+      )}
+
       {/* To-Do List with Enhanced Design */}
       <div style={{ flex: 1, overflowY: 'auto', maxHeight: '400px', paddingRight: '8px' }}>
         <AnimatePresence>
-          {todos.map((todo, index) => (
+          {todos.length === 0 ? (
             <motion.div
-              key={todo.id}
-              initial={{ opacity: 0, x: -20, scale: 0.9 }}
-              animate={{ opacity: 1, x: 0, scale: 1 }}
-              exit={{ opacity: 0, x: 20, scale: 0.9 }}
-              transition={{ duration: 0.3, delay: index * 0.05 }}
-              whileHover={{ scale: 1.02, x: 4 }}
-              style={{
+              key="empty-state"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              style={{ 
+                textAlign: 'center', 
+                color: theme.textSecondary, 
+                marginTop: '40px',
+                fontSize: '1.1rem',
+                fontWeight: '500',
                 display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '16px',
-                marginBottom: '12px',
-                borderRadius: '16px',
-                background: todo.completed 
-                  ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(255, 255, 255, 0.5))'
-                  : 'rgba(255, 255, 255, 0.7)',
-                border: `2px solid ${todo.completed ? 'rgba(16, 185, 129, 0.3)' : 'rgba(139, 127, 199, 0.15)'}`,
-                cursor: 'pointer',
-                transition: 'all 0.3s ease',
-                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)',
+                flexDirection: 'column',
+                alignItems: 'center'
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', flex: 1 }} onClick={() => toggleTodo(todo.id)}>
-                <motion.div
-                  whileHover={{ scale: 1.2, rotate: 10 }}
-                  whileTap={{ scale: 0.9 }}
-                  style={{ 
-                    marginRight: '16px', 
-                    display: 'flex',
-                    alignItems: 'center',
-                    transition: 'all 0.3s ease'
-                  }}
-                >
-                  {todo.completed ? (
-                    <CheckCircle2 size={24} color="#10b981" fill="#10b981" />
-                  ) : (
-                    <Circle size={24} color="#9ca3af" />
-                  )}
-                </motion.div>
-                <span style={{ 
-                  fontSize: '1rem', 
-                  color: todo.completed ? theme.textSecondary : theme.textPrimary, 
-                  textDecoration: todo.completed ? 'line-through' : 'none',
-                  transition: 'all 0.3s ease',
-                  fontWeight: todo.completed ? '400' : '500'
-                }}>
-                  {todo.text}
-                </span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                {/* Per-task XP pill */}
-                <div
-                  style={{
-                    minWidth: '70px',
-                    padding: '6px 10px',
-                    borderRadius: '999px',
-                    background: todo.completed
-                      ? 'rgba(16, 185, 129, 0.08)'
-                      : 'rgba(139, 127, 199, 0.08)',
-                    border: `1px solid ${
-                      todo.completed
-                        ? 'rgba(16, 185, 129, 0.4)'
-                        : 'rgba(139, 127, 199, 0.35)'
-                    }`,
-                    fontSize: '0.8rem',
-                    fontWeight: 600,
-                    color: todo.completed ? '#059669' : '#4b5563',
-                    textAlign: 'center',
-                  }}
-                >
-                  {(todo.xp ?? 5)} XP
-                </div>
-
-                {/* XP awarded label for completed tasks */}
-                {todo.completed && todo.xpAwarded && (
+              <Sparkles size={48} color="#8B7FC7" style={{ marginBottom: '12px' }} />
+              All clear! Time for a new challenge.
+            </motion.div>
+          ) : (
+            todos.map((todo, index) => (
+              <motion.div
+                key={todo.id}
+                initial={{ opacity: 0, x: -20, scale: 0.9 }}
+                animate={{ opacity: 1, x: 0, scale: 1 }}
+                exit={{ opacity: 0, x: 20, scale: 0.9 }}
+                transition={{ duration: 0.3, delay: index * 0.05 }}
+                whileHover={{ scale: 1.02, x: 4 }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '16px',
+                  marginBottom: '12px',
+                  borderRadius: '16px',
+                  background: todo.completed 
+                    ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(255, 255, 255, 0.5))'
+                    : 'rgba(255, 255, 255, 0.7)',
+                  border: '1px solid rgba(139, 127, 199, 0.18)',
+                  backdropFilter: 'blur(4px)',
+                  boxShadow: '0 10px 24px rgba(139, 127, 199, 0.15)'
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flex: 1 }}>
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => toggleTodo(todo.id)}
+                    style={{
+                      width: '40px',
+                      height: '40px',
+                      borderRadius: '50%',
+                      border: 'none',
+                      background: todo.completed ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.25), rgba(110, 231, 183, 0.35))' : 'linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(110, 231, 183, 0.25))',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                      boxShadow: todo.completed
+                        ? '0 6px 18px rgba(16, 185, 129, 0.25)'
+                        : '0 6px 16px rgba(16, 185, 129, 0.18)',
+                      transition: 'all 0.3s ease',
+                      opacity: todo.completed ? 0.75 : 1
+                    }}
+                    title={todo.completed ? 'Mark as incomplete' : 'Mark as complete'}
+                  >
+                    {todo.completed ? (
+                      <CheckCircle2 size={22} color='#047857' />
+                    ) : (
+                      <CheckCircle2 size={22} color='#10B981' />
+                    )}
+                  </motion.button>
                   <span
                     style={{
-                      fontSize: '0.75rem',
-                      fontWeight: 600,
-                      color: '#16a34a',
-                      background: 'rgba(22, 163, 74, 0.08)',
-                      borderRadius: '999px',
-                      padding: '4px 8px',
+                      flex: 1,
+                      color: todo.completed ? 'rgba(17, 24, 39, 0.45)' : theme.textPrimary,
+                      textDecoration: todo.completed ? 'line-through' : 'none',
+                      fontSize: '1rem',
+                      fontWeight: 500,
+                      transition: 'color 0.2s ease'
                     }}
                   >
-                    XP awarded
+                    {todo.text}
                   </span>
-                )}
-
+                  <span
+                    style={{
+                      padding: '6px 12px',
+                      borderRadius: '999px',
+                      fontSize: '0.85rem',
+                      fontWeight: 600,
+                      background: todo.completed ? 'rgba(139, 127, 199, 0.12)' : 'rgba(168, 139, 250, 0.18)',
+                      color: todo.completed ? 'rgba(139, 127, 199, 0.55)' : theme.secondary,
+                      letterSpacing: '0.02em'
+                    }}
+                  >
+                    +{todo.xp ?? 1} XP
+                  </span>
+                </div>
                 <motion.button
-                  whileHover={{ scale: 1.1, rotate: 90 }}
-                  whileTap={{ scale: 0.9 }}
+                  whileHover={{ scale: 1.05, boxShadow: '0 6px 16px rgba(248, 113, 113, 0.25)' }}
+                  whileTap={{ scale: 0.92 }}
                   onClick={(e) => deleteTodo(todo.id, e)}
                   style={{
-                    background: 'rgba(239, 68, 68, 0.1)',
-                    border: '1px solid rgba(239, 68, 68, 0.3)',
-                    borderRadius: '10px',
-                    padding: '6px 10px',
-                    cursor: 'pointer',
+                    width: '38px',
+                    height: '38px',
+                    borderRadius: '50%',
+                    border: 'none',
+                    background: 'linear-gradient(135deg, rgba(248, 113, 113, 0.18), rgba(248, 150, 150, 0.28))',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
+                    cursor: 'pointer',
+                    color: '#f87171',
                     transition: 'all 0.3s ease',
+                    opacity: todo.completed ? 0.7 : 1
                   }}
+                  title="Delete task"
                 >
-                  <Trash2 size={18} color="#ef4444" />
+                  <Trash2 size={18} />
                 </motion.button>
-              </div>
-            </motion.div>
-          ))}
+              </motion.div>
+            ))
+          )}
         </AnimatePresence>
-        {todos.length === 0 && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            style={{ 
-              textAlign: 'center', 
-              color: theme.textSecondary, 
-              marginTop: '40px',
-              fontSize: '1.1rem',
-              fontWeight: '500',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center'
-            }}
-          >
-            <Sparkles size={48} color="#8B7FC7" style={{ marginBottom: '12px' }} />
-            All clear! Time for a new challenge.
-          </motion.div>
-        )}
       </div>
     </motion.div>
   );
@@ -920,16 +915,26 @@ const navItems = [
 ];
 
 // --- Sidebar Component ---
-// Modern, professional vertical navigation using react-icons
 const Sidebar = ({ activeSection, setActiveSection, isVisible = true }) => {
+  // ... (Code for Sidebar shapes remains the same)
+  const shapes = [
+    { borderRadius: '50%' }, // Circle - Daily Tasks
+    { borderRadius: '15px', transform: 'rotate(45deg)' }, // Diamond - Levels
+    { borderRadius: '25% 75% 75% 25% / 25% 25% 75% 75%' }, // Blob 1 - AI Assistant
+    { borderRadius: '8px' }, // Square - Challenges
+    { borderRadius: '50% 0 50% 0' }, // Leaf - Leaderboard
+    { borderRadius: '0 50% 50% 50%' }, // Drop - Calories
+    { borderRadius: '75% 25% 75% 25% / 25% 75% 25% 75%' }, // Blob 2 - Profile
+  ];
+
   return (
-    <motion.aside
+    <motion.div
       initial={{ x: -100, opacity: 0 }}
-      animate={{
-        x: isVisible ? 0 : -100,
-        opacity: isVisible ? 1 : 0,
+      animate={{ 
+        x: isVisible ? 0 : -100, 
+        opacity: isVisible ? 1 : 0 
       }}
-      transition={{ duration: 0.25, ease: 'easeOut' }}
+      transition={{ duration: 0.3 }}
       className="sidebar-container"
       style={{
         position: 'fixed',
@@ -937,85 +942,99 @@ const Sidebar = ({ activeSection, setActiveSection, isVisible = true }) => {
         top: 0,
         bottom: 0,
         width: '80px',
-        background: 'rgba(248, 250, 252, 0.9)',
-        backdropFilter: 'blur(18px) saturate(180%)',
-        WebkitBackdropFilter: 'blur(18px) saturate(180%)',
-        borderRight: '1px solid rgba(148, 163, 184, 0.35)',
-        boxShadow: '4px 0 18px rgba(15, 23, 42, 0.08)',
+        // --- THIS IS THE WHITE GLASS STYLE THAT MATCHES YOUR CARDS ---
+        background: 'rgba(255, 255, 255, 0.9)', 
+        backdropFilter: 'blur(15px) saturate(180%)',
+        WebkitBackdropFilter: 'blur(15px) saturate(180%)',
+        borderRight: '2px solid rgba(255, 255, 255, 0.4)',
+        boxShadow: '4px 0 25px rgba(139, 92, 246, 0.1)',
+        // --- END OF STYLE CHANGE ---
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        justifyContent: 'flex-start',
-        padding: '24px 0',
-        gap: '10px',
+        padding: '20px 0',
         zIndex: 1000,
         pointerEvents: isVisible ? 'auto' : 'none',
       }}
     >
       {navItems.map((item, index) => {
         const isActive = activeSection === index;
-
+        const shape = shapes[index] || shapes[0];
+        
         return (
-          <motion.button
-            key={item.title}
-            onClick={() => setActiveSection(index)}
-            whileHover={{ scale: 1.08 }}
-            whileTap={{ scale: 0.96 }}
-            animate={{
-              background: isActive
-                ? 'linear-gradient(135deg, #4f46e5, #a855f7)'
-                : 'rgba(255, 255, 255, 0.85)',
-              boxShadow: isActive
-                ? '0 10px 24px rgba(79, 70, 229, 0.35)'
-                : '0 4px 10px rgba(15, 23, 42, 0.12)',
-              borderColor: isActive
-                ? 'rgba(129, 140, 248, 0.7)'
-                : 'rgba(148, 163, 184, 0.45)',
+          <motion.div
+            key={index}
+            whileHover={{ 
+              scale: 1.15,
+              rotate: index === 1 ? 0 : index % 2 === 0 ? 5 : -5,
             }}
-            transition={{ duration: 0.2 }}
+            whileTap={{ scale: 0.9 }}
             style={{
-              width: '56px',
-              height: '56px',
-              borderRadius: '18px',
-              borderWidth: '1px',
-              borderStyle: 'solid',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
+              margin: '10px 0',
               position: 'relative',
-              padding: 0,
-              outline: 'none',
             }}
-            title={item.title}
-            aria-label={item.title}
           >
-            <Icon
-              name={item.icon}
-              size={22}
-              color={isActive ? '#EEF2FF' : '#6B7280'}
-            />
-            {isActive && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.5 }}
-                animate={{ opacity: 1, scale: 1 }}
-                style={{
-                  position: 'absolute',
-                  left: '-4px',
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  width: '4px',
-                  height: '26px',
-                  borderRadius: '999px',
-                  background: '#22c55e',
-                  boxShadow: '0 0 10px rgba(34, 197, 94, 0.55)',
-                }}
-              />
-            )}
-          </motion.button>
+            <motion.button
+              onClick={() => setActiveSection(index)}
+              animate={{
+                background: isActive 
+                  ? 'linear-gradient(135deg, #8b5cf6, #a78bfa)' 
+                  : '#8b5cf6',
+                boxShadow: isActive 
+                  ? '0 8px 20px rgba(139, 92, 246, 0.4), 0 0 0 4px rgba(139, 92, 246, 0.15)' 
+                  : '0 4px 12px rgba(139, 92, 246, 0.3)',
+              }}
+              whileHover={{
+                boxShadow: '0 12px 28px rgba(139, 92, 246, 0.5), 0 0 0 2px rgba(139, 92, 246, 0.2)',
+              }}
+              transition={{ duration: 0.3 }}
+              style={{
+                width: '54px',
+                height: '54px',
+                ...shape,
+                border: 'none',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                position: 'relative',
+                overflow: 'visible',
+              }}
+              title={item.title}
+            >
+              <div style={{
+                transform: index === 1 ? 'rotate(-45deg)' : 'none', // Counter-rotate icon for diamond
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}>
+                {/* === THIS IS THE ONLY LINE I CHANGED === */}
+                <Icon name={item.icon} size={22} color="#E8D5F2" /> 
+              </div>
+              
+              {/* Active indicator dot */}
+              {isActive && (
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  style={{
+                    position: 'absolute',
+                    top: '-4px',
+                    right: '-4px',
+                    width: '12px',
+                    height: '12px',
+                    borderRadius: '50%',
+                    background: '#22c55e',
+                    border: '2px solid white',
+                    boxShadow: '0 2px 8px rgba(34, 197, 94, 0.4)',
+                  }}
+                />
+              )}
+            </motion.button>
+          </motion.div>
         );
       })}
-    </motion.aside>
+    </motion.div>
   );
 };
 
@@ -1100,6 +1119,7 @@ const TaskModal = ({ isOpen, onClose, title, task, onSave, onTaskChange, isEdit 
                 </select>
               </div>
             </div>
+
             <div style={{ display: "flex", gap: "12px", marginTop: "30px", justifyContent: "flex-end" }}>
               <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={onClose} style={{ padding: "12px 24px", borderRadius: "12px", border: "1px solid rgba(0, 0, 0, 0.2)", background: "transparent", color: "#4b5563", fontWeight: "600", cursor: "pointer" }}>Cancel</motion.button>
               <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={onSave} style={{ padding: "12px 24px", borderRadius: "12px", border: "none", background: "linear-gradient(135deg, #22c55e, #16a34a)", color: "#fff", fontWeight: "600", cursor: "pointer" }}>{isEdit ? 'Update Task' : 'Add Task'}</motion.button>
@@ -1146,7 +1166,7 @@ const ConfirmationModal = ({ isOpen, onClose, onConfirm, title, message, confirm
 
 function Dashboard({ user, setUser, token }) {
   // ... (Code for Dashboard logic remains the same)
-  useTheme();
+  const { theme: palette, isDark } = useTheme();
   const [userStats, setUserStats] = useState({ level: 1, xp: 0, streak: 0, tasksCompleted: 0, skillsUnlocked: 0, mindfulMinutes: 0 });
   // Load activeSection from localStorage
   const [activeSection, setActiveSection] = useState(() => {
@@ -1652,24 +1672,25 @@ function Dashboard({ user, setUser, token }) {
         <div style={{ position: "absolute", top: "10%", left: "5%", width: "300px", height: "300px", background: `radial-gradient(circle, #8b5cf615 0%, transparent 70%)`, borderRadius: "50%", animation: "float 20s ease-in-out infinite" }} />
         <div style={{ position: "absolute", top: "60%", right: "8%", width: "200px", height: "200px", background: `radial-gradient(circle, #f59e0b15 0%, transparent 70%)`, borderRadius: "50%", animation: "float 25s ease-in-out infinite reverse" }} />
 
-        {/* Welcome Header - Enhanced with Pastel Theme */}
+        {/* Welcome Header - Glassmorphism Refresh */}
         <motion.div
           initial={{ opacity: 0, y: -30 }} 
           animate={{ opacity: 1, y: 0 }} 
           transition={{ duration: 0.8, delay: 0.2 }}
           className="welcome-header"
           style={{
-            ...glassmorphicStyle,
             position: "sticky",
             top: 16,
             zIndex: 100,
             width: "min(95%, 1200px)",
             margin: "24px auto 40px",
             padding: "20px 32px",
-            borderRadius: "24px",
-            boxShadow: "0 12px 40px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 0, 0, 0.04)",
-            border: "2px solid rgba(0, 0, 0, 0.08)",
-            background: "rgba(255, 255, 255, 0.98)",
+            borderRadius: "22px",
+            background: "linear-gradient(150deg, rgba(255,255,255,0.58) 0%, rgba(240,233,255,0.28) 100%)",
+            border: "1px solid rgba(255, 255, 255, 0.32)",
+            backdropFilter: "blur(10px)",
+            WebkitBackdropFilter: "blur(10px)",
+            boxShadow: "0 18px 38px rgba(109, 40, 217, 0.12)",
             boxSizing: "border-box"
           }}
         >
@@ -1684,10 +1705,14 @@ function Dashboard({ user, setUser, token }) {
                   fontWeight: "700",
                   margin: 0,
                   color: pastelTheme.textPrimary,
-                  letterSpacing: "-0.02em"
+                  letterSpacing: "-0.02em",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px"
                 }}
               >
-                Good {new Date().getHours() < 12 ? 'Morning' : new Date().getHours() < 18 ? 'Afternoon' : 'Evening'}, {user?.displayName || user?.name || 'Explorer'}! 👋
+                <span>Good {new Date().getHours() < 12 ? 'Morning' : new Date().getHours() < 18 ? 'Afternoon' : 'Evening'}!</span>
+                <span style={{ width: "28px", height: "28px", borderRadius: "999px", display: "inline-flex", alignItems: "center", justifyContent: "center", background: "rgba(124, 58, 237, 0.16)" }}>👋</span>
               </motion.h1>
               <motion.p
                 initial={{ opacity: 0, x: -20 }}
@@ -1700,52 +1725,77 @@ function Dashboard({ user, setUser, token }) {
                   fontWeight: "400",
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '6px'
+                  gap: '8px'
                 }}
               >
-                Let's make today count! You're on a roll <Rocket size={16} color="#8B7FC7" />
+                Let's make today count! You're on a roll
+                <span style={{ width: '22px', height: '22px', borderRadius: '999px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(124, 58, 237, 0.12)' }}>
+                  <Rocket size={14} color="#7C6ACB" />
+                </span>
               </motion.p>
             </div>
-            {/* Stats Badges - Enhanced with Pastel Theme */}
-            <div style={{ display: "flex", gap: "16px", alignItems: "center", flexWrap: "wrap" }}>
+            {/* XP Summary Cards */}
+            <div style={{ display: "flex", gap: "14px", alignItems: "center", flexWrap: "wrap" }}>
               <motion.div 
-                whileHover={{ scale: 1.05 }}
+                whileHover={{ y: -4, scale: 1.02 }}
                 style={{
-                  padding: "14px 24px",
-                  borderRadius: "16px",
-                  background: "linear-gradient(135deg, #E8D5F2, #E8D5F2)",
-                  border: "2px solid rgba(0, 0, 0, 0.08)",
-                  boxShadow: "0 4px 12px rgba(232, 213, 242, 0.3), 0 2px 4px rgba(0, 0, 0, 0.04)",
-                  transition: "all 0.3s ease",
+                  minWidth: "160px",
+                  padding: "16px 22px",
+                  borderRadius: "18px",
+                  background: "linear-gradient(160deg, rgba(233,224,255,0.45) 0%, rgba(224,213,255,0.18) 100%)",
+                  border: "1px solid rgba(255, 255, 255, 0.32)",
+                  backdropFilter: "blur(8px)",
+                  WebkitBackdropFilter: "blur(8px)",
+                  boxShadow: "0 12px 28px rgba(124, 58, 237, 0.14)",
+                  transition: "all 0.2s ease",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "4px"
                 }}>
-                <div style={{ fontSize: "0.7rem", color: pastelTheme.textSecondary, marginBottom: "4px", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.5px" }}>Level</div>
-                <div style={{ fontSize: "1.6rem", fontWeight: "800", color: "#8B7FC7" }}>{userStats.level}</div>
+                <div style={{ fontSize: "0.7rem", color: "rgba(85, 73, 134, 0.78)", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.6px" }}>Level</div>
+                <div style={{ fontSize: "1.6rem", fontWeight: "800", color: "#6D28D9" }}>{userStats.level}</div>
               </motion.div>
               <motion.div 
-                whileHover={{ scale: 1.05 }}
+                whileHover={{ y: -4, scale: 1.02 }}
                 style={{
-                  padding: "14px 24px",
-                  borderRadius: "16px",
-                  background: "linear-gradient(135deg, #D4F1F4, #D4F1F4)",
-                  border: "2px solid rgba(0, 0, 0, 0.08)",
-                  boxShadow: "0 4px 12px rgba(212, 241, 244, 0.3), 0 2px 4px rgba(0, 0, 0, 0.04)",
-                  transition: "all 0.3s ease",
+                  minWidth: "160px",
+                  padding: "16px 22px",
+                  borderRadius: "18px",
+                  background: "linear-gradient(160deg, rgba(214,244,247,0.45) 0%, rgba(205,240,244,0.18) 100%)",
+                  border: "1px solid rgba(255, 255, 255, 0.32)",
+                  backdropFilter: "blur(8px)",
+                  WebkitBackdropFilter: "blur(8px)",
+                  boxShadow: "0 12px 28px rgba(56, 189, 248, 0.16)",
+                  transition: "all 0.2s ease",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "4px"
                 }}>
-                <div style={{ fontSize: "0.7rem", color: pastelTheme.textSecondary, marginBottom: "4px", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.5px" }}>Total XP</div>
-                <div style={{ fontSize: "1.6rem", fontWeight: "800", color: "#8B7FC7" }}>{userStats.xp}</div>
+                <div style={{ fontSize: "0.7rem", color: "rgba(50, 93, 112, 0.78)", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.6px" }}>Total XP</div>
+                <div style={{ fontSize: "1.6rem", fontWeight: "800", color: "#2563EB" }}>{userStats.xp}</div>
               </motion.div>
               <motion.div 
-                whileHover={{ scale: 1.05 }}
+                whileHover={{ y: -4, scale: 1.02 }}
                 style={{
-                  padding: "14px 24px",
-                  borderRadius: "16px",
-                  background: getTodayXP() >= 100 ? "linear-gradient(135deg, #FFE5E5, #FFE5E5)" : "linear-gradient(135deg, #E8F5E9, #E8F5E9)",
-                  border: "2px solid rgba(0, 0, 0, 0.08)",
-                  boxShadow: getTodayXP() >= 100 ? "0 4px 12px rgba(255, 229, 229, 0.3), 0 2px 4px rgba(0, 0, 0, 0.04)" : "0 4px 12px rgba(232, 245, 233, 0.3), 0 2px 4px rgba(0, 0, 0, 0.04)",
-                  transition: "all 0.3s ease",
+                  minWidth: "160px",
+                  padding: "16px 22px",
+                  borderRadius: "18px",
+                  background: getTodayXP() >= 100
+                    ? "linear-gradient(160deg, rgba(255,220,224,0.48) 0%, rgba(255,209,213,0.22) 100%)"
+                    : "linear-gradient(160deg, rgba(214,249,230,0.45) 0%, rgba(205,244,222,0.18) 100%)",
+                  border: "1px solid rgba(255, 255, 255, 0.32)",
+                  backdropFilter: "blur(8px)",
+                  WebkitBackdropFilter: "blur(8px)",
+                  boxShadow: getTodayXP() >= 100
+                    ? "0 12px 28px rgba(239, 68, 68, 0.16)"
+                    : "0 12px 28px rgba(16, 185, 129, 0.16)",
+                  transition: "all 0.2s ease",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "4px"
                 }}>
-                <div style={{ fontSize: "0.7rem", color: pastelTheme.textSecondary, marginBottom: "4px", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.5px" }}>Today's XP</div>
-                <div style={{ fontSize: "1.6rem", fontWeight: "800", color: getTodayXP() >= 100 ? "#ef4444" : "#10b981" }}>{getTodayXP()}/100</div>
+                <div style={{ fontSize: "0.7rem", color: getTodayXP() >= 100 ? "rgba(191, 56, 56, 0.78)" : "rgba(34, 115, 92, 0.78)", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.6px" }}>Today's XP</div>
+                <div style={{ fontSize: "1.6rem", fontWeight: "800", color: getTodayXP() >= 100 ? "#DC2626" : "#0EA5E9" }}>{getTodayXP()}/100</div>
               </motion.div>
             </div>
           </div>
@@ -1808,30 +1858,29 @@ function Dashboard({ user, setUser, token }) {
                                   ease: [0.25, 0.46, 0.45, 0.94],
                                   layout: { duration: 0.3 }
                                 }}
-                                whileHover={{ scale: 1.02, y: -4 }}
-                                whileTap={{ scale: 0.98 }}
+                                whileHover={{ scale: 1.03, y: -6 }}
+                                whileTap={{ scale: 0.97 }}
                                 style={{
                                   background: isCompleted 
-                                    ? `linear-gradient(135deg, #E8D5F210, #D4F1F410)`
-                                    : "rgba(255, 255, 255, 0.98)",
-                                  backdropFilter: "blur(20px) saturate(150%)",
-                                  WebkitBackdropFilter: "blur(20px) saturate(150%)",
-                                  border: `2px solid ${isCompleted ? '#8B7FC7' : 'rgba(0, 0, 0, 0.12)'}`,
-                                  boxShadow: isCompleted 
-                                    ? `0 12px 32px rgba(139, 127, 199, 0.15), 0 4px 12px rgba(0, 0, 0, 0.08)`
-                                    : "0 8px 24px rgba(0, 0, 0, 0.06), 0 2px 8px rgba(0, 0, 0, 0.04)",
-                                  borderRadius: "24px",
-                                  padding: "24px",
-                                  margin: "0",
-                                  position: "relative",
-                                  overflow: "hidden",
-                                  cursor: "pointer",
+                                    ? `linear-gradient(140deg, rgba(255,255,255,0.18), ${task.color}14)`
+                                    : 'rgba(255, 255, 255, 0.14)',
+                                  backdropFilter: 'blur(18px) saturate(160%)',
+                                  WebkitBackdropFilter: 'blur(18px) saturate(160%)',
+                                  border: `1px solid ${isCompleted ? `${task.color}55` : 'rgba(255, 255, 255, 0.35)'}`,
+                                  boxShadow: isCompleted
+                                    ? `0 20px 45px ${task.color}26`
+                                    : '0 18px 40px rgba(15, 23, 42, 0.08)',
+                                  borderRadius: '24px',
+                                  padding: '26px',
+                                  position: 'relative',
+                                  overflow: 'hidden',
+                                  cursor: 'pointer',
                                   color: pastelTheme.textPrimary,
-                                  transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+                                  transition: 'all 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
                                   display: 'flex',
                                   flexDirection: 'column',
                                   justifyContent: 'space-between',
-                                  minHeight: '200px',
+                                  minHeight: '210px',
                                   width: '100%',
                                   boxSizing: 'border-box'
                                 }}
@@ -1853,30 +1902,49 @@ function Dashboard({ user, setUser, token }) {
                                   addXP(task.id, task.xp, clickPosition);
                                 }}
                               >
-                                
-                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-                                  <HabitIcon icon={task.icon} color={task.color} size="md" />
-                                  {isCompleted && (
-                                    <motion.div
-                                      initial={{ scale: 0, rotate: -180 }} 
-                                      animate={{ scale: 1, rotate: 0 }}
-                                      transition={{ type: "spring", stiffness: 200, damping: 15 }}
-                                      style={{
-                                        background: `linear-gradient(135deg, ${task.color}, ${task.color}CC)`,
-                                        color: "#fff", 
-                                        padding: "4px 10px", 
-                                        borderRadius: "10px", 
-                                        fontSize: "0.8rem", 
-                                        fontWeight: "700",
-                                        boxShadow: `0 2px 8px ${task.color}60`,
-                                        display: "flex",
-                                        alignItems: "center",
-                                        gap: "4px"
-                                      }}
-                                    >
-                                      <span style={{ fontSize: "0.9rem" }}>✓</span> {completionCount}
-                                    </motion.div>
-                                  )}
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
+                                  <div
+                                    style={{
+                                      width: '56px',
+                                      height: '56px',
+                                      borderRadius: '18px',
+                                      background: `linear-gradient(135deg, ${task.color}33, ${task.color}10)`,
+                                      border: `1px solid ${task.color}40`,
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      boxShadow: `0 12px 24px ${task.color}22`,
+                                    }}
+                                  >
+                                    <HabitIcon icon={task.icon} color={task.color} size="lg" />
+                                  </div>
+                                  <motion.div
+                                    initial={{ opacity: 0, y: -6 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: 0.15 }}
+                                    style={{
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      gap: '8px',
+                                      padding: '6px 12px',
+                                      borderRadius: '999px',
+                                      background: isCompleted
+                                        ? `linear-gradient(135deg, ${task.color}35, ${task.color}55)`
+                                        : 'rgba(255, 255, 255, 0.18)',
+                                      border: `1px solid ${isCompleted ? `${task.color}66` : 'rgba(255,255,255,0.2)'}`,
+                                      color: isCompleted ? '#0f172a' : pastelTheme.textSecondary,
+                                      fontSize: '0.75rem',
+                                      fontWeight: 600,
+                                      letterSpacing: '0.08em'
+                                    }}
+                                  >
+                                    <CheckCircle2
+                                      size={16}
+                                      color={isCompleted ? '#047857' : 'rgba(148, 163, 184, 0.9)'}
+                                      style={{ opacity: isCompleted ? 1 : 0.7 }}
+                                    />
+                                    {isCompleted ? `${completionCount} COMPLETED` : 'READY'}
+                                  </motion.div>
                                 </div>
                                 
                                 <div style={{ flexGrow: 1 }}>
@@ -1902,21 +1970,21 @@ function Dashboard({ user, setUser, token }) {
                                 <motion.div
                                   whileHover={{ scale: 1.05 }}
                                   style={{ 
-                                    background: `linear-gradient(135deg, ${task.color}, ${task.color}DD)`, 
-                                    padding: "8px 16px", 
-                                    borderRadius: "12px", 
-                                    fontSize: "0.9rem", 
-                                    fontWeight: "700", 
-                                    color: "#fff", 
-                                    boxShadow: `0 4px 10px ${task.color}40`,
-                                    display: "inline-flex",
-                                    alignItems: "center",
-                                    gap: "6px",
-                                    marginTop: '16px',
+                                    background: `linear-gradient(135deg, ${task.color}33, ${task.color}66)`, 
+                                    padding: '8px 18px', 
+                                    borderRadius: '999px', 
+                                    fontSize: '0.88rem', 
+                                    fontWeight: 600, 
+                                    color: '#ffffff', 
+                                    boxShadow: `0 10px 20px ${task.color}33`,
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '8px',
+                                    marginTop: '20px',
                                     alignSelf: 'flex-start'
                                   }}
                                 >
-                                  <span style={{ fontSize: "1rem" }}>⭐</span> +{task.xp} XP
+                                  <Zap size={16} color="#ffffff" /> +{task.xp} XP
                                 </motion.div>
 
                                 {/* Glow Effect */}
@@ -1927,8 +1995,8 @@ function Dashboard({ user, setUser, token }) {
                                     left: '-50%',
                                     width: '200%',
                                     height: '200%',
-                                    background: `radial-gradient(circle, ${task.color}10 0%, transparent 70%)`, // Lighter glow
-                                    opacity: isCompleted ? 0.4 : 0, // Reduced opacity
+                                    background: `radial-gradient(circle, ${task.color}18 0%, transparent 70%)`,
+                                    opacity: isCompleted ? 0.45 : 0,
                                     transition: 'opacity 0.3s ease',
                                     pointerEvents: 'none'
                                   }}
@@ -1996,7 +2064,7 @@ function Dashboard({ user, setUser, token }) {
                 {activeSection === 3 && (<motion.div key={3} {...sectionAnimation}><Expenses addXP={addXP} /></motion.div>)}
                 {activeSection === 4 && (<motion.div key={4} {...sectionAnimation}> <Leaderboard user={user} /> </motion.div>)}
                 {activeSection === 5 && (<motion.div key={5} {...sectionAnimation}><CalorieTracker user={user} addXP={addXP} userStats={userStats} setUserStats={setUserStats} /></motion.div>)}
-                {activeSection === 6 && (<motion.div key={6} {...sectionAnimation}><ProfilePage /></motion.div>)}
+                {activeSection === 6 && (<motion.div key={6} {...sectionAnimation}><UserProfile user={user} setUser={setUser} /></motion.div>)}
               </AnimatePresence>
             </div>
           </div>
@@ -2240,3 +2308,9 @@ function Dashboard({ user, setUser, token }) {
 }
 
 export default Dashboard;
+
+
+
+
+
+

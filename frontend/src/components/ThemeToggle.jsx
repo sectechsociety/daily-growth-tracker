@@ -2,7 +2,7 @@ import { motion } from 'framer-motion';
 import { useTheme } from '../ThemeContext';
 
 const ThemeToggle = () => {
-  const { theme, toggleTheme, isDark } = useTheme();
+  const { toggleTheme, isDark } = useTheme();
 
   return (
     <motion.button
@@ -18,18 +18,14 @@ const ThemeToggle = () => {
         height: '60px',
         borderRadius: '50%',
         border: 'none',
-        background: isDark 
-          ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
-          : 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
-        color: '#fff',
+        background: isDark ? 'var(--surface-background)' : 'var(--surface-strong)',
+        color: 'var(--text-primary)',
         fontSize: '1.5rem',
         cursor: 'pointer',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        boxShadow: isDark
-          ? '0 8px 32px rgba(102, 126, 234, 0.4)'
-          : '0 8px 32px rgba(245, 87, 108, 0.4)',
+        boxShadow: '0 10px 28px var(--shadow-strength)',
         transition: 'all 0.3s ease',
       }}
       aria-label={`Switch to ${isDark ? 'light' : 'dark'} mode`}
