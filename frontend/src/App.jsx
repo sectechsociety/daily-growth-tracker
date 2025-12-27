@@ -3,14 +3,80 @@ import { BrowserRouter as Router, Routes, Route, Navigate, Link, useNavigate, us
 import { AnimatePresence, motion } from "framer-motion";
 import { Palette, LogOut } from "lucide-react";
 import { ThemeProvider, useTheme } from "./ThemeContext";
+import { XPProvider } from "./contexts/XPContext";
+
 import ThemeCustomizer from "./ThemeCustomizer";
 import Welcome from "./Welcome.jsx";
 import LoginPage from "./LoginPage";
 import Dashboard from "./Dashboard";
 import { onAuthStateChange, db, logout } from './firebase';
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc, updateDoc } from "firebase/firestore";
 
 
+
+const getLocalDateString = (date = new Date()) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const normalizeStoredDate = (value) => {
+  if (!value) {
+    return null;
+  }
+
+  if (typeof value === 'string') {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+      return value;
+    }
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? null : getLocalDateString(parsed);
+  }
+
+  if (value instanceof Date) {
+    return getLocalDateString(value);
+  }
+
+  if (typeof value === 'object' && typeof value.toDate === 'function') {
+    try {
+      const parsed = value.toDate();
+      return parsed ? getLocalDateString(parsed) : null;
+    } catch (error) {
+      return null;
+    }
+  }
+
+  return null;
+};
+
+const coerceStreak = (value) => {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === 'string' && value.trim() !== '') {
+    const parsed = Number.parseInt(value, 10);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+  return 0;
+};
+
+const getOffsetDateString = (baseDate, offsetDays) => {
+  let referenceDate;
+
+  if (typeof baseDate === 'string') {
+    const [year, month, day] = baseDate.split('-').map(Number);
+    referenceDate = new Date(year, (month || 1) - 1, day || 1);
+  } else if (baseDate instanceof Date) {
+    referenceDate = new Date(baseDate.getTime());
+  } else {
+    referenceDate = new Date();
+  }
+
+  referenceDate.setHours(0, 0, 0, 0);
+  referenceDate.setDate(referenceDate.getDate() + offsetDays);
+  return getLocalDateString(referenceDate);
+};
 
 // --- This component holds all the animated routes ---
 function AnimatedRoutes({ user, setUser, token, setToken }) {
@@ -176,6 +242,31 @@ function AppContent() {
           const firestoreData = firestoreDoc.exists() ? firestoreDoc.data() : {};
           const existingLocalUser = JSON.parse(localStorage.getItem('user') || '{}');
 
+          const lastLoginFromFirestore = normalizeStoredDate(firestoreData.lastLoginDate || firestoreData.lastCompletedDate);
+          const lastLoginFromLocal = normalizeStoredDate(existingLocalUser.lastLoginDate || existingLocalUser.lastCompletedDate);
+          const today = getLocalDateString();
+
+          let streak = Math.max(
+            coerceStreak(firestoreData.streak),
+            coerceStreak(existingLocalUser.streak)
+          );
+          let lastLoginDate = lastLoginFromFirestore || lastLoginFromLocal;
+
+          if (!lastLoginDate) {
+            streak = Math.max(streak, 1);
+            lastLoginDate = today;
+          } else if (lastLoginDate === today) {
+            streak = Math.max(streak, 1);
+          } else {
+            const yesterday = getOffsetDateString(today, -1);
+            if (lastLoginDate === yesterday) {
+              streak = Math.max(streak, 1) + 1;
+            } else {
+              streak = 1;
+            }
+            lastLoginDate = today;
+          }
+
           const mergedUser = {
             uid: authUser.uid,
             email: authUser.email,
@@ -184,13 +275,36 @@ function AppContent() {
             xp: firestoreData.xp ?? existingLocalUser.xp ?? 0,
             level: firestoreData.level ?? existingLocalUser.level ?? 1,
             tasksCompleted: firestoreData.tasksCompleted ?? existingLocalUser.tasksCompleted ?? 0,
-            streak: firestoreData.streak ?? existingLocalUser.streak ?? 0,
+            streak,
             mindfulMinutes: firestoreData.mindfulMinutes ?? existingLocalUser.mindfulMinutes ?? 0,
             skillsUnlocked: firestoreData.skillsUnlocked ?? existingLocalUser.skillsUnlocked ?? 0,
+            lastLoginDate,
             last_updated: firestoreData.last_updated ?? existingLocalUser.last_updated ?? null,
             createdAt: firestoreData.createdAt ?? existingLocalUser.createdAt ?? null,
             username: firestoreData.username || authUser.displayName || authUser.email?.split('@')[0] || 'explorer'
           };
+
+          const userRef = doc(db, 'users', authUser.uid);
+          if (firestoreDoc.exists()) {
+            await updateDoc(userRef, {
+              streak: mergedUser.streak,
+              lastLoginDate: mergedUser.lastLoginDate,
+              updatedAt: new Date()
+            });
+          } else {
+            await setDoc(userRef, {
+              streak: mergedUser.streak,
+              lastLoginDate: mergedUser.lastLoginDate,
+              xp: mergedUser.xp,
+              level: mergedUser.level,
+              tasksCompleted: mergedUser.tasksCompleted,
+              email: mergedUser.email,
+              displayName: mergedUser.displayName,
+              photoURL: mergedUser.photoURL,
+              createdAt: new Date(),
+              updatedAt: new Date()
+            }, { merge: true });
+          }
 
           setUser(mergedUser);
           setToken(tokenValue);
@@ -278,7 +392,7 @@ function AppContent() {
   }
 
   return (
-    <>
+    <XPProvider user={user} setUser={setUser}>
       {/* Top Header with Theme and Sign Out */}
       <motion.div
         initial={{ y: -50, opacity: 0 }}
@@ -353,7 +467,7 @@ function AppContent() {
 
       {/* --- RENDER THE ROUTES --- */}
       <AnimatedRoutes user={user} setUser={setUser} token={token} setToken={setToken} />
-    </>
+    </XPProvider>
   );
 }
 

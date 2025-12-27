@@ -1,17 +1,18 @@
 /* eslint-disable no-unused-vars */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from './ThemeContext';
+import { useToast } from './components/hooks/use-toast';
 
 // --- React Icon Imports ---
 import {
   FiSend, FiCoffee, FiShoppingBag, FiShoppingCart, FiFileText, FiPlay, FiHeart, 
   FiBookOpen, FiUser, FiTruck, FiSmile, FiAward, FiGift, FiGithub, FiHome, 
   FiShield, FiPaperclip, FiSmartphone, FiTool, FiCpu, FiEdit, FiPackage, 
-  FiThumbsUp, FiTrendingUp, FiTrendingDown, FiPlus, FiX, FiCheckCircle, FiTrash2,
-  FiTarget, FiCalendar // Added new icons
+  FiThumbsUp, FiTrendingUp, FiTrendingDown, FiPlus, FiX, FiCheckCircle,
+  FiTarget, FiCalendar, FiAlertTriangle // Added new icons
 } from 'react-icons/fi';
-
 
 // --- Expenses component now accepts `addXP` ---
 const Expenses = ({ addXP }) => {
@@ -25,14 +26,59 @@ const Expenses = ({ addXP }) => {
   const [expenseDate, setExpenseDate] = useState(new Date().toISOString().split('T')[0]);
   const [currentView, setCurrentView] = useState('DAY');
   const [dailySavingsTarget, setDailySavingsTarget] = useState(500); // Defaulting to your 500
-  const [showSuccessPopup, setShowSuccessPopup] = useState(false);
-  const [successMessage, setSuccessMessage] = useState(''); // For custom messages
   const [customCategories, setCustomCategories] = useState([]);
   const [showAddCategoryModal, setShowAddCategoryModal] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
   const [newCategoryIcon, setNewCategoryIcon] = useState('');
   const [selectedTimePeriod, setSelectedTimePeriod] = useState('Day');
   const [selectedBar, setSelectedBar] = useState(null);
+  const [isIncomeModalOpen, setIsIncomeModalOpen] = useState(false);
+  const [incomeInput, setIncomeInput] = useState('');
+  const [isTargetModalOpen, setIsTargetModalOpen] = useState(false);
+  const [targetInput, setTargetInput] = useState('');
+  const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
+  const [editingExpense, setEditingExpense] = useState(null);
+  const [expenseEditAmount, setExpenseEditAmount] = useState('');
+  const [expenseEditNotes, setExpenseEditNotes] = useState('');
+  const [expenseEditDate, setExpenseEditDate] = useState(new Date().toISOString().split('T')[0]);
+
+  const { toast } = useToast();
+  const goalToastRef = useRef(null);
+  const lastGoalSnapshotRef = useRef(null);
+
+  const showToast = (type, payload) => {
+    if (toast && type && typeof toast[type] === 'function') {
+      return toast[type](payload);
+    } else if (typeof toast === 'function') {
+      return toast(payload);
+    }
+    return null;
+  };
+
+  const today = new Date();
+  const currentMonth = today.getMonth();
+  const currentYear = today.getFullYear();
+  const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+  const monthLabel = today.toLocaleString('default', { month: 'long' });
+
+  const monthlyExpenses = expenses.reduce((sum, exp) => {
+    const expDate = new Date(exp.date);
+    if (expDate.getMonth() === currentMonth && expDate.getFullYear() === currentYear) {
+      return sum + exp.amount;
+    }
+    return sum;
+  }, 0);
+
+  const monthlySavingsGoal = dailySavingsTarget * daysInMonth;
+  const monthlySavingsActual = income - monthlyExpenses;
+  const formattedMonthlyGoal = monthlySavingsGoal.toFixed(2);
+  const formattedMonthlyActual = monthlySavingsActual.toFixed(2);
+  const formattedDailyTarget = dailySavingsTarget.toFixed(2);
+  const rawRemainingToGoal = monthlySavingsGoal - monthlySavingsActual;
+  const rawSurplusToGoal = monthlySavingsActual - monthlySavingsGoal;
+  const isMonthlyGoalMet = rawSurplusToGoal >= 0;
+  const formattedRemainingToGoal = rawRemainingToGoal > 0 ? rawRemainingToGoal.toFixed(2) : '0.00';
+  const formattedSurplusToGoal = rawSurplusToGoal > 0 ? rawSurplusToGoal.toFixed(2) : '0.00';
 
   // --- Categories array now uses React Icons ---
   const categories = [
@@ -129,12 +175,90 @@ const Expenses = ({ addXP }) => {
   };
 
   const handleReset = () => {
-    if (window.confirm('Are you sure you want to reset all data?')) {
-      setExpenses([]);
-      setIncome(0);
-      localStorage.removeItem('expenses');
-      localStorage.removeItem('income');
+    setIsResetConfirmOpen(true);
+  };
+
+  const confirmReset = () => {
+    setExpenses([]);
+    setIncome(0);
+    setDailySavingsTarget(0);
+    localStorage.removeItem('expenses');
+    localStorage.removeItem('income');
+    localStorage.removeItem('dailySavingsTarget');
+    setIsResetConfirmOpen(false);
+    showToast('info', {
+      title: 'Data reset',
+      description: 'Income, expenses, and savings target cleared.',
+      duration: 4000,
+    });
+  };
+
+  const cancelReset = () => {
+    setIsResetConfirmOpen(false);
+  };
+
+  const openIncomeModal = () => {
+    setIncomeInput(income ? income.toString() : '');
+    setIsIncomeModalOpen(true);
+  };
+
+  const closeIncomeModal = () => {
+    setIsIncomeModalOpen(false);
+    setIncomeInput('');
+  };
+
+  const handleIncomeSave = () => {
+    const parsed = Number.parseFloat(incomeInput);
+
+    if (!Number.isFinite(parsed) || parsed < 0) {
+      showToast('warning', {
+        title: 'Invalid income value',
+        description: 'Please enter a non-negative number for your income.',
+        duration: 4000,
+      });
+      return;
     }
+    setIncome(parsed);
+    localStorage.setItem('income', parsed.toString());
+    closeIncomeModal();
+
+    showToast('success', {
+      title: 'Income updated',
+      description: `New income set to ₹${parsed.toFixed(2)}.`,
+      duration: 4000,
+    });
+  };
+
+  const openTargetModal = () => {
+    setTargetInput(dailySavingsTarget ? dailySavingsTarget.toString() : '');
+    setIsTargetModalOpen(true);
+  };
+
+  const closeTargetModal = () => {
+    setIsTargetModalOpen(false);
+    setTargetInput('');
+  };
+
+  const handleTargetSave = () => {
+    const parsed = Number.parseFloat(targetInput);
+
+    if (!Number.isFinite(parsed) || parsed < 0) {
+      showToast('warning', {
+        title: 'Invalid savings target',
+        description: 'Please enter a non-negative number for your daily savings target.',
+        duration: 4000,
+      });
+      return;
+    }
+    setDailySavingsTarget(parsed);
+    localStorage.setItem('dailySavingsTarget', parsed.toString());
+    closeTargetModal();
+
+    showToast('success', {
+      title: 'Daily target updated',
+      description: `Your daily savings target is now ₹${parsed.toFixed(2)}.`,
+      duration: 4000,
+    });
   };
 
   const handleAddCustomCategory = () => {
@@ -149,7 +273,7 @@ const Expenses = ({ addXP }) => {
     // Check if user provided an icon name (basic check)
     if (newCategoryIcon.trim()) {
       // This is a simple way; a real app might use a dynamic import or mapping
-      newCategory.icon = <Icon name={newCategoryIcon.trim().toLowerCase()} size={32} color="#8B7FC7" />
+      newCategory.icon = <FiPackage size={32} color="#8B7FC7" />
     }
 
     const updatedCustomCategories = [...customCategories, newCategory];
@@ -188,49 +312,43 @@ const Expenses = ({ addXP }) => {
 
   // --- NEW: Function to check monthly savings and award XP ---
   const handleCheckMonthlySavings = () => {
-    const today = new Date();
-    const currentMonth = today.getMonth();
-    const currentYear = today.getFullYear();
-    const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
-
-    // 1. Calculate total expenses for the *current* month
-    const monthlyExpenses = expenses
-      .filter(exp => {
-        const expDate = new Date(exp.date);
-        return expDate.getMonth() === currentMonth && expDate.getFullYear() === currentYear;
-      })
-      .reduce((sum, exp) => sum + exp.amount, 0);
-
-    // 2. Calculate savings goal and actual savings
-    const actualSavings = income - monthlyExpenses;
-    const goalSavings = dailySavingsTarget * daysInMonth;
-    const bonusXP = 500; // Large bonus for a monthly goal
-    
-    // 3. Check if bonus was already awarded this month
     const bonusFlagKey = `monthlySavingsBonus_${currentYear}_${currentMonth}`;
     const alreadyAwarded = localStorage.getItem(bonusFlagKey);
+    const formattedActual = monthlySavingsActual.toFixed(2);
+    const formattedGoal = monthlySavingsGoal.toFixed(2);
 
     if (alreadyAwarded) {
-      alert("You've already claimed this month's savings bonus! Keep up the great work.");
+      showToast('info', {
+        title: 'Bonus already claimed',
+        description: `Great job! You've already claimed this month's reward. Monthly savings: ₹${formattedActual}.`,
+        duration: 5000,
+      });
       return;
     }
 
-    // 4. Check if goal was met
-    if (actualSavings >= goalSavings) {
+    if (monthlySavingsActual >= monthlySavingsGoal) {
       if (addXP) {
-        addXP('monthlySavingsGoal', bonusXP);
-        localStorage.setItem(bonusFlagKey, 'true'); // Set flag
-        setSuccessMessage(`Goal Met! You saved ₹${actualSavings.toFixed(2)} and earned ${bonusXP} XP!`);
-        setShowSuccessPopup(true);
-        setTimeout(() => setShowSuccessPopup(false), 4000);
+        addXP('monthlySavingsGoal', 500);
+        localStorage.setItem(bonusFlagKey, 'true');
+        showToast('success', {
+          title: 'Monthly goal achieved! 🎉',
+          description: `You saved ₹${formattedActual} this month and earned 500 XP. Keep building that momentum!`,
+          duration: 6000,
+        });
       } else {
-        console.warn('addXP function not passed to Expenses component.');
-        alert('Goal Met! (XP not added - function missing)');
+        showToast('info', {
+          title: 'Monthly goal achieved!',
+          description: `You saved ₹${formattedActual} this month. (XP reward unavailable in this context)`,
+          duration: 6000,
+        });
       }
     } else {
-      // Goal not met
-      const needed = (goalSavings - actualSavings).toFixed(2);
-      alert(`You've saved ₹${actualSavings.toFixed(2)} this month. Keep going! You need to save ₹${needed} more to hit your target of ₹${goalSavings.toFixed(2)}.`);
+      const needed = (monthlySavingsGoal - monthlySavingsActual).toFixed(2);
+      showToast('warning', {
+        title: 'Keep going!',
+        description: `Monthly savings so far: ₹${formattedActual}. You need ₹${needed} more to reach ₹${formattedGoal}.`,
+        duration: 6000,
+      });
     }
   };
 
@@ -271,8 +389,112 @@ const Expenses = ({ addXP }) => {
       .slice(0, 7);
   };
 
-
   const viewOptions = ['Day', 'Week', 'Month', 'Year'];
+
+  const sortedExpenses = useMemo(() => {
+    return [...expenses].sort((a, b) => new Date(b.date) - new Date(a.date));
+  }, [expenses]);
+
+  const buildGoalToastPayload = useCallback(() => {
+    const statusLine = isMonthlyGoalMet
+      ? `Surplus ₹${formattedSurplusToGoal}`
+      : `Need ₹${formattedRemainingToGoal} more`;
+
+    return {
+      title: `${monthLabel} savings progress`,
+      description: `Target: ₹${formattedMonthlyGoal} • Saved: ₹${formattedMonthlyActual} • ${statusLine}`,
+      duration: 5000,
+    };
+  }, [formattedMonthlyActual, formattedMonthlyGoal, formattedRemainingToGoal, formattedSurplusToGoal, isMonthlyGoalMet, monthLabel]);
+
+  useEffect(() => {
+    const snapshot = `${formattedMonthlyGoal}-${formattedMonthlyActual}-${isMonthlyGoalMet}`;
+
+    if (lastGoalSnapshotRef.current === snapshot) {
+      return;
+    }
+
+    lastGoalSnapshotRef.current = snapshot;
+
+    if (goalToastRef.current?.dismiss) {
+      goalToastRef.current.dismiss();
+    }
+
+    goalToastRef.current = showToast(
+      isMonthlyGoalMet ? 'success' : 'info',
+      buildGoalToastPayload()
+    );
+  }, [buildGoalToastPayload, formattedMonthlyActual, formattedMonthlyGoal, isMonthlyGoalMet]);
+
+  useEffect(() => {
+    return () => {
+      if (goalToastRef.current?.dismiss) {
+        goalToastRef.current.dismiss();
+      }
+    };
+  }, []);
+
+  const openExpenseEditModal = (expense) => {
+    setEditingExpense(expense);
+    setExpenseEditAmount(expense.amount.toString());
+    setExpenseEditNotes(expense.notes || '');
+    setExpenseEditDate(expense.date || new Date().toISOString().split('T')[0]);
+  };
+
+  const closeExpenseEditModal = () => {
+    setEditingExpense(null);
+    setExpenseEditAmount('');
+    setExpenseEditNotes('');
+    setExpenseEditDate(new Date().toISOString().split('T')[0]);
+  };
+
+  const handleExpenseUpdate = () => {
+    if (!editingExpense) return;
+
+    const parsed = Number.parseFloat(expenseEditAmount);
+    if (!Number.isFinite(parsed) || parsed < 0) {
+      showToast('warning', {
+        title: 'Invalid expense amount',
+        description: 'Please enter a non-negative number for the expense.',
+        duration: 4000,
+      });
+      return;
+    }
+
+    const updatedExpense = {
+      ...editingExpense,
+      amount: parsed,
+      notes: expenseEditNotes,
+      date: expenseEditDate,
+    };
+
+    const updatedExpenses = expenses.map((exp) =>
+      exp.id === updatedExpense.id ? updatedExpense : exp
+    );
+
+    setExpenses(updatedExpenses);
+    localStorage.setItem('expenses', JSON.stringify(updatedExpenses));
+
+    showToast('success', {
+      title: 'Expense updated',
+      description: `${editingExpense.categoryName} now totals ₹${parsed.toFixed(2)}.`,
+      duration: 4000,
+    });
+
+    closeExpenseEditModal();
+  };
+
+  const handleExpenseDelete = (expense) => {
+    const updatedExpenses = expenses.filter((exp) => exp.id !== expense.id);
+    setExpenses(updatedExpenses);
+    localStorage.setItem('expenses', JSON.stringify(updatedExpenses));
+
+    showToast('info', {
+      title: 'Expense removed',
+      description: `${expense.categoryName} entry deleted.`,
+      duration: 4000,
+    });
+  };
 
   return (
     <div style={{
@@ -441,13 +663,7 @@ const Expenses = ({ addXP }) => {
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              onClick={() => {
-                const newIncome = prompt('Enter your income:', income);
-                if (newIncome && !isNaN(newIncome)) {
-                  setIncome(parseFloat(newIncome));
-                  localStorage.setItem('income', newIncome);
-                }
-              }}
+              onClick={openIncomeModal}
               style={{
                 marginTop: '8px',
                 padding: '6px 12px',
@@ -486,6 +702,34 @@ const Expenses = ({ addXP }) => {
             }}>
               ₹{getTotalExpense().toFixed(2)}
             </div>
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => {
+                if (sortedExpenses.length > 0) {
+                  openExpenseEditModal(sortedExpenses[0]);
+                } else {
+                  showToast('info', {
+                    title: 'No expenses yet',
+                    description: 'Add an expense before attempting to update it.',
+                    duration: 4000,
+                  });
+                }
+              }}
+              style={{
+                marginTop: '8px',
+                padding: '6px 12px',
+                borderRadius: '8px',
+                border: 'none',
+                background: '#8B7FC7',
+                color: '#fff',
+                fontSize: '0.7rem',
+                fontWeight: '600',
+                cursor: 'pointer',
+              }}
+            >
+              Update
+            </motion.button>
           </div>
 
           <div style={{
@@ -695,6 +939,125 @@ const Expenses = ({ addXP }) => {
         
       </motion.div>
 
+      {/* Recent expenses list */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.4 }}
+        style={{
+          background: 'rgba(139, 127, 199, 0.08)',
+          borderRadius: '16px',
+          padding: '16px',
+          border: '2px solid rgba(139, 127, 199, 0.2)',
+          marginBottom: '16px',
+        }}
+      >
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: '12px',
+        }}>
+          <h2 style={{
+            fontSize: '1.1rem',
+            fontWeight: '700',
+            color: '#2D3748',
+            margin: 0,
+          }}>
+            Recent Expenses
+          </h2>
+          <span style={{ fontSize: '0.75rem', color: '#718096' }}>
+            {sortedExpenses.length} entries
+          </span>
+        </div>
+
+        {sortedExpenses.length === 0 ? (
+          <div style={{
+            textAlign: 'center',
+            padding: '32px 16px',
+            color: '#718096',
+            fontSize: '0.9rem',
+          }}>
+            No recorded expenses yet. Tap a category to add your first entry.
+          </div>
+        ) : (
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '12px',
+          }}>
+            {sortedExpenses.slice(0, 8).map((expense) => (
+              <motion.div
+                key={expense.id}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  background: 'rgba(255, 255, 255, 0.95)',
+                  borderRadius: '12px',
+                  padding: '12px 16px',
+                  border: '1px solid rgba(139, 127, 199, 0.2)',
+                }}
+              >
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    fontWeight: 600,
+                    color: '#2D3748',
+                  }}>
+                    <span>{expense.categoryName}</span>
+                    <span style={{ color: '#8B7FC7' }}>₹{expense.amount.toFixed(2)}</span>
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: '#718096' }}>
+                    {new Date(expense.date).toLocaleDateString()} • {expense.notes || 'No notes'}
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => openExpenseEditModal(expense)}
+                    style={{
+                      padding: '6px 10px',
+                      borderRadius: '8px',
+                      border: 'none',
+                      background: '#8B7FC7',
+                      color: '#fff',
+                      fontSize: '0.7rem',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Edit
+                  </motion.button>
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => handleExpenseDelete(expense)}
+                    style={{
+                      padding: '6px 10px',
+                      borderRadius: '8px',
+                      border: 'none',
+                      background: '#EF4444',
+                      color: '#fff',
+                      fontSize: '0.7rem',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Delete
+                  </motion.button>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        )}
+      </motion.div>
+
       {/* --- UPDATED: Daily Savings Target --- */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -729,13 +1092,7 @@ const Expenses = ({ addXP }) => {
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              onClick={() => {
-                const newTarget = prompt('Set daily savings target:', dailySavingsTarget);
-                if (newTarget && !isNaN(newTarget)) {
-                  setDailySavingsTarget(parseFloat(newTarget));
-                  localStorage.setItem('dailySavingsTarget', newTarget);
-                }
-              }}
+              onClick={openTargetModal}
               style={{
                 padding: '6px 14px',
                 borderRadius: '8px',
@@ -781,17 +1138,33 @@ const Expenses = ({ addXP }) => {
           <div style={{
             fontSize: '2rem',
             fontWeight: '700',
-            color: '#8B7FC7',
-            marginBottom: '8px',
+            color: isMonthlyGoalMet ? '#10B981' : '#8B7FC7',
+            marginBottom: '4px',
           }}>
-            ₹{dailySavingsTarget.toFixed(2)}
-            <span style={{fontSize: '0.9rem', color: '#718096', fontWeight: '500', marginLeft: '8px'}}>/ per day</span>
+            ₹{formattedMonthlyActual}
+            <span style={{fontSize: '0.9rem', color: '#718096', fontWeight: '500', marginLeft: '8px'}}>/ per month</span>
           </div>
-          {/* This message is now controlled by the success popup */}
+          <div style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: '12px',
+            fontSize: '0.85rem',
+            color: '#4B5563',
+          }}>
+            <div>
+              Daily target: <strong>₹{formattedDailyTarget}</strong>
+            </div>
+            <div>
+              Goal ({monthLabel}): <strong>₹{formattedMonthlyGoal}</strong>
+            </div>
+            <div style={{ color: isMonthlyGoalMet ? '#10B981' : '#EF4444', fontWeight: 600 }}>
+              {isMonthlyGoalMet
+                ? `Surplus: ₹${formattedSurplusToGoal}`
+                : `Remaining: ₹${formattedRemainingToGoal}`}
+            </div>
+          </div>
         </div>
       </motion.div>
-
-      {/* (All Modals and Style/StyleSheet tags are unchanged from here down) */}
 
       {/* Add Custom Category Modal */}
       <AnimatePresence>
@@ -936,6 +1309,507 @@ const Expenses = ({ addXP }) => {
                 >
                   Add Category
                 </motion.button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Income modal */}
+      <AnimatePresence>
+        {isIncomeModalOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: 'rgba(0, 0, 0, 0.5)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 1000,
+              backdropFilter: 'blur(4px)',
+              padding: '20px',
+            }}
+            onClick={closeIncomeModal}
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                background: 'rgba(255, 255, 255, 0.98)',
+                borderRadius: '24px',
+                padding: '30px',
+                maxWidth: '400px',
+                width: '100%',
+                boxShadow: '0 20px 60px rgba(0, 0, 0, 0.15)',
+                border: '2px solid rgba(139, 127, 199, 0.2)',
+              }}
+            >
+              <h3 style={{
+                fontSize: '1.5rem',
+                fontWeight: '700',
+                color: '#2D3748',
+                marginBottom: '20px',
+              }}>
+                Update Monthly Income
+              </h3>
+
+              <div style={{ marginBottom: '24px' }}>
+                <label style={{
+                  display: 'block',
+                  fontSize: '0.9rem',
+                  fontWeight: '600',
+                  color: '#4B5563',
+                  marginBottom: '8px',
+                }}>
+                  Income Amount
+                </label>
+                <input
+                  type="number"
+                  value={incomeInput}
+                  onChange={(e) => setIncomeInput(e.target.value)}
+                  placeholder="0.00"
+                  style={{
+                    width: '100%',
+                    padding: '12px 16px',
+                    borderRadius: '12px',
+                    border: '2px solid rgba(139, 127, 199, 0.2)',
+                    background: 'rgba(255, 255, 255, 0.8)',
+                    color: '#2D3748',
+                    fontSize: '1rem',
+                    outline: 'none',
+                    fontFamily: 'inherit',
+                  }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={closeIncomeModal}
+                  style={{
+                    padding: '10px 20px',
+                    borderRadius: '12px',
+                    border: '2px solid rgba(139, 127, 199, 0.3)',
+                    background: 'transparent',
+                    color: '#718096',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Cancel
+                </motion.button>
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={handleIncomeSave}
+                  style={{
+                    padding: '10px 24px',
+                    borderRadius: '12px',
+                    border: 'none',
+                    background: 'linear-gradient(135deg, #8B7FC7, #A78BFA)',
+                    color: '#fff',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    boxShadow: '0 4px 12px rgba(139, 127, 199, 0.3)',
+                  }}
+                >
+                  Save
+                </motion.button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Target modal */}
+      <AnimatePresence>
+        {isTargetModalOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: 'rgba(0, 0, 0, 0.5)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 1000,
+              backdropFilter: 'blur(4px)',
+              padding: '20px',
+            }}
+            onClick={closeTargetModal}
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                background: 'rgba(255, 255, 255, 0.98)',
+                borderRadius: '24px',
+                padding: '30px',
+                maxWidth: '400px',
+                width: '100%',
+                boxShadow: '0 20px 60px rgba(0, 0, 0, 0.15)',
+                border: '2px solid rgba(139, 127, 199, 0.2)',
+              }}
+            >
+              <h3 style={{
+                fontSize: '1.5rem',
+                fontWeight: '700',
+                color: '#2D3748',
+                marginBottom: '20px',
+              }}>
+                Set Daily Savings Target
+              </h3>
+
+              <div style={{ marginBottom: '24px' }}>
+                <label style={{
+                  display: 'block',
+                  fontSize: '0.9rem',
+                  fontWeight: '600',
+                  color: '#4B5563',
+                  marginBottom: '8px',
+                }}>
+                  Target Amount
+                </label>
+                <input
+                  type="number"
+                  value={targetInput}
+                  onChange={(e) => setTargetInput(e.target.value)}
+                  placeholder="0.00"
+                  style={{
+                    width: '100%',
+                    padding: '12px 16px',
+                    borderRadius: '12px',
+                    border: '2px solid rgba(139, 127, 199, 0.2)',
+                    background: 'rgba(255, 255, 255, 0.8)',
+                    color: '#2D3748',
+                    fontSize: '1rem',
+                    outline: 'none',
+                    fontFamily: 'inherit',
+                  }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={closeTargetModal}
+                  style={{
+                    padding: '10px 20px',
+                    borderRadius: '12px',
+                    border: '2px solid rgba(139, 127, 199, 0.3)',
+                    background: 'transparent',
+                    color: '#718096',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Cancel
+                </motion.button>
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={handleTargetSave}
+                  style={{
+                    padding: '10px 24px',
+                    borderRadius: '12px',
+                    border: 'none',
+                    background: 'linear-gradient(135deg, #8B7FC7, #A78BFA)',
+                    color: '#fff',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    boxShadow: '0 4px 12px rgba(139, 127, 199, 0.3)',
+                  }}
+                >
+                  Save
+                </motion.button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Expense edit modal */}
+      <AnimatePresence>
+        {editingExpense && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: 'rgba(0, 0, 0, 0.5)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 1000,
+              backdropFilter: 'blur(4px)',
+              padding: '20px',
+            }}
+            onClick={closeExpenseEditModal}
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                background: 'rgba(255, 255, 255, 0.98)',
+                borderRadius: '24px',
+                padding: '30px',
+                maxWidth: '450px',
+                width: '100%',
+                boxShadow: '0 20px 60px rgba(0, 0, 0, 0.15)',
+                border: '2px solid rgba(139, 127, 199, 0.2)',
+              }}
+            >
+              <h3 style={{
+                fontSize: '1.5rem',
+                fontWeight: '700',
+                color: '#2D3748',
+                marginBottom: '20px',
+              }}>
+                Edit Expense
+              </h3>
+
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{
+                  display: 'block',
+                  fontSize: '0.9rem',
+                  fontWeight: '600',
+                  color: '#4B5563',
+                  marginBottom: '8px',
+                }}>
+                  Amount
+                </label>
+                <input
+                  type="number"
+                  value={expenseEditAmount}
+                  onChange={(e) => setExpenseEditAmount(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '12px 16px',
+                    borderRadius: '12px',
+                    border: '2px solid rgba(139, 127, 199, 0.2)',
+                    background: 'rgba(255, 255, 255, 0.8)',
+                    color: '#2D3748',
+                    fontSize: '1rem',
+                    outline: 'none',
+                    fontFamily: 'inherit',
+                  }}
+                />
+              </div>
+
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{
+                  display: 'block',
+                  fontSize: '0.9rem',
+                  fontWeight: '600',
+                  color: '#4B5563',
+                  marginBottom: '8px',
+                }}>
+                  Notes
+                </label>
+                <textarea
+                  value={expenseEditNotes}
+                  onChange={(e) => setExpenseEditNotes(e.target.value)}
+                  rows={3}
+                  style={{
+                    width: '100%',
+                    padding: '12px 16px',
+                    borderRadius: '12px',
+                    border: '2px solid rgba(139, 127, 199, 0.2)',
+                    background: 'rgba(255, 255, 255, 0.8)',
+                    color: '#2D3748',
+                    fontSize: '0.95rem',
+                    outline: 'none',
+                    resize: 'vertical',
+                    fontFamily: 'inherit',
+                  }}
+                />
+              </div>
+
+              <div style={{ marginBottom: '24px' }}>
+                <label style={{
+                  display: 'block',
+                  fontSize: '0.9rem',
+                  fontWeight: '600',
+                  color: '#4B5563',
+                  marginBottom: '8px',
+                }}>
+                  Date
+                </label>
+                <input
+                  type="date"
+                  value={expenseEditDate}
+                  onChange={(e) => setExpenseEditDate(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '12px 16px',
+                    borderRadius: '12px',
+                    border: '2px solid rgba(139, 127, 199, 0.2)',
+                    background: 'rgba(255, 255, 255, 0.8)',
+                    color: '#2D3748',
+                    fontSize: '0.95rem',
+                    outline: 'none',
+                    fontFamily: 'inherit',
+                  }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={closeExpenseEditModal}
+                  style={{
+                    padding: '10px 20px',
+                    borderRadius: '12px',
+                    border: '2px solid rgba(139, 127, 199, 0.3)',
+                    background: 'transparent',
+                    color: '#718096',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Cancel
+                </motion.button>
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={handleExpenseUpdate}
+                  style={{
+                    padding: '10px 24px',
+                    borderRadius: '12px',
+                    border: 'none',
+                    background: 'linear-gradient(135deg, #8B7FC7, #A78BFA)',
+                    color: '#fff',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    boxShadow: '0 4px 12px rgba(139, 127, 199, 0.3)',
+                  }}
+                >
+                  Save Changes
+                </motion.button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Reset confirmation modal */}
+      <AnimatePresence>
+        {isResetConfirmOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: 'rgba(0, 0, 0, 0.5)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 1000,
+              backdropFilter: 'blur(4px)',
+              padding: '20px',
+            }}
+            onClick={cancelReset}
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                background: 'rgba(255, 255, 255, 0.98)',
+                borderRadius: '24px',
+                padding: '30px',
+                maxWidth: '420px',
+                width: '100%',
+                boxShadow: '0 20px 60px rgba(0, 0, 0, 0.15)',
+                border: '2px solid rgba(139, 127, 199, 0.2)',
+              }}
+            >
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '16px',
+              }}>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  color: '#EF4444',
+                  fontWeight: 600,
+                }}>
+                  <FiAlertTriangle size={20} />
+                  <span>Reset financial data?</span>
+                </div>
+                <p style={{ margin: 0, fontSize: '0.95rem', color: '#4B5563', lineHeight: 1.5 }}>
+                  This will clear all recorded expenses, income, and your savings target. You can't undo this action. Are you sure you want to reset your financial data?
+                </p>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={cancelReset}
+                    style={{
+                      padding: '10px 20px',
+                      borderRadius: '12px',
+                      border: '2px solid rgba(139, 127, 199, 0.3)',
+                      background: 'transparent',
+                      color: '#718096',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Cancel
+                  </motion.button>
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={confirmReset}
+                    style={{
+                      padding: '10px 24px',
+                      borderRadius: '12px',
+                      border: 'none',
+                      background: 'linear-gradient(135deg, #EF4444, #F97316)',
+                      color: '#fff',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      boxShadow: '0 4px 12px rgba(239, 68, 68, 0.3)',
+                    }}
+                  >
+                    Reset
+                  </motion.button>
+                </div>
               </div>
             </motion.div>
           </motion.div>
@@ -1124,65 +1998,6 @@ const Expenses = ({ addXP }) => {
                 </motion.button>
               </div>
             </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Success Popup */}
-      <AnimatePresence>
-        {showSuccessPopup && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.8, y: 50 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.8, y: 50 }}
-            style={{
-              position: 'fixed',
-              bottom: '30px',
-              right: '30px',
-              background: 'linear-gradient(135deg, #10B981, #34D399)',
-              borderRadius: '20px',
-              padding: '24px 30px',
-              boxShadow: '0 12px 40px rgba(16, 185, 129, 0.4)',
-              zIndex: 1001,
-              maxWidth: '400px',
-            }}
-          >
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '16px',
-            }}>
-              <motion.div
-                animate={{
-                  scale: [1, 1.2, 1],
-                  rotate: [0, 10, -10, 0],
-                }}
-                transition={{
-                  duration: 0.6,
-                  repeat: Infinity,
-                  repeatDelay: 2,
-                }}
-                style={{}}
-              >
-                <FiAward size={48} color="#fff" />
-              </motion.div>
-              <div>
-                <div style={{
-                  fontSize: '1.2rem',
-                  fontWeight: '700',
-                  color: '#fff',
-                  marginBottom: '4px',
-                }}>
-                  Savings Goal Achieved!
-                </div>
-                <div style={{
-                  fontSize: '0.95rem',
-                  color: 'rgba(255, 255, 255, 0.9)',
-                }}>
-                  {successMessage || "Great job! Keep up the excellent work!"}
-                </div>
-              </div>
-            </div>
           </motion.div>
         )}
       </AnimatePresence>
