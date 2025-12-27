@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import axios from "axios";
 import { useTheme } from "./ThemeContext";
+import { useXPContext } from "./contexts/XPContext";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "./firebase";
 import { Target, CheckCircle2, Circle, Trash2, Plus, Sparkles, Dumbbell, Droplet, Brain, Moon, Calendar, Save, FileText, Star, Zap, Rocket, Lightbulb, Flame, Music, Book, Laptop, Palette, AlertTriangle } from "lucide-react";
@@ -1167,7 +1168,26 @@ const ConfirmationModal = ({ isOpen, onClose, onConfirm, title, message, confirm
 function Dashboard({ user, setUser, token }) {
   // ... (Code for Dashboard logic remains the same)
   const { theme: palette, isDark } = useTheme();
-  const [userStats, setUserStats] = useState({ level: 1, xp: 0, streak: 0, tasksCompleted: 0, skillsUnlocked: 0, mindfulMinutes: 0 });
+  const {
+    xp,
+    level,
+    streak,
+    tasksCompleted,
+    todayXP = 0,
+    addXP: addXPFromContext,
+    isLoading: isLoadingXP,
+    error: xpError
+  } = useXPContext();
+  const [userStatsExtras, setUserStatsExtras] = useState({ skillsUnlocked: 0, mindfulMinutes: 0, totalCalories: 0 });
+  const setUserStats = setUserStatsExtras;
+  const userStats = useMemo(() => ({
+    ...userStatsExtras,
+    xp: xp ?? 0,
+    level: level ?? 1,
+    streak: streak ?? 0,
+    tasksCompleted: tasksCompleted ?? 0,
+    todayXP: todayXP ?? 0
+  }), [userStatsExtras, xp, level, streak, tasksCompleted, todayXP]);
   // Load activeSection from localStorage
   const [activeSection, setActiveSection] = useState(() => {
     try {
@@ -1340,13 +1360,6 @@ function Dashboard({ user, setUser, token }) {
     return tasks.reduce((total, task) => total + (task.xp || 0), 0);
   };
 
-  // Get today's earned XP
-  const getTodayXP = () => {
-    const today = new Date().toISOString().split('T')[0];
-    const dailyXPData = JSON.parse(localStorage.getItem('dailyXP') || '{}');
-    return dailyXPData[today] || 0;
-  };
-
   // Clean up old daily XP data (keep only last 7 days)
   useEffect(() => {
     const today = new Date();
@@ -1373,134 +1386,98 @@ function Dashboard({ user, setUser, token }) {
   useEffect(() => {
     loadDailyProgress(); 
     loadOverallProgress();
-    // Simulate user stats fetching if token is present, otherwise load from local storage
+    // Update supplemental stats from local storage
     const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
-    setUserStats({
-      level: storedUser.level || 1, xp: storedUser.xp || 0, streak: storedUser.streak || 0,
-      tasksCompleted: storedUser.tasksCompleted || 0, skillsUnlocked: 0, mindfulMinutes: 0
-    });
+    setUserStatsExtras(prev => ({
+      ...prev,
+      skillsUnlocked: storedUser.skillsUnlocked || 0,
+      mindfulMinutes: storedUser.mindfulMinutes || 0
+    }));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, token]); 
 
   // --- addXP Function (Kept logic) ---
   const addXP = async (taskId, xpToAdd, clickPosition = { x: window.innerWidth / 2, y: window.innerHeight / 2 }) => {
-    const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
+    const currentTodayXP = todayXP ?? 0;
 
-    // Check daily XP limit
-    const today = new Date().toISOString().split('T')[0];
-    const dailyXPData = JSON.parse(localStorage.getItem('dailyXP') || '{}');
-    const todayXP = dailyXPData[today] || 0;
-    
-    if (todayXP + xpToAdd > 100) {
+    if (currentTodayXP + xpToAdd > 100) {
       setToast({ 
-        message: `Daily XP limit reached! You've earned ${todayXP}/100 XP today. Come back tomorrow!`, 
+        message: `Daily XP limit reached! You've earned ${currentTodayXP}/100 XP today. Come back tomorrow!`, 
         type: 'error' 
       });
       setTimeout(() => setToast(null), 4000);
       return;
     }
 
-    const baseXp = typeof storedUser.xp === 'number' ? storedUser.xp : userStats.xp || 0;
-    const baseLevel = storedUser.level || userStats.level || 1;
-    const baseTasksCompleted = typeof storedUser.tasksCompleted === 'number'
-      ? storedUser.tasksCompleted
-      : userStats.tasksCompleted || 0;
+    try {
+      const result = await addXPFromContext(xpToAdd, taskId);
 
-    let finalXp = baseXp + xpToAdd;
-    let finalLevel = Math.floor(finalXp / 100) + 1;
-    let finalTasksCompleted = baseTasksCompleted + 1;
-
-    // API call logic removed for brevity but kept in principle 
-    // to focus on frontend changes.
-
-    const leveledUp = finalLevel > baseLevel;
-
-    const firebaseUid = user?.uid || storedUser.uid || storedUser.id || storedUser._id || user?._id || user?.id || null;
-    const resolvedEmail = user?.email || storedUser.email || '';
-    const resolvedName = user?.displayName || storedUser.name || storedUser.username || resolvedEmail.split('@')[0] || 'Explorer';
-    const resolvedStreak = typeof storedUser.streak === 'number' ? storedUser.streak : userStats.streak || 0;
-
-    const updatedUser = {
-      ...storedUser,
-      uid: firebaseUid || storedUser.uid,
-      id: firebaseUid || storedUser.id,
-      _id: storedUser._id || user?._id,
-      email: resolvedEmail,
-      name: resolvedName,
-      xp: finalXp,
-      level: finalLevel,
-      tasksCompleted: finalTasksCompleted,
-      streak: resolvedStreak,
-    };
-
-    localStorage.setItem('user', JSON.stringify(updatedUser));
-    
-    // Update daily XP tracking
-    dailyXPData[today] = todayXP + xpToAdd;
-    localStorage.setItem('dailyXP', JSON.stringify(dailyXPData));
-    
-    if (setUser) {
-      setUser(updatedUser);
-    }
-
-    setUserStats((prev) => ({
-      ...(prev || {}),
-      xp: finalXp,
-      level: finalLevel,
-      tasksCompleted: finalTasksCompleted,
-    }));
-
-    if (leveledUp) {
-      setToast({ message: `Level Up! Reached Level ${finalLevel}! ✨`, type: 'success' });
-    } else {
-      setToast({ message: `+${xpToAdd} XP Gained!`, type: 'success' });
-    }
-    setTimeout(() => setToast(null), 3000);
-
-    setRoadmapAnimation(true);
-    setTimeout(() => setRoadmapAnimation(false), 2000);
-
-    const animationId = Date.now();
-    const newAnimation = { id: animationId, xp: xpToAdd, x: clickPosition.x - 30, y: clickPosition.y - 30 };
-    setXpAnimations((prev) => [...prev, newAnimation]);
-    setTimeout(() => setXpAnimations((prev) => prev.filter((anim) => anim.id !== animationId)), 2500);
-
-    setTaskXP((prev) => {
-      const newTaskXP = { ...prev, [taskId]: (prev[taskId] || 0) + 1 };
-      const uniqueCount = Object.keys(newTaskXP).filter(id => tasks.some(t => t.id === id && (newTaskXP[id] || 0) > 0)).length;
-      setDailyProgress(uniqueCount);
-      saveDailyTaskStatus(newTaskXP);
-      return newTaskXP;
-    });
-
-    setOverallTaskXP((prev) => {
-      const updated = { ...prev, [taskId]: (prev[taskId] || 0) + 1 };
-      const uniqueTasks = Object.keys(updated).length;
-      const totalCompletions = Object.values(updated).reduce((sum, count) => sum + (count || 0), 0);
-      setOverallStats({ totalCompletions, uniqueTasks });
-      saveOverallTaskStatus(updated);
-      return updated;
-    });
-
-    if (firebaseUid) {
-      try {
-        await setDoc(
-          doc(db, 'users', firebaseUid),
-          {
-            name: resolvedName,
-            email: resolvedEmail,
-            xp: finalXp,
-            level: finalLevel,
-            tasksCompleted: finalTasksCompleted,
-            streak: resolvedStreak,
-            last_updated: serverTimestamp(),
-            updatedAt: serverTimestamp(),
-          },
-          { merge: true }
-        );
-      } catch (firestoreError) {
-        console.error('Error syncing leaderboard to Firestore:', firestoreError);
+      if (result?.leveledUp) {
+        setToast({ message: `Level Up! Reached Level ${result.level}! ✨`, type: 'success' });
+      } else {
+        setToast({ message: `+${xpToAdd} XP Gained!`, type: 'success' });
       }
+      setTimeout(() => setToast(null), 3000);
+
+      setRoadmapAnimation(true);
+      setTimeout(() => setRoadmapAnimation(false), 2000);
+
+      const animationId = Date.now();
+      const newAnimation = { id: animationId, xp: xpToAdd, x: clickPosition.x - 30, y: clickPosition.y - 30 };
+      setXpAnimations((prev) => [...prev, newAnimation]);
+      setTimeout(() => setXpAnimations((prev) => prev.filter((anim) => anim.id !== animationId)), 2500);
+
+      setTaskXP((prev) => {
+        const newTaskXP = { ...prev, [taskId]: (prev[taskId] || 0) + 1 };
+        const uniqueCount = Object.keys(newTaskXP).filter(id => tasks.some(t => t.id === id && (newTaskXP[id] || 0) > 0)).length;
+        setDailyProgress(uniqueCount);
+        saveDailyTaskStatus(newTaskXP);
+        return newTaskXP;
+      });
+
+      setOverallTaskXP((prev) => {
+        const updated = { ...prev, [taskId]: (prev[taskId] || 0) + 1 };
+        const uniqueTasks = Object.keys(updated).length;
+        const totalCompletions = Object.values(updated).reduce((sum, count) => sum + (count || 0), 0);
+        setOverallStats({ totalCompletions, uniqueTasks });
+        saveOverallTaskStatus(updated);
+        return updated;
+      });
+
+      if (user) {
+        const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
+        const resolvedName = user?.displayName || storedUser.name || storedUser.username || user?.email?.split('@')[0] || 'Explorer';
+        const resolvedEmail = user?.email || storedUser.email || '';
+        const firebaseUid = user?.uid || storedUser.uid || storedUser.id || storedUser._id || user?._id || user?.id || null;
+
+        if (firebaseUid) {
+          try {
+            await setDoc(
+              doc(db, 'users', firebaseUid),
+              {
+                name: resolvedName,
+                email: resolvedEmail,
+                xp: result?.xp ?? xp,
+                level: result?.level ?? level,
+                tasksCompleted: result?.tasksCompleted ?? tasksCompleted,
+                streak: result?.streak ?? streak,
+                last_updated: serverTimestamp(),
+                updatedAt: serverTimestamp(),
+              },
+              { merge: true }
+            );
+          } catch (firestoreError) {
+            console.error('Error syncing XP to Firestore:', firestoreError);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error adding XP:', error);
+      setToast({
+        message: error.message || 'Failed to add XP. Please try again.',
+        type: 'error'
+      });
+      setTimeout(() => setToast(null), 3000);
     }
   };
 
@@ -1674,8 +1651,8 @@ function Dashboard({ user, setUser, token }) {
 
         {/* Welcome Header - Glassmorphism Refresh */}
         <motion.div
-          initial={{ opacity: 0, y: -30 }} 
-          animate={{ opacity: 1, y: 0 }} 
+          initial={{ opacity: 0, y: -30 }}
+          animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.2 }}
           className="welcome-header"
           style={{
@@ -1701,8 +1678,8 @@ function Dashboard({ user, setUser, token }) {
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.3 }}
                 style={{
-                  fontSize: "1.5rem", // Reduced font size
-                  fontWeight: "700",
+                  fontSize: "1.5rem", 
+                  fontWeight: "700", 
                   margin: 0,
                   color: pastelTheme.textPrimary,
                   letterSpacing: "-0.02em",
@@ -1751,7 +1728,8 @@ function Dashboard({ user, setUser, token }) {
                   display: "flex",
                   flexDirection: "column",
                   gap: "4px"
-                }}>
+                }}
+              >
                 <div style={{ fontSize: "0.7rem", color: "rgba(85, 73, 134, 0.78)", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.6px" }}>Level</div>
                 <div style={{ fontSize: "1.6rem", fontWeight: "800", color: "#6D28D9" }}>{userStats.level}</div>
               </motion.div>
@@ -1770,7 +1748,8 @@ function Dashboard({ user, setUser, token }) {
                   display: "flex",
                   flexDirection: "column",
                   gap: "4px"
-                }}>
+                }}
+              >
                 <div style={{ fontSize: "0.7rem", color: "rgba(50, 93, 112, 0.78)", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.6px" }}>Total XP</div>
                 <div style={{ fontSize: "1.6rem", fontWeight: "800", color: "#2563EB" }}>{userStats.xp}</div>
               </motion.div>
@@ -1780,27 +1759,27 @@ function Dashboard({ user, setUser, token }) {
                   minWidth: "160px",
                   padding: "16px 22px",
                   borderRadius: "18px",
-                  background: getTodayXP() >= 100
+                  background: (userStats.todayXP || 0) >= 100
                     ? "linear-gradient(160deg, rgba(255,220,224,0.48) 0%, rgba(255,209,213,0.22) 100%)"
                     : "linear-gradient(160deg, rgba(214,249,230,0.45) 0%, rgba(205,244,222,0.18) 100%)",
                   border: "1px solid rgba(255, 255, 255, 0.32)",
                   backdropFilter: "blur(8px)",
                   WebkitBackdropFilter: "blur(8px)",
-                  boxShadow: getTodayXP() >= 100
+                  boxShadow: (userStats.todayXP || 0) >= 100
                     ? "0 12px 28px rgba(239, 68, 68, 0.16)"
                     : "0 12px 28px rgba(16, 185, 129, 0.16)",
                   transition: "all 0.2s ease",
                   display: "flex",
                   flexDirection: "column",
                   gap: "4px"
-                }}>
-                <div style={{ fontSize: "0.7rem", color: getTodayXP() >= 100 ? "rgba(191, 56, 56, 0.78)" : "rgba(34, 115, 92, 0.78)", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.6px" }}>Today's XP</div>
-                <div style={{ fontSize: "1.6rem", fontWeight: "800", color: getTodayXP() >= 100 ? "#DC2626" : "#0EA5E9" }}>{getTodayXP()}/100</div>
+                }}
+              >
+                <div style={{ fontSize: "0.7rem", color: (userStats.todayXP || 0) >= 100 ? "rgba(191, 56, 56, 0.78)" : "rgba(34, 115, 92, 0.78)", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.6px" }}>Today's XP</div>
+                <div style={{ fontSize: "1.6rem", fontWeight: "800", color: (userStats.todayXP || 0) >= 100 ? "#DC2626" : "#0EA5E9" }}>{Math.min(userStats.todayXP || 0, 100)}/100</div>
               </motion.div>
             </div>
           </div>
         </motion.div>
-
         {/* Main Content Area */}
         <div style={{ height: "calc(100vh - 100px)", overflowY: "auto", overflowX: "hidden", position: "relative" }}>
           <div style={{ width: "100%", minHeight: "calc(100vh - 100px)", display: "flex", alignItems: "flex-start", justifyContent: "center", paddingTop: "0px", paddingBottom: "50px" }}>

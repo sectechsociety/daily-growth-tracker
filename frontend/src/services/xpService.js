@@ -17,7 +17,10 @@ class XPService {
           level: userData.level || 1,
           streak: userData.streak || 0,
           lastCompletedDate: userData.lastCompletedDate || '',
-          tasksCompleted: userData.tasksCompleted || 0
+          tasksCompleted: userData.tasksCompleted || 0,
+          skillsUnlocked: userData.skillsUnlocked || 0,
+          mindfulMinutes: userData.mindfulMinutes || 0,
+          todayXP: XPService.getTodayXP()
         };
       }
       
@@ -29,7 +32,10 @@ class XPService {
           level: localUser.level || 1,
           streak: localUser.streak || 0,
           lastCompletedDate: localUser.lastCompletedDate || '',
-          tasksCompleted: localUser.tasksCompleted || 0
+          tasksCompleted: localUser.tasksCompleted || 0,
+          skillsUnlocked: localUser.skillsUnlocked || 0,
+          mindfulMinutes: localUser.mindfulMinutes || 0,
+          todayXP: XPService.getTodayXP()
         };
       }
       
@@ -39,7 +45,10 @@ class XPService {
         level: 1,
         streak: 0,
         lastCompletedDate: '',
-        tasksCompleted: 0
+        tasksCompleted: 0,
+        skillsUnlocked: 0,
+        mindfulMinutes: 0,
+        todayXP: 0
       };
     } catch (error) {
       console.error('Error getting user XP:', error);
@@ -116,12 +125,15 @@ class XPService {
       // Update daily XP tracking
       dailyXPData[today] = todayXP + xpToAdd;
       localStorage.setItem('dailyXP', JSON.stringify(dailyXPData));
-      
+
+      const updatedTodayXP = dailyXPData[today] || 0;
+
       return {
         ...updateData,
         tasksCompleted: localUser.tasksCompleted,
         leveledUp,
-        previousLevel: currentLevel
+        previousLevel: currentLevel,
+        todayXP: updatedTodayXP
       };
       
     } catch (error) {
@@ -171,6 +183,25 @@ class XPService {
     } catch (error) {
       console.error('Error syncing XP:', error);
       throw error;
+    }
+  }
+
+  static getTodayXP() {
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const dailyXPData = JSON.parse(localStorage.getItem('dailyXP') || '{}');
+      const value = dailyXPData[today];
+      if (typeof value === 'number') {
+        return value;
+      }
+      if (typeof value === 'string') {
+        const parsed = Number.parseFloat(value);
+        return Number.isFinite(parsed) ? parsed : 0;
+      }
+      return 0;
+    } catch (error) {
+      console.error('Error reading today\'s XP:', error);
+      return 0;
     }
   }
 }

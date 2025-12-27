@@ -9,6 +9,7 @@ export const useXP = (user, setUser) => {
     tasksCompleted: 0,
     skillsUnlocked: 0,
     mindfulMinutes: 0,
+    todayXP: 0,
     isLoading: true,
     error: null
   });
@@ -24,7 +25,19 @@ export const useXP = (user, setUser) => {
                          null;
       
       if (!firebaseUid) {
-        throw new Error('User not authenticated');
+        const anonymousState = {
+          xp: 0,
+          level: 1,
+          streak: 0,
+          tasksCompleted: 0,
+          skillsUnlocked: 0,
+          mindfulMinutes: 0,
+          todayXP: 0,
+          isLoading: false,
+          error: null
+        };
+        setXPData(anonymousState);
+        return anonymousState;
       }
 
       // Sync with server and get latest data
@@ -38,6 +51,7 @@ export const useXP = (user, setUser) => {
         tasksCompleted: userData.tasksCompleted || 0,
         skillsUnlocked: userData.skillsUnlocked || 0,
         mindfulMinutes: userData.mindfulMinutes || 0,
+        todayXP: userData.todayXP || 0,
         isLoading: false,
         error: null
       };
@@ -48,7 +62,11 @@ export const useXP = (user, setUser) => {
       if (setUser) {
         setUser(prev => ({
           ...prev,
-          ...newXPData
+          xp: newXPData.xp,
+          level: newXPData.level,
+          streak: newXPData.streak,
+          tasksCompleted: newXPData.tasksCompleted,
+          todayXP: newXPData.todayXP
         }));
       }
       
@@ -87,6 +105,7 @@ export const useXP = (user, setUser) => {
         level: result.level,
         streak: result.streak,
         tasksCompleted: result.tasksCompleted || xpData.tasksCompleted,
+        todayXP: result.todayXP ?? xpData.todayXP,
         error: null
       };
       
@@ -96,7 +115,11 @@ export const useXP = (user, setUser) => {
       if (setUser) {
         setUser(prev => ({
           ...prev,
-          ...updatedData
+          xp: updatedData.xp,
+          level: updatedData.level,
+          streak: updatedData.streak,
+          tasksCompleted: updatedData.tasksCompleted,
+          todayXP: updatedData.todayXP
         }));
       }
       
